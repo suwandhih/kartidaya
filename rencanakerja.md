@@ -391,3 +391,72 @@ Secret** — aman untuk aplikasi yang seluruhnya jalan di browser.
    publik. User menyetujui karena aplikasi hanya dipakai sementara di GitHub;
    nanti akan dipindah ke hosting sendiri. Kalau perlu, pindahkan ke `seed.js`
    yang di-gitignore.
+
+---
+
+## 13. Status Terakhir & Langkah Berikutnya
+
+*Diperbarui: 4 November 2026, 23:26 WIB*
+
+### Yang sudah selesai
+
+- Aplikasi lengkap & berjalan (Fase 1, 2, 3)
+- Repo publik: <https://github.com/suwandhih/kartidaya>
+- Aplikasi live: <https://suwandhih.github.io/kartidaya/>
+- Google Cloud project `Kartidaya` + Gmail API aktif
+- OAuth Client ID dibuat, origin terdaftar:
+  - `https://suwandhih.github.io`
+  - `http://localhost:8080`
+- **Data Access sudah benar** — `gmail.send` (sensitive) + `gmail.readonly`
+  (restricted), tidak ada scope berbahaya
+
+### Yang belum selesai
+
+| # | Tugas | Keterangan |
+|---|---|---|
+| 1 | **Audience → Test users → Add users** | Masukkan `fotohotono03@gmail.com` lalu **Save**. Ini penyebab error `access_denied` |
+| 2 | Tempel Client ID di halaman Setelan | `205859365311-25o5qioqg7pddnoab91oe42q26teistt.apps.googleusercontent.com` |
+| 3 | Uji **Hubungkan Gmail** | Belum pernah berhasil |
+| 4 | Uji **kirim email sungguhan** | Belum pernah |
+| 5 | Uji **Sinkron Gmail** (tarik surat masuk) | Belum pernah |
+| 6 | Verifikasi deploy GitHub Pages | Tertunda karena gangguan GitHub |
+
+### Kendala saat ini
+
+**GitHub Actions & Pages sedang gangguan** (insiden resmi GitHub,
+<https://stspg.io/pjgptg3cfc6n>). Semua build Pages berhenti di status `queued`
+sejak commit `fa9084f`, sehingga perbaikan berikut **belum ter-deploy**:
+
+- `describeOAuthError()` — pesan error OAuth berisi langkah perbaikan
+- Toast error tampil 12 detik + bisa diklik untuk menutup
+- `.nojekyll` (agar Pages melewati Jekyll)
+
+Kode-nya sudah benar dan sudah ada di repo. Tinggal menunggu GitHub pulih, lalu
+picu build ulang:
+
+```powershell
+gh api -X POST repos/suwandhih/kartidaya/pages/builds
+```
+
+### Cara melanjutkan besok
+
+1. Cek apakah GitHub sudah pulih:
+   <https://www.githubstatus.com/>
+2. Kalau sudah, picu build ulang (perintah di atas), lalu verifikasi:
+   ```powershell
+   curl.exe -s "https://suwandhih.github.io/kartidaya/gmail.js" | Select-String "describeOAuthError"
+   ```
+3. **Bereskan Test users** (tugas #1 di atas) — ini yang menghambat
+4. Jalankan server lokal sebagai cadangan: `serve.bat` → <http://localhost:8080>
+5. Tempel Client ID → **Hubungkan Gmail**
+
+### Catatan penting
+
+- **Client Secret tidak dipakai** aplikasi ini. Alur token Google Identity
+  Services tidak memerlukan secret. Kalau secret pernah terlihat di screenshot,
+  boleh di-reset — tidak akan memengaruhi aplikasi.
+- **Token kedaluwarsa**: access token 1 jam, refresh token 7 hari (karena status
+  masih *Testing*). Kalau muncul *"Sesi Gmail kedaluwarsa"*, klik
+  **Hubungkan Gmail** lagi.
+- **Data donor ada di `app.js`** (`SEED_DONORS`) dan ikut ter-publish. Lihat
+  bagian 12 no. 8.
