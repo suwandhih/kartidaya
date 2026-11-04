@@ -763,12 +763,15 @@ function viewPengaturan(){
   '<div class="card">' +
     '<div class="card-head"><h2>Gmail</h2>' +
       '<span class="chip' + (st === 'connected' ? '' : ' plain') + '">' + label + '</span></div>' +
-    (Gmail.isLocalhost() ? '' :
-      '<div class="warnbox">Google menolak origin <b class="mono">' + esc(location.protocol + '//' + location.host) +
-      '</b>. Jalankan <b class="mono">serve.bat</b> lalu buka <b class="mono">http://localhost:8080/index.html</b>.</div>') +
+    (Gmail.isSecureOrigin() ? '' :
+      '<div class="warnbox">Google menolak origin <b class="mono">' + esc(Gmail.origin()) +
+      '</b>. Buka aplikasi lewat <b class="mono">https://</b> (GitHub Pages) atau ' +
+      '<b class="mono">http://localhost:8080</b> (jalankan <b class="mono">serve.bat</b>).</div>') +
     '<div class="field"><label>OAuth Client ID <span class="hint">— dari Google Cloud Console</span></label>' +
       '<input type="text" id="g-client" class="mono" placeholder="xxxxxxxx.apps.googleusercontent.com" value="' +
         esc(state.settings.gmailClientId) + '"></div>' +
+    '<p class="tiny muted">Daftarkan origin ini di Google Cloud Console → Credentials → ' +
+      'Authorized JavaScript origins:<br><b class="mono">' + esc(Gmail.origin()) + '</b></p>' +
     '<div class="btn-row">' +
       '<button class="btn primary" data-action="g-save">Simpan Client ID</button>' +
       '<button class="btn" data-action="g-connect">' + (st === 'connected' ? 'Hubungkan ulang' : 'Hubungkan Gmail') + '</button>' +

@@ -3,16 +3,28 @@
 Aplikasi ini bisa **kirim dan terima email sungguhan** lewat akun `@gmail.com`.
 Supaya bisa, ada 3 hal yang harus disiapkan:
 
-1. **Server lokal** — aplikasi harus dibuka lewat `http://localhost:8080`, bukan dobel-klik file HTML.
+1. **Alamat aplikasi yang aman** — `https://` (GitHub Pages) atau `http://localhost:8080`.
 2. **Google Cloud project + OAuth Client ID** — dibuat sekali oleh pemilik akun Gmail.
 3. **Hubungkan** di halaman Setelan aplikasi.
 
 > **Penting:** Google **menolak** aplikasi yang dibuka dengan `file:///C:/...`.
-> Karena itu wajib pakai `serve.bat`. Kalau tidak, tombol *Hubungkan Gmail* akan gagal.
+> Pakai salah satu:
+>
+> | Cara | Alamat | Perlu apa |
+> |---|---|---|
+> | **GitHub Pages** (paling mudah) | `https://suwandhih.github.io/kartidaya/` | tidak ada |
+> | **Server lokal** | `http://localhost:8080/index.html` | jalankan `serve.bat` |
 
 ---
 
-## Langkah 1 — Jalankan server lokal
+## Langkah 1 — Buka aplikasi
+
+### Cara A — GitHub Pages (disarankan)
+
+Buka **<https://suwandhih.github.io/kartidaya/>** di browser. Selesai.
+Bisa juga dibuka dari HP Android tanpa perlu PC menyala.
+
+### Cara B — Server lokal
 
 1. Buka folder `C:\data\Kartidaya`
 2. Dobel-klik **`serve.bat`**
@@ -22,12 +34,12 @@ Supaya bisa, ada 3 hal yang harus disiapkan:
 Kalau muncul pesan *"Python tidak ditemukan"*, install Python 3 dari
 <https://www.python.org/downloads/> (centang **Add Python to PATH**), lalu ulangi.
 
-**Untuk HP Android:** sambungkan HP ke Wi-Fi yang sama dengan PC, cari IP PC
-(`ipconfig` → IPv4 Address, misal `192.168.1.10`), lalu buka
-`http://192.168.1.10:8080/index.html` di Chrome HP.
-Catatan: OAuth Google hanya diizinkan untuk `localhost`, jadi **login Gmail
-sebaiknya dilakukan di PC**. Setelah login, aplikasi tetap bisa dipakai di HP
-(mode catat manual).
+Server lokal juga mendengarkan di alamat LAN, jadi bisa dibuka dari HP Android
+yang tersambung ke Wi-Fi yang sama (alamatnya ditampilkan saat `serve.bat` jalan).
+
+> **Data terpisah per alamat.** Data yang diisi di GitHub Pages **tidak** muncul di
+> localhost, dan sebaliknya. Untuk memindahkan: **Setelan → Ekspor JSON** di satu
+> alamat, lalu **Impor JSON** di alamat lain.
 
 ---
 
@@ -78,11 +90,12 @@ sudah login ke akun tersebut.
 2. **+ Create Credentials** → **OAuth client ID**
 3. Application type: **Web application**
 4. Name: `Kartidaya Web`
-5. Bagian **Authorized JavaScript origins** → **+ Add URI** → isi **tepat**:
+5. Bagian **Authorized JavaScript origins** → **+ Add URI** → tambahkan **keduanya**:
    ```
+   https://suwandhih.github.io
    http://localhost:8080
    ```
-   (tanpa garis miring di akhir, tanpa `/index.html`)
+   (tanpa garis miring di akhir, tanpa `/index.html`, tanpa `/kartidaya`)
 6. **Create**
 7. Muncul kotak berisi **Client ID** — bentuknya seperti:
    ```
@@ -93,6 +106,9 @@ sudah login ke akun tersebut.
 > **Client Secret tidak diperlukan.** Aplikasi ini memakai alur token
 > (Google Identity Services) yang tidak butuh secret, jadi aman disimpan di
 > browser.
+
+> **Origin mana yang perlu didaftarkan?** Buka halaman **Setelan** di aplikasi —
+> di bawah kolom Client ID tertulis origin yang sedang dipakai. Salin nilai itu.
 
 ### 2.5 Aktifkan 2-Step Verification
 
@@ -143,13 +159,14 @@ flowchart TD
 
 | Gejala | Penyebab | Solusi |
 |---|---|---|
-| `Google menolak origin file://` | Aplikasi dibuka dobel-klik | Jalankan `serve.bat`, buka `http://localhost:8080` |
+| `Google menolak origin file://` | Aplikasi dibuka dobel-klik | Pakai GitHub Pages atau `serve.bat` |
 | `Popup window closed` | Jendela izin ditutup sebelum selesai | Klik *Hubungkan Gmail* lagi, jangan tutup jendelanya |
-| `origin_mismatch` | Origin belum terdaftar | Pastikan `http://localhost:8080` ada di *Authorized JavaScript origins* |
+| `origin_mismatch` | Origin belum terdaftar | Salin origin dari halaman **Setelan** ke *Authorized JavaScript origins* |
 | `access_denied` | Email belum jadi Test user | Tambahkan email di **Test users** (langkah 2.3 no. 6) |
 | `Sesi Gmail kedaluwarsa` | Token habis (1 jam / 7 hari) | Klik *Hubungkan Gmail* lagi |
 | `Gagal memuat Google Identity Services` | Tidak ada internet | Cek koneksi internet |
 | Tombol Sinkron bilang *Hubungkan Gmail dulu* | Belum login | Selesaikan Langkah 3 |
+| Data tidak muncul setelah pindah alamat | localStorage terpisah per alamat | Ekspor JSON di alamat lama → Impor di alamat baru |
 
 ---
 

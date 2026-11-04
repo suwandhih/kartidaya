@@ -110,9 +110,15 @@ const Gmail = {
     if(!this.isConfigured()) return 'unconfigured';
     return this.isConnected() ? 'connected' : 'disconnected';
   },
-  isLocalhost(){
+  /* Origin yang diterima Google: https apa pun, atau http khusus localhost.
+     `file://` selalu ditolak. */
+  isSecureOrigin(){
+    if(location.protocol === 'https:') return true;
     return location.protocol === 'http:' &&
       (location.hostname === 'localhost' || location.hostname === '127.0.0.1');
+  },
+  origin(){
+    return location.protocol + '//' + location.host;
   },
 
   loadScript(){
@@ -133,9 +139,9 @@ const Gmail = {
   async connect(clientId){
     if(clientId) this.clientId = clientId;
     if(!this.clientId) throw new Error('Client ID belum diisi');
-    if(!this.isLocalhost()){
-      throw new Error('Google menolak origin ' + location.protocol + '//' + location.host +
-        '. Jalankan serve.bat lalu buka http://localhost:8080/index.html');
+    if(!this.isSecureOrigin()){
+      throw new Error('Google menolak origin ' + this.origin() +
+        '. Buka lewat https:// atau http://localhost — bukan file://');
     }
     await this.loadScript();
     const self = this;

@@ -297,16 +297,21 @@ Mode gelap: latar `#111312`, permukaan `#191c1b`, teks `#eeeedc`, aksen tetap `#
 | Penyimpanan | `localStorage` (key: `kartidaya.v2.*`) |
 | Data awal | 18 donor dari `data.xlsx` di-embed sebagai seed |
 | Framework | Tanpa framework (vanilla JS) |
-| Server | **`serve.bat`** → `serve.py` (Python `http.server`, port 8080) |
+| Hosting | **GitHub Pages** (`https://suwandhih.github.io/kartidaya/`) |
+| Server lokal | **`serve.bat`** → `serve.py` (Python `http.server`, port 8080) |
 | Ekspor | JSON (backup/restore) + CSV (buka di Excel) |
 | Cetak | `window.print()` untuk cetak surat |
 | Email | **Gmail API + OAuth 2.0** (Google Identity Services, alur token) |
 
-### Kenapa perlu server lokal?
+### Kenapa perlu origin https / localhost?
 
-Google **menolak** origin `file://` untuk OAuth. Karena itu aplikasi harus dibuka
-lewat `http://localhost:8080`. `serve.bat` menjalankan server statis Python dan
-membuka browser otomatis.
+Google **menolak** origin `file://` untuk OAuth. Origin yang diterima:
+
+- `https://` apa pun — termasuk GitHub Pages
+- `http://localhost` / `http://127.0.0.1`
+
+Karena itu aplikasi di-host di GitHub Pages (juga bisa dibuka dari HP Android
+tanpa PC menyala), dan `serve.bat` disediakan untuk pemakaian lokal.
 
 ### Kenapa multi-file?
 
@@ -351,7 +356,7 @@ Secret** — aman untuk aplikasi yang seluruhnya jalan di browser.
 
 **Fase 2 — Buku terima & kirim + Gmail**
 - [x] Pisah jadi `index.html` + `app.css` + `app.js` + `gmail.js`
-- [x] `serve.py` + `serve.bat` (server lokal, wajib untuk OAuth)
+- [x] `serve.py` + `serve.bat` (server lokal, threaded, LAN)
 - [x] `gmail.js`: OAuth, kirim, daftar pesan, ambil pesan, urai MIME
 - [x] Model data `messages` (satu buku per donor)
 - [x] Halaman **Buku Donor** (bubble masuk/keluar)
@@ -362,6 +367,14 @@ Secret** — aman untuk aplikasi yang seluruhnya jalan di browser.
 - [x] Setelan Gmail: Client ID, hubungkan, sinkron, putuskan
 - [x] `PANDUAN-GMAIL.md` (panduan Google Cloud Console langkah demi langkah)
 - [x] Uji: kirim simulasi, catat masuk, tautkan, ekspor, tema, responsif
+
+**Fase 3 — Publikasi**
+- [x] `.gitignore` — `data.xlsx` & screenshot data tidak ikut ter-commit
+- [x] `README.md`
+- [x] Repo publik `suwandhih/kartidaya`
+- [x] **GitHub Pages** aktif di `https://suwandhih.github.io/kartidaya/`
+- [x] Dukung origin `https://` untuk OAuth (bukan hanya localhost)
+- [x] Halaman Setelan menampilkan origin yang perlu didaftarkan
 
 ---
 
@@ -374,3 +387,7 @@ Secret** — aman untuk aplikasi yang seluruhnya jalan di browser.
 5. Apakah perlu **lampiran file** sungguhan (saat ini hanya catatan nama file).
 6. Apakah perlu **balas semua / teruskan** (belum dibuat; saat ini hanya *Balas*).
 7. Apakah perlu **template HTML** (berformat tebal/miring), bukan teks biasa.
+8. **Data donor di `app.js`** — 18 nama/email/HP asli ikut ter-publish di repo
+   publik. User menyetujui karena aplikasi hanya dipakai sementara di GitHub;
+   nanti akan dipindah ke hosting sendiri. Kalau perlu, pindahkan ke `seed.js`
+   yang di-gitignore.

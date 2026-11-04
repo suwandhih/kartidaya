@@ -62,12 +62,19 @@ Ringkasnya:
 2. Aktifkan **Gmail API**
 3. Isi **OAuth consent screen** (External) + tambahkan email Anda di **Test users**
 4. Buat **OAuth client ID** → Web application → tambahkan origin:
-   - `http://localhost:8080` (untuk lokal)
    - `https://suwandhih.github.io` (untuk GitHub Pages)
+   - `http://localhost:8080` (untuk lokal)
 5. Di aplikasi → **Setelan** → tempel Client ID → **Simpan** → **Hubungkan Gmail**
+
+Halaman **Setelan** selalu menampilkan origin yang sedang dipakai, jadi Anda bisa
+menyalinnya langsung ke Google Cloud Console.
 
 Client Secret **tidak diperlukan** — aplikasi memakai alur token
 (Google Identity Services) yang seluruhnya jalan di browser.
+
+> **Catatan:** OAuth Google hanya menerima origin `https://` atau
+> `http://localhost`. Membuka `index.html` dengan dobel-klik (`file://`) akan
+> ditolak — pakai GitHub Pages atau `serve.bat`.
 
 ## Struktur file
 
