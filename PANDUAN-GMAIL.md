@@ -110,6 +110,20 @@ sudah login ke akun tersebut.
 
    → **Update** → **Save**
 
+   #### Hasil akhir yang benar
+
+   Google menggolongkan kedua scope ini berbeda, jadi tabelnya **tidak** akan
+   kosong semua:
+
+   | Tabel | Isi yang benar |
+   |---|---|
+   | Your non-sensitive scopes | **kosong** |
+   | Your sensitive scopes | `.../auth/gmail.send` — 1 baris |
+   | Your restricted scopes | `.../auth/gmail.readonly` — 1 baris |
+
+   Jadi kalau tabel *sensitive* berisi 1 baris dan *restricted* berisi 1 baris,
+   itu **sudah benar**. Yang salah adalah kalau isinya lebih dari itu.
+
    #### ⚠️ Jangan centang semua
 
    Daftar itu berisi 38 scope. Aplikasi ini hanya butuh **dua**. Centang semua
@@ -140,6 +154,19 @@ sudah login ke akun tersebut.
    | `gmail.send.self` | `gmail.send` |
    | `gmail.messages.readonly` | `gmail.readonly` |
    | `gmail.drafts.readonly` | `gmail.readonly` |
+
+   #### Kalau muncul peringatan "restricted scope"
+
+   `gmail.readonly` termasuk **restricted scope** menurut Google. Saat menekan
+   **Save**, mungkin muncul peringatan bahwa aplikasi perlu verifikasi.
+
+   **Abaikan saja.** Selama status aplikasi masih **Testing** dan Anda hanya
+   login dengan akun yang terdaftar di **Test users**, verifikasi tidak
+   diperlukan. Verifikasi baru wajib kalau aplikasi dipublikasikan ke publik.
+
+   Kalau peringatan itu terasa mengganggu, `gmail.readonly` boleh dihapus dari
+   Data Access — aplikasi tetap bisa **kirim** email. Yang hilang hanya fitur
+   **Sinkron** (tarik surat masuk otomatis).
 
    #### Cara menghapus scope yang sudah terlanjur dicentang
 
