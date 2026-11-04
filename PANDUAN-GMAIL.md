@@ -240,11 +240,52 @@ flowchart TD
 | `Google menolak origin file://` | Aplikasi dibuka dobel-klik | Pakai GitHub Pages atau `serve.bat` |
 | `Popup window closed` | Jendela izin ditutup sebelum selesai | Klik *Hubungkan Gmail* lagi, jangan tutup jendelanya |
 | `origin_mismatch` | Origin belum terdaftar | Salin origin dari halaman **Setelan** ke *Authorized JavaScript origins* |
-| `access_denied` | Email belum jadi Test user | Tambahkan email di **Test users** (langkah 2.3 no. 6) |
+| `access_denied` | Email belum jadi Test user | Tambahkan email di **Test users** (langkah 2.3 no. 4) |
+| `Error 403: access_denied` — *"has not completed the Google verification process"* | Email yang dipakai login belum terdaftar sebagai Test user | Lihat bagian di bawah |
 | `Sesi Gmail kedaluwarsa` | Token habis (1 jam / 7 hari) | Klik *Hubungkan Gmail* lagi |
 | `Gagal memuat Google Identity Services` | Tidak ada internet | Cek koneksi internet |
 | Tombol Sinkron bilang *Hubungkan Gmail dulu* | Belum login | Selesaikan Langkah 3 |
 | Data tidak muncul setelah pindah alamat | localStorage terpisah per alamat | Ekspor JSON di alamat lama → Impor di alamat baru |
+
+### Error 403: access_denied — "has not completed the Google verification process"
+
+Pesan lengkapnya:
+
+> *suwandhih.github.io has not completed the Google verification process. The app
+> is currently being tested, and can only be accessed by developer-approved
+> testers.*
+
+Artinya: **email yang Anda pakai login belum terdaftar sebagai Test user.**
+Ini bukan masalah kode, bukan masalah scope, dan bukan masalah origin.
+
+**Perbaikan:**
+
+1. Buka <https://console.cloud.google.com/auth/audience>
+   (atau: **Google Auth Platform** → **Audience**)
+2. Cari bagian **Test users** → klik **Add users**
+3. Masukkan **alamat Gmail yang tadi dipakai login** — pada kasus ini:
+   ```
+   fotohotono03@gmail.com
+   ```
+4. **Save**
+5. Tunggu ±1 menit, lalu klik **Hubungkan Gmail** lagi di aplikasi
+
+> **Penting:** alamatnya harus **sama persis** dengan yang dipakai login. Kalau
+> Anda login dengan `fotohotono03@gmail.com`, daftarkan alamat itu — bukan alamat
+> lain. Satu akun Google bisa punya beberapa alamat; pakai yang muncul di layar
+> error.
+
+**Kalau tetap gagal**, cek juga:
+
+| Cek | Di mana |
+|---|---|
+| Publishing status = **Testing** | Audience → bagian *Publishing status* |
+| Email sudah muncul di tabel Test users | Audience → *Test users* |
+| Sudah klik **Save** (bukan hanya Add users) | Audience |
+
+> Selama status masih **Testing**, hanya email di daftar Test users yang bisa
+> login. Ini normal dan cukup untuk demo — tidak perlu mengajukan verifikasi
+> Google.
 
 ---
 

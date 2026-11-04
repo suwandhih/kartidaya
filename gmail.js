@@ -10,6 +10,31 @@ const GMAIL_SCOPES = [
   'https://www.googleapis.com/auth/gmail.readonly'
 ].join(' ');
 
+/* ---------- pesan error OAuth yang bisa ditindaklanjuti ---------- */
+function describeOAuthError(resp){
+  const code = String((resp && resp.error) || '');
+  const desc = String((resp && resp.error_description) || '');
+  if(code === 'access_denied'){
+    return 'Akses ditolak (access_denied). Email yang dipakai login belum ' +
+      'terdaftar sebagai Test user. Buka Google Auth Platform → Audience → ' +
+      'Test users → Add users, masukkan alamat Gmail yang tadi dipakai login, ' +
+      'lalu Save. Tunggu ±1 menit dan coba lagi.';
+  }
+  if(code === 'origin_mismatch'){
+    return 'Origin belum terdaftar (origin_mismatch). Salin origin dari halaman ' +
+      'Setelan ke Authorized JavaScript origins di Google Cloud Console.';
+  }
+  if(code === 'invalid_client'){
+    return 'Client ID tidak dikenali (invalid_client). Periksa kembali Client ID ' +
+      'di halaman Setelan.';
+  }
+  if(code === 'popup_closed' || code === 'popup_closed_by_user'){
+    return 'Jendela izin ditutup sebelum selesai. Klik Hubungkan Gmail lagi dan ' +
+      'jangan tutup jendelanya.';
+  }
+  return desc || code || 'OAuth gagal';
+}
+
 /* ---------- base64url (aman untuk UTF-8) ---------- */
 function b64encode(str){
   const bytes = new TextEncoder().encode(String(str));
@@ -149,14 +174,17 @@ const Gmail = {
         client_id: self.clientId,
         scope: GMAIL_SCOPES,
         callback: async function(resp){
-          if(resp.error){ reject(new Error(resp.error_description || resp.error)); return; }
+          if(resp.error){ reject(new Error(describeOAuthError(resp))); return; }
           self.token = resp.access_token;
           self.expiresAt = Date.now() + ((resp.expires_in || 3600) - 60) * 1000;
           try{ await self.fetchProfile(); }catch(e){ /* profil opsional */ }
           if(self.onStatus) self.onStatus();
           resolve(resp);
         },
-        error_callback: function(err){ reject(new Error((err && err.message) || 'OAuth gagal')); }
+        error_callback: function(err){
+          const code = (err && (err.type || err.error)) || '';
+          reject(new Error(describeOAuthError({ error: code, error_description: err && err.message })));
+        }
       });
       self.tokenClient.requestAccessToken();
     });

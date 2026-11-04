@@ -150,8 +150,12 @@ function toast(msg, isErr){
   const el = document.createElement('div');
   el.className = 'toast' + (isErr ? ' err' : '');
   el.textContent = msg;
+  if(isErr){
+    el.title = 'Klik untuk menutup';
+    el.addEventListener('click', function(){ el.remove(); });
+  }
   root.appendChild(el);
-  setTimeout(function(){ el.remove(); }, 3000);
+  setTimeout(function(){ el.remove(); }, isErr ? 12000 : 3000);
 }
 function donorName(d){ return d.pic || d.namaLengkap || d.instansi || '(tanpa nama)'; }
 function donorLabel(d){ return (d.panggilan ? d.panggilan + ' ' : '') + donorName(d); }
