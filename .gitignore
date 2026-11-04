@@ -1,0 +1,19 @@
+# Data donor asli — JANGAN di-commit
+data.xlsx
+data excel.jpeg
+Kategori.jpeg
+
+# Backup / ekspor lokal
+kartidaya-backup-*.json
+kartidaya-donor-*.csv
+
+# Sampah OS & editor
+Thumbs.db
+desktop.ini
+.DS_Store
+*.swp
+*~
+
+# Python
+__pycache__/
+*.pyc

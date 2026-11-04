@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f5f5f0">
+<meta name="description" content="Kartidaya — kelola surat & email donor. Setiap ID punya buku terima dan kirim sendiri.">
+<title>Kartidaya — Kelola Surat &amp; Email Donor</title>
+<link rel="stylesheet" href="app.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%231f6f5c'/><text x='16' y='23' font-size='19' font-family='sans-serif' font-weight='700' fill='%23fff' text-anchor='middle'>K</text></svg>">
+</head>
+<body>
+
+<div class="app">
+
+  <aside class="side">
+    <div class="brand">
+      <div class="mark">K</div>
+      <div>
+        <div class="nm">Kartidaya</div>
+        <div class="tg">Surat &amp; Email</div>
+      </div>
+    </div>
+    <nav id="nav-desktop"></nav>
+    <div class="side-foot">
+      <button class="navitem" id="theme-btn"><span class="ico">◐</span><span>Tema</span></button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="tt">
+        <h1 id="page-title">Beranda</h1>
+        <div class="sub" id="page-sub"></div>
+      </div>
+      <button class="iconbtn" id="theme-btn-m" title="Ganti tema">◐</button>
+    </header>
+    <div class="content" id="view"></div>
+  </main>
+
+</div>
+
+<nav class="nav-mobile" id="nav-mobile"></nav>
+<div id="modal-root"></div>
+<div id="toast"></div>
+
+<script src="gmail.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
