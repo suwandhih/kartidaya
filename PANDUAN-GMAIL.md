@@ -89,6 +89,11 @@ sudah login ke akun tersebut.
 
 3. **Data Access** (sidebar kiri) → **Add or remove scopes**
 
+   > **Langkah ini opsional untuk uji coba.** Yang menentukan izin yang diminta
+   > saat login adalah kode di `gmail.js`, bukan tabel di halaman ini. Tabel
+   > Data Access hanya dipakai Google saat proses **verifikasi** kalau aplikasi
+   > nanti dipublikasikan. Kalau hanya mau mencoba, lewati saja langkah ini.
+
    **Cara tercepat & paling aman** — cari kotak **Manually add scopes**, tempel
    satu per satu, lalu **Add to table**:
    ```
@@ -103,14 +108,49 @@ sudah login ke akun tersebut.
    - `.../auth/gmail.readonly` — *View your email messages and settings*
    - `.../auth/gmail.send` — *Send email on your behalf*
 
-   > **Jangan centang semua.** Daftar itu berisi 38 scope, termasuk yang berbahaya
-   > seperti `https://mail.google.com/` (akses penuh + hapus permanen),
-   > `gmail.modify`, dan `gmail.messages.delete`. Aplikasi ini hanya butuh dua.
-   >
-   > Hati-hati nama yang mirip: yang benar `gmail.send` (bukan `gmail.send.self`)
-   > dan `gmail.readonly` (bukan `gmail.messages.readonly`).
-
    → **Update** → **Save**
+
+   #### ⚠️ Jangan centang semua
+
+   Daftar itu berisi 38 scope. Aplikasi ini hanya butuh **dua**. Centang semua
+   bukan "lebih aman untuk coba-coba" — akibatnya:
+
+   | Akibat | Penjelasan |
+   |---|---|
+   | Layar izin jadi menakutkan | Saat login, Google menampilkan daftar izin panjang. Anda sendiri akan ragu klik *Allow* |
+   | Izin menempel permanen | Sekali diberikan, izin itu tersimpan di akun. Tidak hilang setelah selesai coba-coba |
+   | Risiko kalau akun jadi akun resmi | Izin "hapus permanen semua email", "ubah setelan & filter", "kelola delegate" itu bahaya nyata |
+
+   Scope paling berbahaya di daftar itu:
+
+   | Scope | Bahayanya |
+   |---|---|
+   | `https://mail.google.com/` | Akses penuh + hapus permanen semua email |
+   | `gmail.messages.delete` | Hapus permanen semua email |
+   | `gmail.messages` | Baca, ubah, hapus permanen semua email |
+   | `gmail.settings.sharing` | Kelola siapa saja yang boleh mengakses email Anda |
+   | `gmail.settings.delegates` | Baca, buat, hapus delegate email Anda |
+   | `gmail.settings.forwarding` | Baca, buat, hapus alamat forward |
+   | `gmail.settings.filters` | Baca, buat, hapus filter email |
+
+   Hati-hati juga nama yang **mirip**:
+
+   | Salah | Benar |
+   |---|---|
+   | `gmail.send.self` | `gmail.send` |
+   | `gmail.messages.readonly` | `gmail.readonly` |
+   | `gmail.drafts.readonly` | `gmail.readonly` |
+
+   #### Cara menghapus scope yang sudah terlanjur dicentang
+
+   1. Buka **Data Access**
+   2. Klik **Add or remove scopes**
+   3. Di tabel, **uncheck** semua baris yang tidak dipakai
+      (atau klik kotak centang di **header kolom** untuk uncheck semua sekaligus)
+   4. Sisakan hanya `gmail.send` dan `gmail.readonly`
+   5. **Update** → **Save**
+
+   Kalau tabel tetap tidak berubah setelah **Update**, refresh halaman lalu ulangi.
 
 4. **Audience** (sidebar kiri) → bagian **Test users** → **Add users** →
    masukkan **alamat Gmail yang akan dipakai** (misal `kartidaya@gmail.com`) → **Save**
