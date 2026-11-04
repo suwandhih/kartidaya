@@ -7,8 +7,7 @@
 
 const GMAIL_SCOPES = [
   'https://www.googleapis.com/auth/gmail.send',
-  'https://www.googleapis.com/auth/gmail.readonly',
-  'https://www.googleapis.com/auth/userinfo.email'
+  'https://www.googleapis.com/auth/gmail.readonly'
 ].join(' ');
 
 /* ---------- base64url (aman untuk UTF-8) ---------- */
@@ -174,8 +173,8 @@ const Gmail = {
   },
 
   async fetchProfile(){
-    const r = await this.api('/oauth2/v2/userinfo', { base: 'https://www.googleapis.com' });
-    if(r && r.email) this.email = r.email;
+    const r = await this.api('/gmail/v1/users/me/profile');
+    if(r && r.emailAddress) this.email = r.emailAddress;
     return r;
   },
 
