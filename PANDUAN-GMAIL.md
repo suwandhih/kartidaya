@@ -61,24 +61,44 @@ sudah login ke akun tersebut.
 1. Menu ☰ → **APIs & Services** → **Library**
 2. Cari `Gmail API` → klik → **Enable**
 
-### 2.3 Isi OAuth consent screen
+### 2.3 Konfigurasi Google Auth Platform
+
+> **Catatan UI:** Google sudah mengganti halaman *OAuth consent screen* menjadi
+> **Google Auth Platform**. Kalau sidebar Anda menampilkan *Overview, Branding,
+> Audience, Clients, Data Access, Verification Center, Settings* — ikuti langkah
+> di bawah. Kalau masih menampilkan *OAuth consent screen* lama, lihat
+> [Lampiran: UI lama](#lampiran-ui-lama).
 
 1. Menu ☰ → **APIs & Services** → **OAuth consent screen**
-2. User Type: **External** → **Create**
-3. Isi:
+   (akan terbuka halaman **Google Auth Platform → Overview**)
+2. Klik **Get started** → wizard 4 langkah:
+
+   **a. App Information**
    - App name: `Kartidaya`
    - User support email: pilih email Anda
-   - Developer contact information: email Anda
-4. **Save and Continue**
-5. Halaman **Scopes** → **Add or remove scopes** → tempel dua scope ini satu per satu:
+
+   **b. Audience**
+   - Pilih **External** → **Next**
+
+   **c. Contact Information**
+   - Email addresses: email Anda
+
+   **d. Finish**
+   - Centang **I agree to the Google API Services: User Data Policy**
+   - **Create**
+
+3. **Data Access** (sidebar kiri) → **Add or remove scopes** → tempel satu per satu:
    ```
    https://www.googleapis.com/auth/gmail.send
    https://www.googleapis.com/auth/gmail.readonly
    ```
-   → **Update** → **Save and Continue**
-6. Halaman **Test users** → **Add users** → masukkan **alamat Gmail yang akan dipakai**
-   (misal `kartidaya@gmail.com`) → **Save and Continue**
-7. **Back to Dashboard**
+   → **Update** → **Save**
+
+4. **Audience** (sidebar kiri) → bagian **Test users** → **Add users** →
+   masukkan **alamat Gmail yang akan dipakai** (misal `kartidaya@gmail.com`) → **Save**
+
+5. **Branding** (sidebar kiri, opsional) → bagian **Authorized domains** →
+   **Add domain** → `suwandhih.github.io`
 
 > Karena statusnya masih *Testing*, hanya email yang didaftarkan di **Test users**
 > yang bisa login. Ini cukup untuk demo. Token akan kedaluwarsa setelah 7 hari —
@@ -86,22 +106,22 @@ sudah login ke akun tersebut.
 
 ### 2.4 Buat OAuth Client ID
 
-1. Menu ☰ → **APIs & Services** → **Credentials**
-2. **+ Create Credentials** → **OAuth client ID**
-3. Application type: **Web application**
-4. Name: `Kartidaya Web`
-5. Bagian **Authorized JavaScript origins** → **+ Add URI** → tambahkan **keduanya**:
+1. **Clients** (sidebar kiri) → **Create client**
+   (atau: Menu ☰ → **APIs & Services** → **Credentials** → **+ Create Credentials** → **OAuth client ID**)
+2. Application type: **Web application**
+3. Name: `Kartidaya Web`
+4. Bagian **Authorized JavaScript origins** → **+ Add URI** → tambahkan **keduanya**:
    ```
    https://suwandhih.github.io
    http://localhost:8080
    ```
    (tanpa garis miring di akhir, tanpa `/index.html`, tanpa `/kartidaya`)
-6. **Create**
-7. Muncul kotak berisi **Client ID** — bentuknya seperti:
+5. **Create**
+6. Muncul kotak berisi **Client ID** — bentuknya seperti:
    ```
    123456789012-abcdefghijklmnop.apps.googleusercontent.com
    ```
-8. **Copy** Client ID tersebut
+7. **Copy** Client ID tersebut
 
 > **Client Secret tidak diperlukan.** Aplikasi ini memakai alur token
 > (Google Identity Services) yang tidak butuh secret, jadi aman disimpan di
@@ -179,3 +199,20 @@ Aplikasi tetap **bisa dipakai penuh tanpa Gmail**:
 - Semua fitur lain (donor, kategori, template, ekspor, cetak) berjalan normal
 
 Ini berguna untuk demo dan pelatihan tanpa menyentuh email sungguhan.
+
+---
+
+## Lampiran: UI lama
+
+Kalau Google Cloud Console Anda masih menampilkan halaman **OAuth consent screen**
+versi lama (bukan *Google Auth Platform*), langkahnya:
+
+1. Menu ☰ → **APIs & Services** → **OAuth consent screen**
+2. User Type: **External** → **Create**
+3. Isi App name `Kartidaya`, User support email, Developer contact information
+4. **Save and Continue**
+5. Halaman **Scopes** → **Add or remove scopes** → tempel kedua scope → **Update** → **Save and Continue**
+6. Halaman **Test users** → **Add users** → masukkan alamat Gmail → **Save and Continue**
+7. **Back to Dashboard**
+8. Menu ☰ → **APIs & Services** → **Credentials** → **+ Create Credentials** → **OAuth client ID**
+9. Application type **Web application** → tambahkan kedua origin → **Create**

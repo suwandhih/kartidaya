@@ -59,12 +59,15 @@ membuat Google Cloud project + OAuth Client ID (±10 menit, sekali saja).
 Ringkasnya:
 
 1. Buat project di <https://console.cloud.google.com/>
-2. Aktifkan **Gmail API**
-3. Isi **OAuth consent screen** (External) + tambahkan email Anda di **Test users**
-4. Buat **OAuth client ID** → Web application → tambahkan origin:
+2. Aktifkan **Gmail API** (APIs & Services → Library)
+3. Buka **OAuth consent screen** → klik **Get started** → isi App name, pilih
+   **External**, isi email, setujui kebijakan
+4. **Data Access** → tambahkan scope `gmail.send` dan `gmail.readonly`
+5. **Audience** → **Test users** → tambahkan alamat Gmail Anda
+6. **Clients** → **Create client** → Web application → tambahkan origin:
    - `https://suwandhih.github.io` (untuk GitHub Pages)
    - `http://localhost:8080` (untuk lokal)
-5. Di aplikasi → **Setelan** → tempel Client ID → **Simpan** → **Hubungkan Gmail**
+7. Di aplikasi → **Setelan** → tempel Client ID → **Simpan** → **Hubungkan Gmail**
 
 Halaman **Setelan** selalu menampilkan origin yang sedang dipakai, jadi Anda bisa
 menyalinnya langsung ke Google Cloud Console.
