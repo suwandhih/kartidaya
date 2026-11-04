@@ -87,11 +87,29 @@ sudah login ke akun tersebut.
    - Centang **I agree to the Google API Services: User Data Policy**
    - **Create**
 
-3. **Data Access** (sidebar kiri) → **Add or remove scopes** → tempel satu per satu:
+3. **Data Access** (sidebar kiri) → **Add or remove scopes**
+
+   **Cara tercepat & paling aman** — cari kotak **Manually add scopes**, tempel
+   satu per satu, lalu **Add to table**:
    ```
    https://www.googleapis.com/auth/gmail.send
+   ```
+   ```
    https://www.googleapis.com/auth/gmail.readonly
    ```
+
+   **Cara alternatif** — kalau memakai daftar checkbox: klik kotak centang di
+   **header kolom** untuk uncheck semua, lalu centang **hanya dua** baris ini:
+   - `.../auth/gmail.readonly` — *View your email messages and settings*
+   - `.../auth/gmail.send` — *Send email on your behalf*
+
+   > **Jangan centang semua.** Daftar itu berisi 38 scope, termasuk yang berbahaya
+   > seperti `https://mail.google.com/` (akses penuh + hapus permanen),
+   > `gmail.modify`, dan `gmail.messages.delete`. Aplikasi ini hanya butuh dua.
+   >
+   > Hati-hati nama yang mirip: yang benar `gmail.send` (bukan `gmail.send.self`)
+   > dan `gmail.readonly` (bukan `gmail.messages.readonly`).
+
    → **Update** → **Save**
 
 4. **Audience** (sidebar kiri) → bagian **Test users** → **Add users** →

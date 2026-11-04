@@ -62,7 +62,8 @@ Ringkasnya:
 2. Aktifkan **Gmail API** (APIs & Services → Library)
 3. Buka **OAuth consent screen** → klik **Get started** → isi App name, pilih
    **External**, isi email, setujui kebijakan
-4. **Data Access** → tambahkan scope `gmail.send` dan `gmail.readonly`
+4. **Data Access** → tambahkan **hanya** scope `gmail.send` dan `gmail.readonly`
+   (pakai kotak *Manually add scopes* agar tidak salah centang dari 38 pilihan)
 5. **Audience** → **Test users** → tambahkan alamat Gmail Anda
 6. **Clients** → **Create client** → Web application → tambahkan origin:
    - `https://suwandhih.github.io` (untuk GitHub Pages)

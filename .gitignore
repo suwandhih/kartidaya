@@ -3,6 +3,12 @@ data.xlsx
 data excel.jpeg
 Kategori.jpeg
 
+# Kredensial Google — JANGAN di-commit
+client_secret*.json
+*client_secret*.json
+credentials.json
+token.json
+
 # Backup / ekspor lokal
 kartidaya-backup-*.json
 kartidaya-donor-*.csv
