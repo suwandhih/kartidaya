@@ -179,6 +179,23 @@ sudah login ke akun tersebut.
 
    Kalau tabel tetap tidak berubah setelah **Update**, refresh halaman lalu ulangi.
 
+   #### ⚠️ Kalau muncul tombol "Save" dan "Discard changes"
+
+   Tombol **Save** / **Discard changes** di bagian bawah halaman berarti ada
+   perubahan yang **belum tersimpan**. Periksa dulu isi tabelnya:
+
+   | Isi tabel | Tindakan |
+   |---|---|
+   | Hanya `gmail.send` + `gmail.readonly` | Klik **Save** |
+   | Ada scope lain (mis. `gmail.settings.*`, `gmail.modify`, `mail.google.com`) | Klik **Discard changes** |
+
+   **Discard changes** membatalkan perubahan dan mengembalikan tabel ke kondisi
+   terakhir yang tersimpan. Ini aman — tidak menghapus apa pun yang sudah benar.
+
+   > **Jangan klik Save hanya karena tombolnya ada.** Kalau tabel berisi 18 scope
+   > termasuk `gmail.settings.sharing`, `gmail.settings.delegates`, dan
+   > `gmail.settings.forwarding`, menekan Save akan mendaftarkan semuanya.
+
 4. **Audience** (sidebar kiri) → bagian **Test users** → **Add users** →
    masukkan **alamat Gmail yang akan dipakai** (misal `kartidaya@gmail.com`) → **Save**
 
