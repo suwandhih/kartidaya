@@ -279,6 +279,8 @@ Tujuan: memastikan aplikasi & buku donor berjalan.
 6. Menu **Donor** → klik kartu **Linda Lau** → surat tadi muncul sebagai bubble
    kanan (keluar) dengan status **Terkirim** ✅
 7. Di buku donor itu, klik **↓ Catat Surat Masuk** → isi subjek → **Simpan**
+   - Field **Dari** terisi otomatis dari email donor, tapi bisa diubah kalau
+     surat datang dari alamat lain
 8. Surat muncul sebagai bubble kiri (masuk) ✅
 9. Menu **Masuk** → badge angka bertambah, surat ditandai belum dibaca ✅
 
@@ -430,6 +432,7 @@ Aplikasi tetap **bisa dipakai penuh tanpa Gmail**:
 
 - Surat yang "dikirim" dicatat sebagai **Terkirim** di buku donor
 - Surat masuk bisa dicatat manual lewat tombol **↓ Catat Surat Masuk**
+  (field **Dari** terisi otomatis dari email donor, bisa diubah)
 - Semua fitur lain (donor, kategori, template, ekspor, cetak) berjalan normal
 
 Ini berguna untuk demo dan pelatihan tanpa menyentuh email sungguhan.
