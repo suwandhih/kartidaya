@@ -494,6 +494,7 @@ otomatis menggantinya ke Client ID project Kartidaya saat dimuat.
 | 1 | Uji **kirim email sungguhan** | ✅ SELESAI — Ferry Kangsadjaja menerima surat dari `fotohotono03@gmail.com` |
 | 2 | Uji **pembaruan sesi otomatis** terhadap Google sungguhan | Butuh sesi login nyata; jalur kode sudah diverifikasi dengan stub |
 | 3 | Ajukan **verifikasi OAuth** ke Google | Menghapus batas 7 hari & batas Test user (opsional) |
+| 4 | Uji **sinkron otomatis** terhadap Gmail sungguhan | Logika & pemicu sudah diverifikasi; tinggal dilihat di akun asli |
 ### Hubungkan Gmail — BERHASIL (5 Nov 2026, 15:28 WIB)
 
 `fotohotono03@gmail.com` **sudah berhasil terhubung**. Akar masalahnya ada dua,
@@ -648,6 +649,57 @@ diajukan verifikasi ke Google.
 
 > Yang **belum** bisa diuji otomatis: `renew()` terhadap Google sungguhan —
 > butuh sesi login nyata. Kalau Google menolak, jalur gagal di atas yang aktif.
+
+### Sinkron otomatis — SELESAI (5 Nov 2026)
+
+**Permintaan pengguna:** *"termasuk sinkron sekarang .. user jg tidak perlu bolak
+balik setelan, untuk sinkron"*
+
+**Desain (`app.js?v=10`):**
+
+| Bagian | Fungsi |
+|---|---|
+| `gmailSync({ silent:true })` | Sinkron tanpa pesan *"Menarik surat masuk…"* dan tanpa pesan *"Tidak ada surat baru"* |
+| `sinkronOtomatis(paksa)` | Penjaga: lewati kalau `autoSync` mati, Gmail belum diatur, belum pernah login, atau jarak belum lewat |
+| `state.settings.autoSync` | Bawaan `true` |
+| `state.settings.syncMinutes` | Bawaan `10` menit (1–240) |
+| `state.settings.lastSync` | Diisi setiap sinkron berhasil — dipakai sebagai gerbang jarak |
+| `_syncJalan` | Penanda anti-tumpang-tindih, dengan jaring pengaman `Promise.race` 60 detik |
+
+**Kapan berjalan:**
+
+- `setTimeout(sinkronOtomatis, 3000)` saat aplikasi dimuat (jeda supaya token
+  sempat dipulihkan lebih dulu)
+- `setInterval(sinkronOtomatis, 60 * 1000)` — dicek tiap menit, tapi hanya
+  benar-benar menarik kalau `syncMinutes` sudah lewat
+- `visibilitychange` — saat tab kembali aktif
+
+**UI:**
+
+- **Setelan → Gmail**: tombol **Sinkron otomatis** (Aktif/Mati), input
+  **Jarak antar sinkron otomatis**, dan **Terakhir sinkron**
+- **Beranda**: baris *"Sinkron otomatis · baru saja"* + tombol **⟳ Sinkron sekarang**
+
+**Verifikasi di browser:**
+
+| Uji | Hasil |
+|---|---|
+| `autoSync` mati | tidak memanggil sinkron ✅ |
+| Belum pernah sinkron | langsung menarik ✅ |
+| Sinkron 1 menit lalu, jarak 10 menit | dilewati ✅ |
+| Sinkron 11 menit lalu | ditarik ✅ |
+| `paksa = true` | melewati gerbang jarak ✅ |
+| Gmail belum diatur | dilewati ✅ |
+| Belum pernah login | dilewati ✅ |
+| Dua panggilan bersamaan | hanya satu yang jalan ✅ |
+| Sinkron senyap, ada surat baru | pesan *"1 surat masuk baru"* ✅ |
+| Sinkron senyap, tidak ada surat baru | **tanpa pesan** ✅ |
+| Sinkron manual | pesan *"Menarik surat masuk…"* lalu *"Tidak ada surat baru"* ✅ |
+| Muat ulang halaman | surat ditarik sendiri, `lastSync` terisi, badge Masuk jadi 1 ✅ |
+| Tab kembali aktif | ditarik kalau jarak sudah lewat ✅ |
+| Tab kembali aktif, baru saja sinkron | dilewati ✅ |
+| Tombol Aktif/Mati | tersimpan di `localStorage`, input jarak hilang saat mati ✅ |
+| Input jarak `9999` | dijepit ke `240` ✅ |
 
 ### Cara menguji kirim
 

@@ -278,9 +278,33 @@ Sisa waktu token: …"* — itu penanda bahwa penjaga sesi bekerja.
 > diperlukan. Aplikasi akan memberi tahu lewat pesan *"Sesi Gmail perlu
 > diperbarui"*.
 
+### Surat masuk ditarik otomatis
+
+Anda juga **tidak perlu** membuka Setelan hanya untuk menekan **Sinkron**.
+Aplikasi menarik surat masuk sendiri:
+
+- saat aplikasi dibuka,
+- setiap kali tab kembali aktif,
+- berkala tiap **1 menit** — tetapi hanya benar-benar menarik kalau sudah lewat
+  jarak yang diatur (bawaan **10 menit**).
+
+Pengaturannya ada di **Setelan → Gmail**:
+
+| Kontrol | Arti |
+|---|---|
+| Tombol **Sinkron otomatis** | *Aktif* / *Mati* |
+| **Jarak antar sinkron otomatis** | Berapa menit sekali (1–240) |
+| **Terakhir sinkron** | Kapan terakhir berhasil menarik |
+
+Di **Beranda** ada baris ringkas *"Sinkron otomatis · baru saja"* beserta tombol
+**⟳ Sinkron sekarang** kalau ingin memaksa saat itu juga.
+
+> Sinkron otomatis berjalan **senyap**: kalau tidak ada surat baru, tidak ada
+> pesan yang muncul. Pesan hanya muncul kalau ada surat baru.
+
 ---
 
-## Cara menguji (8 tes berurutan)
+## Cara menguji (9 tes berurutan)
 
 Kerjakan berurutan. Tes 1 bisa dilakukan **sekarang** tanpa Gmail; tes 2–5 butuh
 Test user sudah didaftarkan.
@@ -411,6 +435,26 @@ Tujuan: memastikan koneksi tidak putus sendiri.
 > lalu tunggu penjaga sesi berjalan. Muncul pesan *"Sesi Gmail perlu diperbarui —
 > buka Setelan lalu klik Hubungkan Gmail"* (hanya sekali, tidak berulang) ✅
 
+### Tes 9 — Sinkron otomatis
+
+Tujuan: surat masuk datang sendiri tanpa membuka Setelan.
+
+1. Menu **Setelan** → bagian **Gmail** → tombol **Sinkron otomatis** harus
+   **Aktif**, dan **Jarak antar sinkron otomatis** terisi (bawaan `10`) ✅
+2. Dari akun lain, kirim email **ke** `fotohotono03@gmail.com`
+3. **Tutup** tab aplikasi, lalu buka lagi
+4. Tunggu ±5 detik — surat baru muncul sendiri di **Kotak Masuk Terbaru** ✅
+5. Menu **Beranda** → baris *"Sinkron otomatis · baru saja"* ✅
+6. Menu **Setelan** → **Terakhir sinkron** terisi waktu terbaru ✅
+7. Pindah ke tab lain lalu kembali ke tab aplikasi → surat baru (kalau ada)
+   langsung ditarik ✅
+
+> Kalau tidak ada surat baru, **tidak ada pesan apa pun** — itu memang
+> perilakunya. Untuk memaksa, tekan **⟳ Sinkron sekarang** di Beranda.
+
+> Untuk mematikan: **Setelan** → tombol **Sinkron otomatis** → jadi *Mati*.
+> Setelah itu tidak ada penarikan otomatis sama sekali.
+
 ---
 
 ## Cara kerja pencocokan surat masuk
@@ -445,6 +489,8 @@ flowchart TD
 | `Sesi Gmail kedaluwarsa` | Token habis (1 jam / 7 hari) | Versi terbaru memperbarui token otomatis. Kalau tetap muncul, klik *Hubungkan Gmail* sekali lagi |
 | Muncul pesan *"Sesi Gmail perlu diperbarui"* | Sesi login Google di browser sudah berakhir, jadi pembaruan senyap ditolak | Buka **Setelan** → klik **Hubungkan Gmail** sekali. Untuk menghilangkan batas 7 hari, ajukan verifikasi aplikasi ke Google |
 | *Sisa waktu token* tidak muncul di Setelan | Versi lama masih tersimpan di cache browser | Muat ulang dengan **Ctrl+Shift+R** |
+| Surat masuk tidak datang sendiri | Sinkron otomatis *Mati*, atau jaraknya belum lewat | **Setelan** → nyalakan **Sinkron otomatis**, atau tekan **⟳ Sinkron sekarang** di Beranda |
+| Sinkron otomatis tidak jalan padahal *Aktif* | Belum pernah klik *Hubungkan Gmail* di tab ini | Hubungkan Gmail sekali; setelah itu token dipulihkan otomatis |
 | Surat tercatat **Terkirim** tapi email tidak pernah sampai | Gmail belum terhubung — surat hanya dicatat (mode simulasi) | Cek badge di bagian **4 · Kirim**: kalau tertulis *Mode simulasi*, hubungkan Gmail dulu di **Setelan** |
 | Gmail terhubung lalu hilang sendiri setelah refresh | Versi lama tidak menyimpan token | Versi terbaru menyimpan token di `sessionStorage` — muat ulang dengan **Ctrl+Shift+R** |
 | `Gagal memuat Google Identity Services` | Tidak ada internet | Cek koneksi internet |

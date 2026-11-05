@@ -137,6 +137,11 @@ function loadState(){
     save('settings');
   }
   if(!state.settings.signature) state.settings.signature = 'Hormat kami,\nKartidaya';
+  /* Sinkron otomatis: tarik surat masuk sendiri di latar belakang supaya
+     pengguna tidak perlu bolak-balik ke Setelan. */
+  if(state.settings.autoSync === undefined) state.settings.autoSync = true;
+  if(!state.settings.syncMinutes) state.settings.syncMinutes = 10;
+  if(!state.settings.lastSync) state.settings.lastSync = '';
   if(firstRun) save();
 }
 
@@ -381,6 +386,9 @@ function viewBeranda(){
   const gmailText = gmailState === 'connected'
     ? 'Terhubung sebagai ' + (Gmail.email || 'akun Gmail')
     : (Gmail.isConfigured() ? 'Client ID terisi — belum terhubung' : 'Belum diatur');
+  const syncText = state.settings.autoSync
+    ? (state.settings.lastSync ? 'Sinkron otomatis · ' + relTime(state.settings.lastSync) : 'Sinkron otomatis aktif')
+    : 'Sinkron otomatis mati';
 
   return '' +
   '<div class="grid stats" style="margin-bottom:14px">' +
@@ -389,6 +397,12 @@ function viewBeranda(){
     stat('Surat Keluar', keluar, keluarBulan + ' bulan ini') +
     stat('Status Gmail', gmailState === 'connected' ? 'Aktif' : '—', gmailText) +
   '</div>' +
+
+  (gmailState === 'connected' ?
+    '<div class="card" style="margin-bottom:14px"><div class="row" style="justify-content:space-between">' +
+      '<span class="small muted">' + esc(syncText) + '</span>' +
+      '<button class="btn sm" data-action="sync">⟳ Sinkron sekarang</button>' +
+    '</div></div>' : '') +
 
   '<div class="card">' +
     '<div class="card-head"><h2>Kotak Masuk Terbaru</h2>' +
@@ -857,6 +871,22 @@ function viewPengaturan(){
         'Sisa waktu token: <b class="mono" id="g-sisa">' + sisaWaktu(Gmail.msLeft()) + '</b></p>'
       : '') +
     '<div class="sep"></div>' +
+    '<div class="row" style="justify-content:space-between">' +
+      '<span class="small">Sinkron otomatis</span>' +
+      '<button class="btn sm' + (state.settings.autoSync ? ' primary' : '') + '" data-action="auto-sync-toggle">' +
+        (state.settings.autoSync ? 'Aktif' : 'Mati') + '</button></div>' +
+    '<p class="tiny muted">Surat masuk ditarik sendiri saat aplikasi dibuka, saat tab kembali aktif, ' +
+      'dan berkala — jadi tidak perlu membuka Setelan untuk menekan Sinkron.</p>' +
+    (state.settings.autoSync ?
+      '<div class="field" style="margin-top:10px"><label>Jarak antar sinkron otomatis ' +
+        '<span class="hint">— menit</span></label>' +
+        '<input type="number" id="set-syncmin" min="1" max="240" value="' +
+          esc(state.settings.syncMinutes) + '"></div>' +
+      '<button class="btn sm" data-action="sync-min-save">Simpan jarak</button>' +
+      '<p class="tiny muted" style="margin-top:8px">Terakhir sinkron: <b class="mono">' +
+        (state.settings.lastSync ? fmtDateTime(state.settings.lastSync) : 'belum pernah') + '</b></p>'
+      : '') +
+    '<div class="sep"></div>' +
     '<p class="small muted">Panduan lengkap: <b class="mono">PANDUAN-GMAIL.md</b></p>' +
   '</div>' +
 
@@ -1270,12 +1300,14 @@ function cocokkanUlang(){
   render();
 }
 
-async function gmailSync(){
-  if(!Gmail.isConfigured()){ toast('Isi Client ID dulu di Setelan', true); return; }
+async function gmailSync(opts){
+  opts = opts || {};
+  const senyap = !!opts.silent;
+  if(!Gmail.isConfigured()){ if(!senyap) toast('Isi Client ID dulu di Setelan', true); return; }
   /* Perbarui token dulu kalau hampir habis, supaya sinkron tidak gagal. */
   await Gmail.ensureConnected();
-  if(!Gmail.isConnected()){ toast('Hubungkan Gmail dulu di Setelan', true); return; }
-  toast('Menarik surat masuk…');
+  if(!Gmail.isConnected()){ if(!senyap) toast('Hubungkan Gmail dulu di Setelan', true); return; }
+  if(!senyap) toast('Menarik surat masuk…');
   try{
     const ids = await Gmail.listIds('in:inbox newer_than:90d', 40);
     const known = {};
@@ -1316,12 +1348,45 @@ async function gmailSync(){
     });
     if(cocok) save('messages');
 
-    toast(baru ? baru + ' surat masuk ditarik' + (takDikenal ? ' (' + takDikenal + ' belum dikenal)' : '')
-               : (cocok ? cocok + ' surat lama dicocokkan ke donor' : 'Tidak ada surat baru'));
+    state.settings.lastSync = new Date().toISOString();
+    save('settings');
+
+    if(baru){
+      toast(baru + ' surat masuk baru' + (takDikenal ? ' (' + takDikenal + ' belum dikenal)' : ''));
+    }else if(cocok){
+      toast(cocok + ' surat lama dicocokkan ke donor');
+    }else if(!senyap){
+      toast('Tidak ada surat baru');
+    }
     render();
   }catch(e){
-    toast('Sinkron gagal: ' + (e.message || e), true);
+    if(!senyap) toast('Sinkron gagal: ' + (e.message || e), true);
   }
+}
+
+/* ---------- 17. SINKRON OTOMATIS ---------- */
+/* Tarik surat masuk sendiri di latar belakang: saat aplikasi dibuka, saat tab
+   kembali aktif, dan berkala sesuai interval di Setelan. Pengguna tidak perlu
+   lagi membuka Setelan hanya untuk menekan Sinkron. */
+let _syncJalan = false;
+async function sinkronOtomatis(paksa){
+  if(!state.settings.autoSync) return;
+  if(!Gmail.isConfigured()) return;
+  if(!Gmail.isConnected() && !Gmail.msLeft()) return;   /* belum pernah login */
+  if(_syncJalan) return;                                /* hindari tumpang tindih */
+  const jeda = Math.max(1, Number(state.settings.syncMinutes) || 10) * 60 * 1000;
+  const terakhir = state.settings.lastSync ? Date.parse(state.settings.lastSync) : 0;
+  if(!paksa && terakhir && Date.now() - terakhir < jeda) return;
+  _syncJalan = true;
+  try{
+    /* Jaring pengaman: kalau jaringan menggantung, jangan biarkan penanda
+       `_syncJalan` menyala selamanya — sinkron berikutnya jadi tidak jalan. */
+    await Promise.race([
+      gmailSync({ silent:true }),
+      new Promise(function(res){ setTimeout(res, 60000); })
+    ]);
+  }catch(e){ /* gmailSync sudah menangani errornya sendiri */ }
+  finally{ _syncJalan = false; }
 }
 
 /* ---------- 12. EKSPOR / IMPOR ---------- */
@@ -1545,11 +1610,25 @@ document.addEventListener('click', function(e){
     case 'g-copy-prefix': copyText(projectNumber(state.settings.gmailClientId)); break;
     case 'g-disconnect': Gmail.disconnect(); toast('Gmail diputuskan'); render(); break;
     case 'sync': gmailSync(); break;
+    case 'auto-sync-toggle':
+      state.settings.autoSync = !state.settings.autoSync;
+      save('settings');
+      toast(state.settings.autoSync ? 'Sinkron otomatis aktif' : 'Sinkron otomatis dimatikan');
+      render();
+      if(state.settings.autoSync) sinkronOtomatis(true);
+      break;
     case 'cocokkan': cocokkanUlang(); break;
     case 'sign-save': {
       const el = document.getElementById('set-sign');
       state.settings.signature = el ? el.value : '';
       save('settings'); toast('Tanda tangan disimpan');
+      break;
+    }
+    case 'sync-min-save': {
+      const el = document.getElementById('set-syncmin');
+      const n = Math.min(240, Math.max(1, Number(el ? el.value : 10) || 10));
+      state.settings.syncMinutes = n;
+      save('settings'); toast('Jarak sinkron otomatis: ' + n + ' menit'); render();
       break;
     }
     case 'ekspor-json': exportJSON(); break;
@@ -1688,6 +1767,15 @@ document.addEventListener('visibilitychange', function(){
   if(!document.hidden) jagaSesiGmail();
 });
 jagaSesiGmail();
+
+/* ---------- 17. SINKRON OTOMATIS — pemicu ---------- */
+/* Fungsi sinkronOtomatis() ada di bagian 11 bersama gmailSync(). */
+setInterval(sinkronOtomatis, 60 * 1000);
+document.addEventListener('visibilitychange', function(){
+  if(!document.hidden) sinkronOtomatis();
+});
+/* Beri jeda sedikit supaya token sempat dipulihkan lebih dulu. */
+setTimeout(sinkronOtomatis, 3000);
 
 function cycleTheme(){
   const order = ['light','dark','auto'];
