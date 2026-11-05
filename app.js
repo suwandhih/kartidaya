@@ -112,6 +112,12 @@ function loadState(){
   state.settings   = readLS(LS.settings, null) || {};
   if(!state.settings.theme) state.settings.theme = 'light';
   if(!state.settings.gmailClientId) state.settings.gmailClientId = DEFAULT_CLIENT_ID;
+  /* Client ID lama milik project yang tidak bisa diakses akun ini — sumber
+     error `access_denied`. Ganti otomatis supaya tidak perlu reset manual. */
+  if(state.settings.gmailClientId.indexOf('205859365311-') === 0){
+    state.settings.gmailClientId = DEFAULT_CLIENT_ID;
+    save('settings');
+  }
   if(!state.settings.signature) state.settings.signature = 'Hormat kami,\nKartidaya';
   if(firstRun) save();
 }
