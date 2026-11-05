@@ -491,7 +491,9 @@ otomatis menggantinya ke Client ID project Kartidaya saat dimuat.
 
 | # | Tugas | Keterangan |
 |---|---|---|
-| 1 | Uji **kirim email sungguhan** | Belum pernah |
+| 1 | Uji **kirim email sungguhan** | ✅ SELESAI — Ferry Kangsadjaja menerima surat dari `fotohotono03@gmail.com` |
+| 2 | Uji **pembaruan sesi otomatis** terhadap Google sungguhan | Butuh sesi login nyata; jalur kode sudah diverifikasi dengan stub |
+| 3 | Ajukan **verifikasi OAuth** ke Google | Menghapus batas 7 hari & batas Test user (opsional) |
 ### Hubungkan Gmail — BERHASIL (5 Nov 2026, 15:28 WIB)
 
 `fotohotono03@gmail.com` **sudah berhasil terhubung**. Akar masalahnya ada dua,
@@ -591,6 +593,62 @@ kedaluwarsa tidak dipulihkan; *Putuskan* membersihkan sesi; kirim tanpa Gmail
 menampilkan konfirmasi dan tidak mencatat apa pun bila dibatalkan; donor tanpa
 email menghasilkan status `Gagal`.
 
+### Sesi Gmail diperbarui otomatis — SELESAI (5 Nov 2026)
+
+**Permintaan pengguna:** *"apakah ada cara secara otomatis sistem menghitung
+waktu untuk menghubung email secara otomatis jadi user menggunakan tidak perlu
+was was untuk hubungkan gmail .. bentar2 hubungkan gmail .. ada cara tidak"*
+
+**Jawaban: bisa.** Token diperbarui sendiri di latar belakang tanpa jendela izin.
+
+**Desain (`app.js?v=9` & `gmail.js?v=9`):**
+
+| Bagian | Fungsi |
+|---|---|
+| `Gmail.msLeft()` | Sisa umur token dalam milidetik (0 kalau tidak ada token) |
+| `Gmail.renew()` | Perbarui token senyap lewat `initTokenClient({ prompt: '' })` + `requestAccessToken({ prompt: '' })`; timeout pengaman 15 detik; simpan ke `sessionStorage`; ambil profil kalau `email` masih kosong |
+| `Gmail.ensureConnected()` | `true` langsung kalau sisa > 5 menit; kalau tidak, coba `renew()` dulu |
+| `jagaSesiGmail()` | Penjaga latar belakang: perbarui kalau sisa ≤ 10 menit |
+| `sisaWaktu(ms)` | Format sisa waktu: *habis* / *kurang dari 1 menit* / *N menit* / *N jam M menit* |
+
+**Kapan penjaga berjalan:**
+
+- `setInterval(jagaSesiGmail, 5 * 60 * 1000)` — tiap 5 menit selama aplikasi terbuka
+- `visibilitychange` — saat tab kembali aktif
+- sekali saat aplikasi dimuat
+- `kirimSurat()` dan `gmailSync()` memanggil `ensureConnected()` lebih dulu
+
+**Kalau pembaruan gagal** (sesi login Google sudah berakhir): muncul pesan
+*"Sesi Gmail perlu diperbarui — buka Setelan lalu klik Hubungkan Gmail"*
+**sekali saja** (dijaga flag `_gmailPeringatan`), tidak berulang tiap 5 menit.
+
+**Tampilan:** kartu Gmail di **Setelan** menampilkan *"Sesi diperbarui otomatis
+di latar belakang. Sisa waktu token: …"* (`id="g-sisa"`).
+
+**Batas yang jujur:** pembaruan senyap hanya berhasil selama pengguna masih
+punya sesi login Google di browser itu. Kalau sesi Google berakhir — atau setelah
+**7 hari** karena aplikasi masih berstatus *Testing* — satu kali klik
+**Hubungkan Gmail** tetap diperlukan. Batas 7 hari ini hilang kalau aplikasi
+diajukan verifikasi ke Google.
+
+**Verifikasi di browser (dengan Google Identity Services di-stub):**
+
+| Uji | Hasil |
+|---|---|
+| `renew()` dengan `prompt: ''` | `ok: true`, token & email terisi, tersimpan di `sessionStorage` ✅ |
+| `renew()` memakai scope benar | `gmail.send` + `gmail.readonly` ✅ |
+| `ensureConnected()` sisa 1 jam | tidak memanggil `renew()` ✅ |
+| `ensureConnected()` sisa 1 menit | memanggil `renew()` ✅ |
+| `jagaSesiGmail()` sisa 30 menit | tidak memperbarui ✅ |
+| `jagaSesiGmail()` sisa 5 menit | memperbarui ✅ |
+| `jagaSesiGmail()` tanpa token | tidak memperbarui (belum pernah login) ✅ |
+| `jagaSesiGmail()` gagal | pesan muncul sekali, percobaan kedua senyap ✅ |
+| `sisaWaktu()` | `1 jam 0 menit` / `habis` / `kurang dari 1 menit` ✅ |
+| Kartu Setelan | menampilkan *Sisa waktu token: 41 menit* ✅ |
+
+> Yang **belum** bisa diuji otomatis: `renew()` terhadap Google sungguhan —
+> butuh sesi login nyata. Kalau Google menolak, jalur gagal di atas yang aktif.
+
 ### Cara menguji kirim
 
 **Kirim (Tes 3):**
@@ -631,7 +689,8 @@ email menghasilkan status `Gagal`.
   Services tidak memerlukan secret. Kalau secret pernah terlihat di screenshot,
   boleh di-reset — tidak akan memengaruhi aplikasi.
 - **Token kedaluwarsa**: access token 1 jam, refresh token 7 hari (karena status
-  masih *Testing*). Kalau muncul *"Sesi Gmail kedaluwarsa"*, klik
-  **Hubungkan Gmail** lagi.
+  masih *Testing*). Sejak `v9` token **diperbarui otomatis** di latar belakang,
+  jadi klik *Hubungkan Gmail* hanya perlu kalau sesi login Google di browser
+  sudah berakhir.
 - **Data donor ada di `app.js`** (`SEED_DONORS`) dan ikut ter-publish. Lihat
   bagian 12 no. 8.

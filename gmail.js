@@ -180,6 +180,66 @@ const Gmail = {
   clearSession(){
     try{ sessionStorage.removeItem(GMAIL_SESSION_KEY); }catch(e){ /* abaikan */ }
   },
+
+  /* ---------- perpanjangan sesi otomatis ---------- */
+  /* Sisa waktu token dalam milidetik (0 kalau tidak ada token). */
+  msLeft(){
+    return this.token ? Math.max(0, this.expiresAt - Date.now()) : 0;
+  },
+  /* Perbarui token tanpa membuka jendela izin. Google mengizinkan ini selama
+     pengguna masih punya sesi login di browser dan sudah pernah menyetujui
+     scope-nya. Kalau gagal (mis. sesi Google sudah logout), kembalikan false
+     dan pengguna perlu klik "Hubungkan Gmail" sekali lagi. */
+  async renew(){
+    if(!this.clientId) return false;
+    if(!this.isSecureOrigin()) return false;
+    try{ await this.loadScript(); }catch(e){ return false; }
+    if(!window.google || !google.accounts || !google.accounts.oauth2) return false;
+
+    const self = this;
+    return new Promise(function(resolve){
+      let selesai = false;
+      const beres = function(ok){
+        if(selesai) return;
+        selesai = true;
+        resolve(ok);
+      };
+      /* Jaring pengaman: kalau Google tidak menjawab (mis. iframe diblokir),
+         jangan menggantung selamanya. */
+      const timer = setTimeout(function(){ beres(false); }, 15000);
+      try{
+        const tc = google.accounts.oauth2.initTokenClient({
+          client_id: self.clientId,
+          scope: GMAIL_SCOPES,
+          prompt: '',            /* tanpa jendela izin — senyap */
+          callback: async function(resp){
+            clearTimeout(timer);
+            if(resp && resp.error){ beres(false); return; }
+            if(!resp || !resp.access_token){ beres(false); return; }
+            self.token = resp.access_token;
+            self.expiresAt = Date.now() + ((resp.expires_in || 3600) - 60) * 1000;
+            if(!self.email){
+              try{ await self.fetchProfile(); }catch(e){ /* opsional */ }
+            }
+            self.saveSession();
+            if(self.onStatus) self.onStatus();
+            beres(true);
+          },
+          error_callback: function(){ clearTimeout(timer); beres(false); }
+        });
+        tc.requestAccessToken({ prompt: '' });
+      }catch(e){
+        clearTimeout(timer);
+        beres(false);
+      }
+    });
+  },
+  /* Pastikan siap dipakai. Kalau token tinggal sedikit, perbarui dulu. */
+  async ensureConnected(){
+    if(this.isConnected() && this.msLeft() > 5 * 60 * 1000) return true;
+    if(await this.renew()) return true;
+    return this.isConnected();
+  },
   /* Origin yang diterima Google: https apa pun, atau http khusus localhost.
      `file://` selalu ditolak. */
   isSecureOrigin(){

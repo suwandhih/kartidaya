@@ -32,6 +32,15 @@ function statusChipClass(s){
   return 'plain';
 }
 
+/* Sisa waktu token Gmail dalam bentuk yang mudah dibaca. */
+function sisaWaktu(ms){
+  if(!ms || ms <= 0) return 'habis';
+  const mnt = Math.floor(ms / 60000);
+  if(mnt < 1) return 'kurang dari 1 menit';
+  if(mnt < 60) return mnt + ' menit';
+  return Math.floor(mnt / 60) + ' jam ' + (mnt % 60) + ' menit';
+}
+
 const DEFAULT_CATEGORIES = [
   'Member Support','Church Local','Individual - Local','Funder - Foreign','Organization'
 ];
@@ -843,6 +852,10 @@ function viewPengaturan(){
       '<button class="btn danger" data-action="g-disconnect">Putuskan</button>' +
     '</div>' +
     (Gmail.email ? '<p class="small muted" style="margin-top:10px">Akun: <b class="mono">' + esc(Gmail.email) + '</b></p>' : '') +
+    (st === 'connected'
+      ? '<p class="tiny muted" style="margin-top:6px">Sesi diperbarui otomatis di latar belakang. ' +
+        'Sisa waktu token: <b class="mono" id="g-sisa">' + sisaWaktu(Gmail.msLeft()) + '</b></p>'
+      : '') +
     '<div class="sep"></div>' +
     '<p class="small muted">Panduan lengkap: <b class="mono">PANDUAN-GMAIL.md</b></p>' +
   '</div>' +
@@ -1133,6 +1146,10 @@ async function kirimSurat(asDraft){
   if(!ids.length){ toast('Pilih penerima dulu', true); return; }
   if(!suratState.isi.trim()){ toast('Isi surat masih kosong', true); return; }
 
+  /* Perbarui token dulu kalau tinggal sedikit — supaya kirim tidak gagal di
+     tengah jalan hanya karena sesi hampir habis. */
+  if(!asDraft && Gmail.isConfigured()) await Gmail.ensureConnected();
+
   const useGmail = Gmail.isConnected() && !asDraft;
 
   /* Jangan pernah mencatat "Terkirim" secara diam-diam saat Gmail belum
@@ -1254,6 +1271,9 @@ function cocokkanUlang(){
 }
 
 async function gmailSync(){
+  if(!Gmail.isConfigured()){ toast('Isi Client ID dulu di Setelan', true); return; }
+  /* Perbarui token dulu kalau hampir habis, supaya sinkron tidak gagal. */
+  await Gmail.ensureConnected();
   if(!Gmail.isConnected()){ toast('Hubungkan Gmail dulu di Setelan', true); return; }
   toast('Menarik surat masuk…');
   try{
@@ -1642,6 +1662,32 @@ Gmail.onStatus = function(){ renderNav(); };
 /* Pulihkan token Gmail dari sessionStorage supaya memuat ulang halaman tidak
    memutus koneksi — kalau tidak, surat berikutnya diam-diam jadi mode simulasi. */
 Gmail.restoreSession();
+
+/* ---------- 16. PENJAGA SESI GMAIL ---------- */
+/* Perbarui token di latar belakang sebelum kedaluwarsa, supaya pengguna tidak
+   perlu klik "Hubungkan Gmail" berulang kali. Kalau Google menolak (sesi login
+   Google sudah berakhir), tampilkan peringatan sekali saja. */
+let _gmailPeringatan = false;
+async function jagaSesiGmail(){
+  if(!Gmail.isConfigured()) return;
+  if(!Gmail.isConnected() && !Gmail.msLeft()) return;   /* belum pernah login */
+  if(Gmail.msLeft() > 10 * 60 * 1000) return;           /* masih longgar */
+  const ok = await Gmail.renew();
+  if(ok){
+    _gmailPeringatan = false;
+    if(currentPage === 'pengaturan') render();
+    return;
+  }
+  if(!_gmailPeringatan){
+    _gmailPeringatan = true;
+    toast('Sesi Gmail perlu diperbarui — buka Setelan lalu klik Hubungkan Gmail', true);
+  }
+}
+setInterval(jagaSesiGmail, 5 * 60 * 1000);
+document.addEventListener('visibilitychange', function(){
+  if(!document.hidden) jagaSesiGmail();
+});
+jagaSesiGmail();
 
 function cycleTheme(){
   const order = ['light','dark','auto'];

@@ -257,11 +257,30 @@ Selesai. Sekarang:
 - **Terima** — menu *Masuk* → **⟳ Sinkron Gmail**. Surat masuk 90 hari terakhir
   ditarik dan otomatis dicocokkan ke donor berdasarkan alamat email.
 
-> Rincian langkah pengujian ada di bagian **Cara menguji (6 tes berurutan)**.
+> Rincian langkah pengujian ada di bagian **Cara menguji (8 tes berurutan)**.
+
+### Sesi diperbarui otomatis
+
+Setelah terhubung, Anda **tidak perlu** klik *Hubungkan Gmail* berulang kali.
+Aplikasi menyimpan token di `sessionStorage` dan memperbaruinya sendiri di latar
+belakang:
+
+- setiap **5 menit** saat aplikasi terbuka,
+- setiap kali tab kembali aktif (mis. setelah pindah tab atau buka lagi),
+- sebelum mengirim surat atau sinkron, kalau token tinggal **< 5 menit**.
+
+Di halaman **Setelan** ada baris *"Sesi diperbarui otomatis di latar belakang.
+Sisa waktu token: …"* — itu penanda bahwa penjaga sesi bekerja.
+
+> **Batasnya:** pembaruan senyap hanya berhasil selama Anda **masih login Google
+> di browser itu**. Kalau sesi login Google berakhir (atau setelah 7 hari, karena
+> aplikasi masih berstatus *Testing*), satu kali klik **Hubungkan Gmail** tetap
+> diperlukan. Aplikasi akan memberi tahu lewat pesan *"Sesi Gmail perlu
+> diperbarui"*.
 
 ---
 
-## Cara menguji (6 tes berurutan)
+## Cara menguji (8 tes berurutan)
 
 Kerjakan berurutan. Tes 1 bisa dilakukan **sekarang** tanpa Gmail; tes 2–5 butuh
 Test user sudah didaftarkan.
@@ -375,6 +394,23 @@ Perilaku otomatis:
 > Status juga bisa disetel saat mencatat surat masuk manual
 > (**↓ Catat Surat Masuk** → kolom **Status**).
 
+### Tes 8 — Sesi Gmail diperbarui otomatis
+
+Tujuan: memastikan koneksi tidak putus sendiri.
+
+1. Menu **Setelan** → pastikan status **Terhubung**
+2. Di bawah tombol ada baris *"Sesi diperbarui otomatis di latar belakang.
+   Sisa waktu token: …"* ✅
+3. Muat ulang halaman dengan **F5** (bukan Ctrl+Shift+R)
+4. Status tetap **Terhubung** dan nama akun masih muncul ✅
+   — dulu di sini koneksi hilang dan surat berikutnya jadi mode simulasi
+5. Biarkan aplikasi terbuka ±5 menit, lalu lihat lagi angka *Sisa waktu token*
+   — angkanya tidak pernah mendekati *habis* ✅
+
+> Untuk menguji jalur gagal: buka <https://accounts.google.com> → **Keluar**,
+> lalu tunggu penjaga sesi berjalan. Muncul pesan *"Sesi Gmail perlu diperbarui —
+> buka Setelan lalu klik Hubungkan Gmail"* (hanya sekali, tidak berulang) ✅
+
 ---
 
 ## Cara kerja pencocokan surat masuk
@@ -406,7 +442,9 @@ flowchart TD
 | Surat masuk tidak muncul di buku donor | Email donor belum diisi / tidak sama dengan alamat pengirim | Isi email donor, lalu **⇄ Cocokkan ulang** di Kotak Masuk |
 | Status surat tidak bisa diubah | Versi lama masih tersimpan di cache browser | Muat ulang dengan **Ctrl+Shift+R**, lalu buka suratnya — dropdown **Status surat** akan muncul |
 | `Error 403: access_denied` — *"has not completed the Google verification process"* | Email yang dipakai login belum terdaftar sebagai Test user | Lihat bagian di bawah |
-| `Sesi Gmail kedaluwarsa` | Token habis (1 jam / 7 hari) | Klik *Hubungkan Gmail* lagi |
+| `Sesi Gmail kedaluwarsa` | Token habis (1 jam / 7 hari) | Versi terbaru memperbarui token otomatis. Kalau tetap muncul, klik *Hubungkan Gmail* sekali lagi |
+| Muncul pesan *"Sesi Gmail perlu diperbarui"* | Sesi login Google di browser sudah berakhir, jadi pembaruan senyap ditolak | Buka **Setelan** → klik **Hubungkan Gmail** sekali. Untuk menghilangkan batas 7 hari, ajukan verifikasi aplikasi ke Google |
+| *Sisa waktu token* tidak muncul di Setelan | Versi lama masih tersimpan di cache browser | Muat ulang dengan **Ctrl+Shift+R** |
 | Surat tercatat **Terkirim** tapi email tidak pernah sampai | Gmail belum terhubung — surat hanya dicatat (mode simulasi) | Cek badge di bagian **4 · Kirim**: kalau tertulis *Mode simulasi*, hubungkan Gmail dulu di **Setelan** |
 | Gmail terhubung lalu hilang sendiri setelah refresh | Versi lama tidak menyimpan token | Versi terbaru menyimpan token di `sessionStorage` — muat ulang dengan **Ctrl+Shift+R** |
 | `Gagal memuat Google Identity Services` | Tidak ada internet | Cek koneksi internet |
