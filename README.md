@@ -113,6 +113,12 @@ Ringkasnya:
 4. Di aplikasi → **Setelan** → kartu **WhatsApp** → isi alamat Worker + kunci
    aplikasi → **Simpan & uji sambungan**
 
+> **Sudah terpasang untuk Kartidaya:** Worker
+> `https://kartidaya-wa.suwandhih.workers.dev`, KV `WA_INBOX`
+> `f92cebc2b7724490a76c18be3f3559a1`, nomor uji `+1 (555) 173-4967`.
+> Alamat & kunci disimpan di `localStorage` browser, jadi tidak perlu diisi
+> ulang setiap membuka aplikasi.
+
 **Kenapa perlu Worker?** Token Meta tidak boleh ada di browser (bisa dicuri lewat
 F12), dan pesan masuk butuh URL publik untuk webhook — dua hal yang tidak bisa
 dilakukan halaman statis. Worker menyimpan token dan menerima webhook; browser

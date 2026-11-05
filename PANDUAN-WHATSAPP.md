@@ -162,8 +162,9 @@ https://kartidaya-wa.namaanda.workers.dev
    - Berhasil → chip berubah jadi **Tersambung** dan nomor WhatsApp Business muncul
    - Gagal → pesan kesalahan muncul di kanan bawah
 
-Alamat Worker dan kunci disimpan di `sessionStorage`, jadi hilang saat tab
-ditutup. Isi ulang setelah membuka aplikasi baru.
+Alamat Worker dan kunci disimpan di `localStorage` browser ini, jadi **tidak
+perlu diisi ulang** setiap membuka aplikasi. Kunci sengaja tidak ikut
+ter-ekspor ke berkas cadangan JSON. Tombol **Putuskan** menghapus keduanya.
 
 ---
 
@@ -274,9 +275,10 @@ Status bisa diubah manual dari dropdown di dalam pesan.
   dikenakan tarif per percakapan. Cloudflare Workers gratis sampai 100.000
   permintaan/hari.
 - **Satu nomor bisnis** hanya boleh terhubung ke satu aplikasi Meta.
-- **Kunci aplikasi** disimpan di `sessionStorage` — hilang saat tab ditutup.
-  Ini disengaja: kunci hanya berguna untuk Worker ini, tapi lebih baik tidak
-  disimpan permanen.
+- **Kunci aplikasi** disimpan di `localStorage` browser ini supaya tidak perlu
+  diisi ulang setiap membuka aplikasi. Kunci hanya berguna untuk Worker ini,
+  dan tidak ikut ter-ekspor ke berkas cadangan JSON. Tombol **Putuskan**
+  menghapusnya.
 
 ---
 

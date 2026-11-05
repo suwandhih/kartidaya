@@ -960,8 +960,8 @@ Langkah-langkahnya ada di **`PANDUAN-WHATSAPP.md`** bagian 3–6.
   yang disetujui Meta.
 - **Nomor uji gratis** Meta hanya bisa mengirim ke nomor yang didaftarkan
   sebagai *test recipient*.
-- **Kunci aplikasi disimpan di `sessionStorage`** — hilang saat tab ditutup.
-  Disengaja: kunci hanya berguna untuk Worker ini, tapi lebih baik tidak
-  disimpan permanen.
+- **Kunci aplikasi disimpan di `localStorage`** — tidak perlu diisi ulang
+  setiap membuka aplikasi. Kunci hanya berguna untuk Worker ini, dan tidak
+  ikut ter-ekspor ke berkas cadangan JSON. Tombol **Putuskan** menghapusnya.
 - **Pencocokan donor** memakai nomor HP, jadi `0811-8862-345`, `08118862345`,
   dan `628118862345` dianggap sama.
