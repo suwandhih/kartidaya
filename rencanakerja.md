@@ -251,16 +251,20 @@ ditarik dikenali dari `gmailId` sehingga tidak dobel.
 
 Aplikasi satu halaman dengan navigasi bawah (mobile) / samping (desktop):
 
-1. **Beranda** — total donor, belum dibaca, surat keluar, status Gmail, kotak masuk
-   terbaru, donor per kategori, aktivitas terbaru, aksi cepat.
-2. **Masuk** — kotak masuk global (cari, filter status, filter donor, sinkron).
+1. **Beranda** — total donor, belum dibaca, surat keluar, status Gmail, status
+   WhatsApp, kotak masuk terbaru, donor per kategori, aktivitas terbaru, aksi cepat.
+2. **Masuk** — kotak masuk global (cari, filter status, filter donor, filter
+   kanal, sinkron Gmail, sinkron WhatsApp).
 3. **Keluar** — kotak keluar global.
 4. **Donor** — daftar + cari + filter kategori + urut; tombol `+ Tambah`.
 5. **Buku Donor** — buku terima & kirim satu donor (dibuka dari kartu donor).
-6. **Tulis** — template, token, penerima (multi-pilih), pratinjau, kirim/draft/cetak.
+6. **Tulis** — pemilih kanal (Email/WhatsApp), template, token, penerima
+   (multi-pilih), pratinjau, kirim/draft/cetak.
 7. **Kategori** — kelola kategori.
-8. **Setelan** — Gmail (Client ID, hubungkan, sinkron, putuskan), tanda tangan,
-   tema, ekspor/impor JSON, ekspor CSV, muat data contoh, reset, uji generator ID.
+8. **Setelan** — Gmail (Client ID, hubungkan, sinkron, putuskan), WhatsApp
+   (alamat Worker, kunci aplikasi, uji sambungan, sinkron otomatis), tanda
+   tangan, tema, ekspor/impor JSON, ekspor CSV, muat data contoh, reset, uji
+   generator ID.
 
 ---
 
@@ -392,6 +396,24 @@ Secret** — aman untuk aplikasi yang seluruhnya jalan di browser.
 - [x] **GitHub Pages** aktif di `https://suwandhih.github.io/kartidaya/`
 - [x] Dukung origin `https://` untuk OAuth (bukan hanya localhost)
 - [x] Halaman Setelan menampilkan origin yang perlu didaftarkan
+
+**Fase 4 — WhatsApp Cloud API**
+- [x] `worker/index.js` — Cloudflare Worker (kirim, webhook, antrean KV, anti-duplikat)
+- [x] `worker/wrangler.toml` — konfigurasi deploy + binding KV
+- [x] `whatsapp.js` — pembungkus sisi browser (bentuk API mirip `Gmail`)
+- [x] Field `kanal` pada pesan (`email` / `whatsapp`)
+- [x] Pencocokan donor lewat nomor HP (`donorByPhone`, `donorWa`)
+- [x] Pemilih kanal di halaman **Tulis** + pratinjau gelembung WhatsApp
+- [x] Kirim WhatsApp dari aplikasi (`kirimSurat` bercabang per kanal)
+- [x] Terima WhatsApp: `waSync()` + `waSinkronOtomatis()` + tombol sinkron
+- [x] Filter kanal & chip kanal di Kotak Masuk dan buku donor
+- [x] Kartu **WhatsApp** di Setelan (alamat Worker, kunci, uji sambungan)
+- [x] **Catat Surat Masuk** dengan pilihan kanal
+- [x] `PANDUAN-WHATSAPP.md`
+- [ ] Deploy Worker ke Cloudflare *(butuh akun pengguna)*
+- [ ] Setup Meta Business + nomor WhatsApp Business *(butuh akun pengguna)*
+- [ ] Daftarkan webhook di Meta *(butuh Worker ter-deploy)*
+- [ ] Uji kirim/terima WhatsApp sungguhan *(butuh langkah di atas)*
 
 ---
 
@@ -809,3 +831,133 @@ Ditambah dua masalah tampilan:
   sudah berakhir.
 - **Data donor ada di `app.js`** (`SEED_DONORS`) dan ikut ter-publish. Lihat
   bagian 12 no. 8.
+
+---
+
+## 14. Integrasi WhatsApp — SELESAI (5 Nov 2026)
+
+**Permintaan pengguna:** *"ok setelah ini mau masuk API whatsapp .. jadi bisa
+interaksi lewat hp juga"* — dengan pilihan **konsep sepenuhnya sama dengan
+email**, penyedia **Meta WhatsApp Cloud API**, backend **Cloudflare Worker**.
+
+### Kenapa perlu backend
+
+Aplikasi ini halaman statis di GitHub Pages. WhatsApp API **tidak bisa** dipakai
+langsung dari browser karena dua hal:
+
+| Masalah | Sebab |
+|---|---|
+| Token Meta | Kunci rahasia; kalau ada di `app.js`, siapa pun bisa membacanya lewat F12 |
+| Webhook | Meta mengirim pesan masuk lewat **POST** ke URL publik; GitHub Pages tidak bisa menerima kiriman |
+
+Karena itu ditambahkan **Cloudflare Worker** sebagai perantara. Browser hanya
+menyimpan **alamat Worker** dan **kunci aplikasi** (`APP_KEY`) — keduanya tidak
+berbahaya kalau bocor.
+
+```
+HP pengirim → Meta Cloud API → Worker (webhook) → KV antrean
+                                                     │
+Browser Kartidaya ←── GET /wa/inbox ─────────────────┘
+Browser Kartidaya ──── POST /wa/send ────► Worker ────► Meta → HP tujuan
+```
+
+### Berkas baru
+
+| Berkas | Isi |
+|---|---|
+| `worker/index.js` | Cloudflare Worker — endpoint `/wa/status`, `/wa/send`, `/wa/webhook` (GET verifikasi + POST pesan masuk), `/wa/inbox`, `/wa/ack` |
+| `worker/wrangler.toml` | Konfigurasi deploy + binding KV `WA_INBOX` |
+| `whatsapp.js` | Pembungkus sisi browser (objek `WhatsApp`), bentuk API sengaja mirip `Gmail` |
+| `PANDUAN-WHATSAPP.md` | Panduan lengkap: setup Meta, deploy Worker, 9 uji, tabel masalah |
+
+### Keamanan Worker
+
+- Semua endpoint kecuali `/wa/webhook` wajib menyertakan header `X-App-Key`
+- Perbandingan kunci memakai `sameKey()` — **constant-time**, supaya panjang/isi
+  kunci tidak bocor lewat waktu eksekusi
+- Empat rahasia disimpan sebagai **Worker secret**, bukan di kode:
+  `WA_TOKEN`, `WA_PHONE_ID`, `WA_VERIFY_TOKEN`, `APP_KEY`
+- CORS dibatasi ke origin pemanggil (`Vary: Origin`)
+- Antrean pesan masuk dibatasi **500 pesan terakhir** (`MAX_QUEUE`)
+- Anti-duplikat berdasarkan `waId` — webhook Meta yang dikirim ulang tidak
+  menghasilkan pesan dobel
+
+### Perubahan di `app.js` (`v13`)
+
+| Bagian | Perubahan |
+|---|---|
+| Konstanta | `KANAL`, `LABEL_KANAL`, `ICO_KANAL`, `kanalChip()` |
+| `loadState()` | `waEndpoint`, `waAutoSync` (bawaan `true`), `waSyncMinutes` (bawaan `10`), `waLastSync` |
+| `addMessage()` | Field baru `kanal` (`'email'`/`'whatsapp'`), `waId`, `waNama` |
+| `donorByPhone()` | Cocokkan pengirim WhatsApp ke donor lewat **HP 1 atau HP 2**, nomor dinormalkan dulu |
+| `donorWa()` | Nomor WhatsApp donor: HP 1, kalau kosong HP 2 |
+| `viewKotak()` | Filter **Semua kanal / Email / WhatsApp**, chip kanal di tiap kartu, tombol **⟳ Sinkron WhatsApp** |
+| `viewBuku()` | Chip kanal di setiap bubble |
+| `viewSurat()` | Pemilih kanal **✉ Email / ✆ WhatsApp**; daftar penerima menampilkan nomor HP atau email sesuai kanal; peringatan jumlah penerima tanpa alamat |
+| `previewHTML()` | Pratinjau bergaya gelembung WhatsApp kalau kanal WhatsApp |
+| `kirimSurat()` | Bercabang per kanal; `WhatsApp.send()` untuk WhatsApp; mencatat `kanal` + `waId`; donor tanpa nomor → **Gagal** |
+| `waConnect()` | Simpan alamat + kunci, uji lewat `/wa/status`, tampilkan nomor WhatsApp Business |
+| `waSync()` | Tarik `/wa/inbox`, cocokkan ke donor, simpan, lalu `ack()` |
+| `cocokkanWa()` | Cocokkan ulang pesan WhatsApp yang belum punya donor |
+| `cocokkanUlang()` | Sekarang menangani **kedua kanal** (email & WhatsApp) |
+| `waSinkronOtomatis()` | Penjaga sinkron WhatsApp — sama polanya dengan `sinkronOtomatis()` |
+| `openMessage()` | Label **Dari (nomor)** / **Kepada (nomor)** + pratinjau gelembung untuk WhatsApp |
+| `openTautkan()` | Menyimpan nomor HP (bukan email) kalau pesannya WhatsApp |
+| `openCatatMasuk()` | Pilihan **Kanal**; kolom **Dari** terisi otomatis sesuai kanal |
+| `viewPengaturan()` | Kartu **WhatsApp**: alamat Worker, kunci aplikasi, uji sambungan, sinkron otomatis, jarak, terakhir sinkron |
+| `viewBeranda()` | Statistik **Status WhatsApp** + tombol sinkron kedua kanal |
+| `case 'balas'` | Kanal balasan mengikuti kanal pesan terakhir donor |
+
+### Perubahan di `app.css` (`v13`)
+
+- `--wa` / `--wa-soft` untuk tema terang & gelap
+- `.chip.kanal-email`, `.chip.kanal-whatsapp`
+- `.wa-preview`, `.wa-bubble` — pratinjau bergaya WhatsApp
+
+### Verifikasi di browser (Worker di-stub)
+
+| Uji | Hasil |
+|---|---|
+| Kartu WhatsApp muncul di Setelan | ✅ |
+| **Simpan & uji sambungan** dengan Worker hidup | chip jadi **Tersambung**, nomor `628123456789` tampil ✅ |
+| **⟳ Sinkron WhatsApp** | 2 pesan masuk; 1 cocok ke Ferry (`F00004R`), 1 belum dikenal ✅ |
+| Badge menu Masuk | naik ke 2 ✅ |
+| Filter kanal **✆ WhatsApp** | menyaring dengan benar ✅ |
+| Chip kanal di Kotak Masuk & buku donor | `✆ WhatsApp` ✅ |
+| Pemilih kanal di **Tulis** | tombol Email/WhatsApp, pratinjau berubah jadi gelembung ✅ |
+| Daftar penerima saat kanal WhatsApp | menampilkan nomor HP, bukan email ✅ |
+| **Kirim** lewat WhatsApp | `status: Terkirim`, `kanal: whatsapp`, `waId` terisi, `to: 628118862345` ✅ |
+| Surat masuk Ferry otomatis jadi **Dibalas** setelah kirim | ✅ |
+| Buku donor Ferry | 3 bubble: ↓Masuk WhatsApp Dibalas, ↑Keluar WhatsApp Terkirim ✅ |
+| Modal pesan WhatsApp | label **Dari (nomor)** / **Kepada (nomor)**, nomor diformat `0811-8862-345` ✅ |
+| **Catat Surat Masuk** kanal WhatsApp | `from` terisi nomor HP donor, `to` nomor bisnis, `dibaca` ikut status ✅ |
+| **⇄ Cocokkan ulang** setelah nomor HP donor diisi | pesan pindah ke buku donor yang benar ✅ |
+| Anti-duplikat | pesan dengan `waId` sama tidak ditarik dua kali ✅ |
+
+### Yang belum dikerjakan (butuh akun pengguna)
+
+| # | Tugas | Kenapa belum |
+|---|---|---|
+| 1 | Deploy Worker ke Cloudflare | Butuh `wrangler login` (membuka browser) atau tempel kode lewat dashboard |
+| 2 | Buat KV namespace `WA_INBOX` | Butuh akun Cloudflare |
+| 3 | Set 4 secret Worker | Butuh token Meta & kunci pilihan pengguna |
+| 4 | Setup Meta Business + nomor WhatsApp Business | Butuh akun Meta pengguna |
+| 5 | Daftarkan webhook di Meta | Butuh Worker sudah ter-deploy |
+| 6 | Uji kirim/terima WhatsApp sungguhan | Butuh langkah 1–5 selesai |
+
+Langkah-langkahnya ada di **`PANDUAN-WHATSAPP.md`** bagian 3–6.
+
+### Catatan penting WhatsApp
+
+- **Subjek tidak ikut terkirim** di WhatsApp — hanya isi pesan. Subjek tetap
+  disimpan sebagai judul catatan di buku donor.
+- **Jendela 24 jam**: WhatsApp hanya mengizinkan pesan bebas dalam 24 jam
+  setelah pelanggan terakhir menulis. Di luar itu harus pakai *message template*
+  yang disetujui Meta.
+- **Nomor uji gratis** Meta hanya bisa mengirim ke nomor yang didaftarkan
+  sebagai *test recipient*.
+- **Kunci aplikasi disimpan di `sessionStorage`** — hilang saat tab ditutup.
+  Disengaja: kunci hanya berguna untuk Worker ini, tapi lebih baik tidak
+  disimpan permanen.
+- **Pencocokan donor** memakai nomor HP, jadi `0811-8862-345`, `08118862345`,
+  dan `628118862345` dianggap sama.

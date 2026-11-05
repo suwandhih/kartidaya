@@ -5,8 +5,8 @@ surat, dan **buku terima & kirim per ID donor** — mirip Outlook tetapi disesua
 kebutuhan perusahaan.
 
 Setiap donor punya **buku sendiri** berisi surat keluar dan masuk yang tercampur
-urut waktu. Surat bisa dikirim dan diterima sungguhan lewat akun `@gmail.com`
-memakai Gmail API + OAuth 2.0.
+urut waktu. Surat bisa dikirim dan diterima sungguhan lewat **email** (Gmail API +
+OAuth 2.0) maupun **WhatsApp** (Meta WhatsApp Cloud API lewat Cloudflare Worker).
 
 ## Coba langsung
 
@@ -24,10 +24,14 @@ Surat yang "dikirim" tercatat di buku donor, surat masuk bisa dicatat manual.
 | ID-DONOR otomatis | Format `[X]99999[Z]` — X dari Instansi (atau PIC bila kosong) |
 | Template surat | Token `{/PIC}`, `{/INST}`, `{/TANGGAL}`, dll. |
 | Kirim massal | Pilih banyak penerima, kirim sekaligus |
+| **Dua kanal** | Email dan WhatsApp, dipilih per pengiriman |
 | **Buku per donor** | Surat keluar + masuk urut waktu, bubble masuk/keluar |
-| **Kotak Masuk / Keluar** | Tampilan global semua donor, bisa dicari & difilter |
-| **Belum dikenal** | Surat dari alamat tak dikenal → bisa ditautkan ke donor |
+| **Kotak Masuk / Keluar** | Tampilan global semua donor, bisa dicari & difilter per kanal |
+| **Status surat** | Belum dibaca (kuning) / Dibaca (biru) / Dibalas (hijau) |
+| **Belum dikenal** | Surat dari alamat/nomor tak dikenal → bisa ditautkan ke donor |
 | **Sinkron Gmail** | Tarik inbox, cocokkan otomatis lewat alamat email |
+| **Sinkron WhatsApp** | Tarik pesan masuk lewat webhook, cocokkan lewat nomor HP |
+| **Sinkron otomatis** | Kedua kanal ditarik sendiri di latar belakang |
 | Cetak surat | `window.print()` per penerima |
 | Ekspor | JSON (backup/restore) + CSV (buka di Excel) |
 | Tema | Terang / gelap / ikut sistem |
@@ -82,6 +86,38 @@ Client Secret **tidak diperlukan** — aplikasi memakai alur token
 > `http://localhost`. Membuka `index.html` dengan dobel-klik (`file://`) akan
 > ditolak — pakai GitHub Pages atau `serve.bat`.
 
+## Menghubungkan WhatsApp
+
+Ikuti **[PANDUAN-WHATSAPP.md](PANDUAN-WHATSAPP.md)** — panduan langkah demi
+langkah menyiapkan Meta WhatsApp Cloud API + Cloudflare Worker (±20 menit,
+sekali saja).
+
+Ringkasnya:
+
+1. Buat aplikasi Meta di <https://developers.facebook.com/apps> → tambahkan
+   produk **WhatsApp** → catat **Phone number ID** dan buat **permanent token**
+2. Deploy Worker:
+   ```powershell
+   cd worker
+   npx wrangler login
+   npx wrangler kv namespace create WA_INBOX   # salin id ke wrangler.toml
+   npx wrangler secret put WA_TOKEN
+   npx wrangler secret put WA_PHONE_ID
+   npx wrangler secret put WA_VERIFY_TOKEN
+   npx wrangler secret put APP_KEY
+   npx wrangler deploy
+   ```
+3. Daftarkan webhook di Meta → **Configuration** → **Webhook**:
+   `https://<worker-anda>.workers.dev/wa/webhook`, verify token sama dengan
+   `WA_VERIFY_TOKEN`, lalu subscribe ke field **messages**
+4. Di aplikasi → **Setelan** → kartu **WhatsApp** → isi alamat Worker + kunci
+   aplikasi → **Simpan & uji sambungan**
+
+**Kenapa perlu Worker?** Token Meta tidak boleh ada di browser (bisa dicuri lewat
+F12), dan pesan masuk butuh URL publik untuk webhook — dua hal yang tidak bisa
+dilakukan halaman statis. Worker menyimpan token dan menerima webhook; browser
+hanya tahu alamat Worker dan kunci aplikasi.
+
 ## Struktur file
 
 ```
@@ -89,10 +125,14 @@ index.html          Kerangka halaman
 app.css             Gaya (1 warna aksen, sisanya netral)
 app.js              Logika aplikasi + data contoh 18 donor
 gmail.js            Gmail API + OAuth 2.0
+whatsapp.js         Pembungkus WhatsApp Cloud API (lewat Worker)
+worker/index.js     Cloudflare Worker — kirim, webhook, antrean pesan masuk
+worker/wrangler.toml  Konfigurasi deploy Worker
 serve.py            Server statis lokal (threaded, port 8080)
 serve.bat           Peluncur Windows
 rencanakerja.md     Rencana kerja & keputusan desain
 PANDUAN-GMAIL.md    Panduan Google Cloud Console
+PANDUAN-WHATSAPP.md Panduan Meta + Cloudflare Worker
 ```
 
 ## Penyimpanan data
@@ -108,6 +148,9 @@ database. Artinya:
 
 Vanilla HTML + CSS + JavaScript. Tanpa framework, tanpa build step, tanpa
 dependensi npm. Hanya butuh Python 3 untuk server lokal.
+
+WhatsApp memakai **Cloudflare Worker** (JavaScript, gratis sampai 100.000
+permintaan/hari) sebagai perantara ke Meta Graph API.
 
 ## Lisensi
 

@@ -22,8 +22,12 @@ const PANGGILAN = ['','Ibu','Bapak','Saudara','Saudari'];
 const PENGIRIMAN = ['','Email','WhatsApp','POS','Kurir','Lainnya'];
 const STATUS_KELUAR = ['Draft','Terkirim','Gagal'];
 const STATUS_MASUK = ['Belum dibaca','Dibaca','Dibalas'];
+/* Kanal surat. Email lewat Gmail API, WhatsApp lewat Cloudflare Worker. */
+const KANAL = ['email','whatsapp'];
+const LABEL_KANAL = { email:'Email', whatsapp:'WhatsApp' };
+const ICO_KANAL = { email:'✉', whatsapp:'✆' };
 const ARTI_STATUS_MASUK = {
-  'Belum dibaca': 'email baru, belum dibuka',
+  'Belum dibaca': 'pesan baru, belum dibuka',
   'Dibaca': 'sudah dibuka',
   'Dibalas': 'sudah dikirimi balasan'
 };
@@ -38,6 +42,12 @@ function statusChipClass(s){
   if(s === 'Dibalas') return 'st-dibalas';
   if(s === 'Draft') return 'plain';
   return 'plain';
+}
+
+/* Chip kecil penanda kanal surat (Email / WhatsApp). */
+function kanalChip(m){
+  const k = m && m.kanal === 'whatsapp' ? 'whatsapp' : 'email';
+  return '<span class="chip kanal-' + k + '">' + ICO_KANAL[k] + ' ' + LABEL_KANAL[k] + '</span>';
 }
 
 /* Sisa waktu token Gmail dalam bentuk yang mudah dibaca. */
@@ -150,6 +160,12 @@ function loadState(){
   if(state.settings.autoSync === undefined) state.settings.autoSync = true;
   if(!state.settings.syncMinutes) state.settings.syncMinutes = 10;
   if(!state.settings.lastSync) state.settings.lastSync = '';
+  /* WhatsApp — alamat Worker & kunci aplikasi disimpan di sessionStorage
+     (lihat whatsapp.js), sisanya di sini. */
+  if(!state.settings.waEndpoint) state.settings.waEndpoint = '';
+  if(state.settings.waAutoSync === undefined) state.settings.waAutoSync = true;
+  if(!state.settings.waSyncMinutes) state.settings.waSyncMinutes = 10;
+  if(!state.settings.waLastSync) state.settings.waLastSync = '';
   if(firstRun) save();
 }
 
@@ -229,6 +245,22 @@ function donorByEmail(addr){
   }
   return null;
 }
+/* Cocokkan pengirim WhatsApp ke donor lewat nomor HP 1 atau HP 2. Nomor
+   dinormalkan dulu (0811… → 62811…) supaya format penulisan tidak penting. */
+function donorByPhone(num){
+  const n = waPhone(num);
+  if(!n) return null;
+  for(let i = 0; i < state.donors.length; i++){
+    const d = state.donors[i];
+    if(waPhone(d.hp1) === n || waPhone(d.hp2) === n) return d;
+  }
+  return null;
+}
+/* Nomor WhatsApp donor: pakai HP 1, kalau kosong baru HP 2. */
+function donorWa(d){
+  if(!d) return '';
+  return waPhone(d.hp1) || waPhone(d.hp2);
+}
 
 /* ---------- 4. GENERATOR ID [X]99999[Z] ---------- */
 function idLetter(pic, instansi){
@@ -282,7 +314,8 @@ function addMessage(m){
   state.messages.push(Object.assign({
     id:uid('msg'), donorId:'', arah:'keluar', tanggal:new Date().toISOString(),
     subjek:'', isi:'', status:'Terkirim', from:'', to:'', cc:'',
-    gmailId:'', threadId:'', lampiran:'', catatan:'', dibaca:true
+    gmailId:'', threadId:'', lampiran:'', catatan:'', dibaca:true,
+    kanal:'email', waId:'', waNama:''
   }, m));
   save('messages');
 }
@@ -397,6 +430,13 @@ function viewBeranda(){
   const syncText = state.settings.autoSync
     ? (state.settings.lastSync ? 'Sinkron otomatis · ' + relTime(state.settings.lastSync) : 'Sinkron otomatis aktif')
     : 'Sinkron otomatis mati';
+  const waState = WhatsApp.status();
+  const waText = waState === 'connected'
+    ? (WhatsApp.phone ? 'Nomor ' + WhatsApp.phone : 'Worker tersambung')
+    : (WhatsApp.isConfigured() ? 'Worker terisi — belum diuji' : 'Belum diatur');
+  const waSyncText = state.settings.waAutoSync
+    ? (state.settings.waLastSync ? 'Sinkron otomatis · ' + relTime(state.settings.waLastSync) : 'Sinkron otomatis aktif')
+    : 'Sinkron otomatis mati';
 
   return '' +
   '<div class="grid stats" style="margin-bottom:14px">' +
@@ -404,12 +444,16 @@ function viewBeranda(){
     stat('Belum Dibaca', unread, masuk + ' surat masuk') +
     stat('Surat Keluar', keluar, keluarBulan + ' bulan ini') +
     stat('Status Gmail', gmailState === 'connected' ? 'Aktif' : '—', gmailText) +
+    stat('Status WhatsApp', waState === 'connected' ? 'Aktif' : '—', waText) +
   '</div>' +
 
-  (gmailState === 'connected' ?
-    '<div class="card" style="margin-bottom:14px"><div class="row" style="justify-content:space-between">' +
-      '<span class="small muted">' + esc(syncText) + '</span>' +
-      '<button class="btn sm" data-action="sync">⟳ Sinkron sekarang</button>' +
+  ((gmailState === 'connected' || waState === 'connected') ?
+    '<div class="card" style="margin-bottom:14px"><div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:8px">' +
+      '<span class="small muted">' + esc(syncText) + ' · ' + esc(waSyncText) + '</span>' +
+      '<span class="row" style="gap:8px">' +
+        '<button class="btn sm" data-action="sync">⟳ Sinkron Gmail</button>' +
+        '<button class="btn sm" data-action="wa-sync">⟳ Sinkron WhatsApp</button>' +
+      '</span>' +
     '</div></div>' : '') +
 
   '<div class="card">' +
@@ -468,7 +512,7 @@ function stat(k,v,d){
 }
 
 /* ---------- KOTAK MASUK / KELUAR ---------- */
-let kotakFilter = { q:'', donorId:'', status:'' };
+let kotakFilter = { q:'', donorId:'', status:'', kanal:'' };
 
 function viewKotak(arah){
   const isMasuk = arah === 'masuk';
@@ -481,6 +525,7 @@ function viewKotak(arah){
       if(m.donorId) return false;
     }else if(kotakFilter.donorId && m.donorId !== kotakFilter.donorId) return false;
     if(kotakFilter.status && m.status !== kotakFilter.status) return false;
+    if(kotakFilter.kanal && (m.kanal === 'whatsapp' ? 'whatsapp' : 'email') !== kotakFilter.kanal) return false;
     if(!q) return true;
     const d = findDonor(m.donorId);
     return [m.subjek, m.isi, m.from, m.to, d ? donorName(d) : '', d ? d.id : '']
@@ -510,9 +555,16 @@ function viewKotak(arah){
         return '<option value="' + esc(s) + '"' + (kotakFilter.status === s ? ' selected' : '') + '>' + esc(s) + '</option>';
       }).join('') + '</select>' +
     '<select id="k-donor" style="max-width:230px">' + donorOpts + '</select>' +
+    '<select id="k-kanal" style="max-width:150px">' +
+      '<option value="">Semua kanal</option>' +
+      KANAL.map(function(k){
+        return '<option value="' + k + '"' + (kotakFilter.kanal === k ? ' selected' : '') + '>' +
+          ICO_KANAL[k] + ' ' + LABEL_KANAL[k] + '</option>';
+      }).join('') + '</select>' +
     (isMasuk
       ? '<button class="btn" data-action="cocokkan">⇄ Cocokkan ulang</button>' +
-        '<button class="btn primary" data-action="sync">⟳ Sinkron Gmail</button>'
+        '<button class="btn primary" data-action="sync">⟳ Sinkron Gmail</button>' +
+        '<button class="btn" data-action="wa-sync">⟳ Sinkron WhatsApp</button>'
       : '<button class="btn primary" data-go="surat">✎ Tulis Surat</button>') +
   '</div>' +
   '<p class="tiny muted" style="margin:-6px 0 12px">' + list.length + ' surat</p>' +
@@ -527,6 +579,7 @@ function viewKotak(arah){
       '<div class="mail-subj">' + esc(m.subjek) + '</div>' +
       '<div class="mail-prev">' + esc(String(m.isi || '').replace(/\s+/g,' ').slice(0, 130)) + '</div>' +
       '<div class="mail-foot">' +
+        kanalChip(m) +
         '<span class="chip ' + statusChipClass(m.status) + '">' + esc(m.status) + '</span>' +
         (d ? '<span class="chip plain mono">' + esc(d.id) + '</span>'
            : '<span class="chip warn">belum dikenal</span>') +
@@ -651,6 +704,7 @@ function viewBuku(donorId){
         '" data-open-msg="' + esc(m.id) + '">' +
         '<div class="b-head">' +
           '<span class="b-dir">' + (isIn ? '↓ Masuk' : '↑ Keluar') + '</span>' +
+          kanalChip(m) +
           '<span class="chip ' + statusChipClass(m.status) + '">' + esc(m.status) + '</span>' +
           '<span class="b-time">' + fmtDateTime(m.tanggal) + '</span>' +
         '</div>' +
@@ -668,7 +722,7 @@ function kv(k,v){
 }
 
 /* ---------- TULIS SURAT ---------- */
-let suratState = { tplId:'', subjek:'', isi:'', selected:{}, previewId:'', q:'', replyTo:'' };
+let suratState = { tplId:'', subjek:'', isi:'', selected:{}, previewId:'', q:'', replyTo:'', kanal:'email' };
 
 function viewSurat(){
   setTitle('Tulis Surat','Susun surat dengan template, kirim ke banyak penerima');
@@ -686,12 +740,19 @@ function viewSurat(){
   const q = suratState.q.toLowerCase();
   const recips = state.donors.filter(function(d){
     if(!q) return true;
-    return [d.id,d.pic,d.namaLengkap,d.instansi,d.email].join(' ').toLowerCase().indexOf(q) >= 0;
+    return [d.id,d.pic,d.namaLengkap,d.instansi,d.email,d.hp1,d.hp2].join(' ').toLowerCase().indexOf(q) >= 0;
   });
   const ids = Object.keys(suratState.selected).filter(function(k){ return suratState.selected[k]; });
   const nSel = ids.length;
   const previewDonor = findDonor(suratState.previewId) || (nSel ? findDonor(ids[0]) : null) || state.donors[0] || null;
   const gmailOk = Gmail.isConnected();
+  const waOk = WhatsApp.isConfigured() && WhatsApp.status() === 'connected';
+  const kanal = suratState.kanal === 'whatsapp' ? 'whatsapp' : 'email';
+  const siap = kanal === 'whatsapp' ? waOk : gmailOk;
+  const nTanpaAlamat = ids.filter(function(id){
+    const d = findDonor(id);
+    return d && !(kanal === 'whatsapp' ? donorWa(d) : d.email);
+  }).length;
 
   return '' +
   '<div class="grid" style="grid-template-columns:minmax(0,1fr);gap:14px">' +
@@ -699,10 +760,23 @@ function viewSurat(){
     '<div class="card">' +
       '<div class="card-head"><h2>1 · Template</h2>' +
         '<button class="btn sm ghost" data-action="tpl-kelola">Kelola template</button></div>' +
+      '<div class="field"><label>Kanal pengiriman</label>' +
+        '<div class="row" style="gap:8px">' +
+          KANAL.map(function(k){
+            return '<button type="button" class="btn sm' + (kanal === k ? ' primary' : '') +
+              '" data-action="kanal-pilih" data-kanal="' + k + '">' +
+              ICO_KANAL[k] + ' ' + LABEL_KANAL[k] + '</button>';
+          }).join('') +
+        '</div></div>' +
+      '<p class="tiny muted" style="margin:-4px 0 12px">' +
+        (kanal === 'whatsapp'
+          ? 'Pesan dikirim lewat WhatsApp Cloud API. Subjek tidak ikut terkirim — hanya isi pesan.'
+          : 'Surat dikirim lewat Gmail API.') + '</p>' +
       '<div class="form-grid">' +
         '<div class="field"><label>Template</label><select id="s-tpl">' +
           (tplOpts || '<option value="">(belum ada template)</option>') + '</select></div>' +
-        '<div class="field"><label>Subjek</label>' +
+        '<div class="field"><label>Subjek' + (kanal === 'whatsapp' ? ' <span class="hint">— hanya untuk catatan</span>' : '') +
+          '</label>' +
           '<input type="text" id="s-subjek" value="' + esc(suratState.subjek) + '" placeholder="Subjek surat…"></div>' +
       '</div>' +
       '<div class="field"><label>Isi Surat <span class="hint">— klik token untuk menyisipkan</span></label>' +
@@ -723,10 +797,13 @@ function viewSurat(){
       '</div>' +
       (recips.length ? '<div class="scroll">' + recips.map(function(d){
         const on = !!suratState.selected[d.id];
+        const alamat = kanal === 'whatsapp'
+          ? (donorWa(d) ? waPhonePretty(donorWa(d)) : 'tanpa nomor HP')
+          : (d.email || 'tanpa email');
         return '<label class="recipient' + (on ? ' on' : '') + '">' +
           '<input type="checkbox" data-recip="' + esc(d.id) + '"' + (on ? ' checked' : '') + '>' +
           '<span class="txt"><b>' + esc(donorName(d)) + '</b>' +
-          '<span>' + esc(d.id) + (d.email ? ' · ' + esc(d.email) : ' · tanpa email') + '</span></span>' +
+          '<span>' + esc(d.id) + ' · ' + esc(alamat) + '</span></span>' +
         '</label>';
       }).join('') + '</div>' : '<p class="muted small">Tidak ada donor.</p>') +
     '</div>' +
@@ -735,12 +812,24 @@ function viewSurat(){
 
     '<div class="card">' +
       '<div class="card-head"><h2>4 · Kirim</h2>' +
-        '<span class="chip' + (gmailOk ? '' : ' plain') + '">' +
-          (gmailOk ? 'Gmail aktif' : 'Mode simulasi') + '</span></div>' +
-      '<p class="small muted">' + (gmailOk
-        ? 'Surat akan dikirim lewat Gmail API dan otomatis tercatat di buku masing-masing donor.'
-        : 'Gmail belum terhubung. Surat akan dicatat sebagai <b>Terkirim</b> di buku donor (mode simulasi). ' +
-          'Hubungkan Gmail di <b>Setelan</b> untuk kirim sungguhan.') + '</p>' +
+        '<span class="chip' + (siap ? '' : ' plain') + '">' +
+          (kanal === 'whatsapp'
+            ? (waOk ? 'WhatsApp aktif' : 'WhatsApp belum siap')
+            : (gmailOk ? 'Gmail aktif' : 'Mode simulasi')) + '</span></div>' +
+      '<p class="small muted">' + (siap
+        ? (kanal === 'whatsapp'
+            ? 'Pesan akan dikirim lewat WhatsApp Cloud API dan otomatis tercatat di buku masing-masing donor.'
+            : 'Surat akan dikirim lewat Gmail API dan otomatis tercatat di buku masing-masing donor.')
+        : (kanal === 'whatsapp'
+            ? 'WhatsApp belum siap. Isi alamat Worker dan kunci aplikasi di <b>Setelan</b> untuk kirim sungguhan. ' +
+              'Tanpa itu pesan hanya dicatat sebagai <b>Terkirim</b> (mode simulasi).'
+            : 'Gmail belum terhubung. Surat akan dicatat sebagai <b>Terkirim</b> di buku donor (mode simulasi). ' +
+              'Hubungkan Gmail di <b>Setelan</b> untuk kirim sungguhan.')) + '</p>' +
+      (nTanpaAlamat
+        ? '<div class="warnbox">' + nTanpaAlamat + ' penerima belum punya ' +
+          (kanal === 'whatsapp' ? 'nomor HP' : 'alamat email') +
+          ' — pengirimannya akan ditandai <b>Gagal</b>.</div>'
+        : '') +
       '<div class="btn-row">' +
         '<button class="btn primary" id="kirim-btn" data-action="kirim"' + (nSel ? '' : ' disabled') + '>➤ Kirim (' + nSel + ')</button>' +
         '<button class="btn" id="draft-btn" data-action="simpan-draft"' + (nSel ? '' : ' disabled') + '>Simpan Draft</button>' +
@@ -753,11 +842,17 @@ function viewSurat(){
 function previewHTML(d){
   if(!d) return '<div class="card-head"><h2>3 · Pratinjau</h2></div>' +
     '<p class="muted small">Belum ada donor untuk dipratinjau.</p>';
+  const wa = suratState.kanal === 'whatsapp';
+  const alamat = wa ? (donorWa(d) ? waPhonePretty(donorWa(d)) : 'belum ada nomor HP') : (d.email || 'belum ada email');
   return '<div class="card-head"><h2>3 · Pratinjau</h2>' +
-      '<span class="chip plain">' + esc(donorName(d)) + '</span></div>' +
+      '<span class="chip plain">' + esc(donorName(d)) + '</span>' +
+      '<span class="chip kanal-' + (wa ? 'whatsapp' : 'email') + '">' +
+        ICO_KANAL[wa ? 'whatsapp' : 'email'] + ' ' + LABEL_KANAL[wa ? 'whatsapp' : 'email'] + '</span></div>' +
     '<div class="small muted" style="margin-bottom:8px">Kepada: <b>' + esc(donorLabel(d)) + '</b>' +
-      (d.instansi ? ' — ' + esc(d.instansi) : '') + '</div>' +
-    '<div class="letter">' + esc(fillTemplate(suratState.isi, d)) + '</div>' +
+      (d.instansi ? ' — ' + esc(d.instansi) : '') + ' · <span class="mono">' + esc(alamat) + '</span></div>' +
+    (wa
+      ? '<div class="wa-preview"><div class="wa-bubble">' + esc(fillTemplate(suratState.isi, d)) + '</div></div>'
+      : '<div class="letter">' + esc(fillTemplate(suratState.isi, d)) + '</div>') +
     '<div class="btn-row" style="margin-top:12px">' +
       '<button class="btn" data-action="print-one" data-id="' + esc(d.id) + '">⎙ Cetak</button>' +
     '</div>';
@@ -827,10 +922,15 @@ function viewKategori(){
 
 /* ---------- PENGATURAN ---------- */
 function viewPengaturan(){
-  setTitle('Setelan','Gmail, data, dan tampilan');
+  setTitle('Setelan','Gmail, WhatsApp, data, dan tampilan');
   const st = Gmail.status();
   const bytes = new Blob([JSON.stringify(state)]).size;
   const label = { unconfigured:'Belum diatur', disconnected:'Siap dihubungkan', connected:'Terhubung' }[st];
+  const wst = WhatsApp.status();
+  const wlabel = { unconfigured:'Belum diatur', disconnected:'Belum tersambung', connected:'Tersambung' }[wst];
+  const waPending = state.messages.filter(function(m){
+    return m.arah === 'masuk' && m.kanal === 'whatsapp' && !m.donorId;
+  }).length;
 
   return '' +
   '<div class="card">' +
@@ -897,6 +997,46 @@ function viewPengaturan(){
       : '') +
     '<div class="sep"></div>' +
     '<p class="small muted">Panduan lengkap: <b class="mono">PANDUAN-GMAIL.md</b></p>' +
+  '</div>' +
+
+  '<div class="card">' +
+    '<div class="card-head"><h2>WhatsApp</h2>' +
+      '<span class="chip' + (wst === 'connected' ? '' : ' plain') + '">' + wlabel + '</span></div>' +
+    '<p class="small muted">WhatsApp dikirim lewat <b>Cloudflare Worker</b> yang menyimpan token Meta. ' +
+      'Token itu tidak boleh ada di browser, dan pesan masuk butuh alamat webhook — dua hal yang ' +
+      'tidak bisa dilakukan halaman statis. Panduan: <b class="mono">PANDUAN-WHATSAPP.md</b></p>' +
+    '<div class="field"><label>Alamat Worker <span class="hint">— hasil deploy worker/</span></label>' +
+      '<input type="text" id="w-endpoint" class="mono" placeholder="https://kartidaya-wa.namaanda.workers.dev" value="' +
+        esc(WhatsApp.endpoint || state.settings.waEndpoint || '') + '"></div>' +
+    '<div class="field"><label>Kunci aplikasi <span class="hint">— APP_KEY di Worker</span></label>' +
+      '<input type="password" id="w-key" class="mono" placeholder="kunci rahasia" value="' +
+        esc(WhatsApp.appKey || '') + '"></div>' +
+    '<div class="btn-row">' +
+      '<button class="btn primary" data-action="w-save">Simpan &amp; uji sambungan</button>' +
+      '<button class="btn" data-action="wa-sync">⟳ Sinkron WhatsApp</button>' +
+      '<button class="btn" data-action="wa-cocokkan">⇄ Cocokkan ulang</button>' +
+      '<button class="btn danger" data-action="w-disconnect">Putuskan</button>' +
+    '</div>' +
+    (WhatsApp.phone ? '<p class="small muted" style="margin-top:10px">Nomor WhatsApp Business: <b class="mono">' +
+      esc(WhatsApp.phone) + '</b></p>' : '') +
+    (waPending ? '<div class="warnbox">' + waPending + ' pesan WhatsApp belum terhubung ke donor. ' +
+      'Isi nomor HP donor (HP 1 / HP 2) lalu klik <b>Cocokkan ulang</b>.</div>' : '') +
+    '<div class="sep"></div>' +
+    '<div class="row" style="justify-content:space-between">' +
+      '<span class="small">Sinkron WhatsApp otomatis</span>' +
+      '<button class="btn sm' + (state.settings.waAutoSync ? ' primary' : '') + '" data-action="wa-auto-toggle">' +
+        (state.settings.waAutoSync ? 'Aktif' : 'Mati') + '</button></div>' +
+    '<p class="tiny muted">Pesan masuk ditarik sendiri saat aplikasi dibuka, saat tab kembali aktif, ' +
+      'dan berkala — sama seperti Gmail.</p>' +
+    (state.settings.waAutoSync ?
+      '<div class="field" style="margin-top:10px"><label>Jarak antar sinkron WhatsApp ' +
+        '<span class="hint">— menit</span></label>' +
+        '<input type="number" id="set-wamin" min="1" max="240" value="' +
+          esc(state.settings.waSyncMinutes) + '"></div>' +
+      '<button class="btn sm" data-action="wa-min-save">Simpan jarak</button>' +
+      '<p class="tiny muted" style="margin-top:8px">Terakhir sinkron: <b class="mono">' +
+        (state.settings.waLastSync ? fmtDateTime(state.settings.waLastSync) : 'belum pernah') + '</b></p>'
+      : '') +
   '</div>' +
 
   '<div class="card">' +
@@ -1049,22 +1189,28 @@ function openMessage(msgId){
               esc(s) + ' — ' + esc(ARTI_STATUS_MASUK[s]) + '</option>';
           }).join('') + '</select></div>' +
         '<p class="tiny muted" style="margin:-4px 0 12px">' +
-          '<b>Belum dibaca</b> = email baru (dihitung di badge menu Masuk) · ' +
+          '<b>Belum dibaca</b> = pesan baru (dihitung di badge menu Masuk) · ' +
           '<b>Dibaca</b> = sudah dibuka · <b>Dibalas</b> = sudah dikirimi balasan.</p>'
     : '';
 
   const body = '<div class="row" style="margin-bottom:12px">' +
       '<span class="chip' + (m.arah === 'masuk' ? ' plain' : '') + '">' +
         (m.arah === 'masuk' ? '↓ Masuk' : '↑ Keluar') + '</span>' +
+      kanalChip(m) +
       '<span class="chip ' + statusChipClass(m.status) + '" id="m-status-chip">' + esc(m.status) + '</span>' +
       '<span class="tiny muted mono">' + fmtDateTime(m.tanggal) + '</span></div>' +
     statusRow +
     '<div class="kv">' +
       kv('Donor', d ? donorName(d) + ' (' + d.id + ')' : '—') +
-      kv('Dari', m.from) + kv('Kepada', m.to) + kv('Subjek', m.subjek) +
+      kv(m.kanal === 'whatsapp' ? 'Dari (nomor)' : 'Dari', m.kanal === 'whatsapp' ? waPhonePretty(m.from) : m.from) +
+      kv(m.kanal === 'whatsapp' ? 'Kepada (nomor)' : 'Kepada', m.kanal === 'whatsapp' ? waPhonePretty(m.to) : m.to) +
+      kv('Subjek', m.subjek) +
       kv('Lampiran', m.lampiran) + kv('Catatan', m.catatan) +
     '</div>' +
-    '<div class="sep"></div><div class="letter">' + esc(m.isi) + '</div>';
+    '<div class="sep"></div>' +
+    (m.kanal === 'whatsapp'
+      ? '<div class="wa-preview"><div class="wa-bubble">' + esc(m.isi) + '</div></div>'
+      : '<div class="letter">' + esc(m.isi) + '</div>');
 
   const footer = '<button class="btn danger" data-action="msg-hapus" data-id="' + esc(m.id) + '">Hapus</button>' +
     '<button class="btn" data-close>Tutup</button>' +
@@ -1080,16 +1226,18 @@ function openMessage(msgId){
 function openTautkan(msgId){
   const m = state.messages.filter(function(x){ return x.id === msgId; })[0];
   if(!m) return;
-  const guess = emailOf(m.from);
+  const wa = m.kanal === 'whatsapp';
+  const guess = wa ? waPhonePretty(m.from) : emailOf(m.from);
   const donorOpts = '<option value="">— pilih donor —</option>' + state.donors.map(function(d){
     return '<option value="' + esc(d.id) + '">' + esc(d.id + ' — ' + donorName(d) +
-      (d.email ? ' · ' + d.email : '')) + '</option>';
+      (wa ? (donorWa(d) ? ' · ' + waPhonePretty(donorWa(d)) : '') : (d.email ? ' · ' + d.email : ''))) + '</option>';
   }).join('');
-  const body = '<p class="small muted">Pengirim <b class="mono">' + esc(m.from || '—') +
+  const body = '<p class="small muted">Pengirim <b class="mono">' + esc(guess || '—') +
       '</b> belum terhubung ke donor mana pun.</p>' +
     '<div class="field"><label>Pilih donor</label><select id="t-donor">' + donorOpts + '</select></div>' +
     '<label class="row small" style="gap:6px"><input type="checkbox" id="t-email" checked>' +
-      'Simpan email pengirim ke data donor (jika donor belum punya email)</label>';
+      (wa ? 'Simpan nomor pengirim ke data donor (jika donor belum punya nomor HP)'
+          : 'Simpan email pengirim ke data donor (jika donor belum punya email)') + '</label>';
   openModal({ title:'Tautkan Surat ke Donor', body:body,
     footer:'<button class="btn" data-close>Batal</button>' +
       '<button class="btn primary" data-action="tautkan-simpan" data-id="' + esc(msgId) + '">Tautkan</button>' });
@@ -1105,6 +1253,10 @@ function openCatatMasuk(donorId){
     '<div class="form-grid">' +
       '<div class="field"><label>Tanggal</label><input type="date" id="l-tanggal" value="' +
         new Date().toISOString().slice(0,10) + '"></div>' +
+      '<div class="field"><label>Kanal</label><select id="l-kanal">' +
+        KANAL.map(function(k){
+          return '<option value="' + k + '">' + ICO_KANAL[k] + ' ' + LABEL_KANAL[k] + '</option>';
+        }).join('') + '</select></div>' +
       '<div class="field"><label>Status</label><select id="l-status">' +
         STATUS_MASUK.map(function(s){
           return '<option value="' + esc(s) + '">' + esc(s) + ' — ' + esc(ARTI_STATUS_MASUK[s]) + '</option>';
@@ -1114,24 +1266,27 @@ function openCatatMasuk(donorId){
       'sebagai <b>belum dibaca</b> di menu Masuk. Pilih <b>Dibaca</b> kalau surat ini sudah Anda ' +
       'baca lebih dulu (mis. surat lama yang baru dicatat).</p>' +
     '<div class="field"><label>Subjek</label><input type="text" id="l-subjek" placeholder="Subjek surat masuk"></div>' +
-    '<div class="field"><label>Dari <span class="hint">— email pengirim</span></label>' +
-      '<input type="email" id="l-dari" class="mono" placeholder="nama@contoh.com"></div>' +
+    '<div class="field"><label>Dari <span class="hint">— email atau nomor pengirim</span></label>' +
+      '<input type="text" id="l-dari" class="mono" placeholder="nama@contoh.com / 0811-8862-345"></div>' +
     '<div class="field"><label>Isi / Ringkasan</label><textarea id="l-isi" style="min-height:120px"></textarea></div>' +
     '<div class="field"><label>Catatan</label><input type="text" id="l-catatan"></div>';
   openModal({ title:'Catat Surat Masuk', body:body,
     footer:'<button class="btn" data-close>Batal</button>' +
       '<button class="btn primary" data-action="catat-masuk-simpan">Simpan</button>' });
 
-  /* Isi otomatis email pengirim dari data donor supaya tidak perlu diketik
+  /* Isi otomatis alamat pengirim dari data donor supaya tidak perlu diketik
      ulang; tetap bisa diubah kalau surat datang dari alamat lain. */
   const sel = document.getElementById('l-donor');
   const dari = document.getElementById('l-dari');
+  const kanalSel = document.getElementById('l-kanal');
   if(sel && dari){
     const isiDari = function(){
       const d = findDonor(sel.value);
-      dari.value = d ? (d.email || '') : '';
+      const wa = kanalSel && kanalSel.value === 'whatsapp';
+      dari.value = d ? (wa ? (donorWa(d) ? waPhonePretty(donorWa(d)) : '') : (d.email || '')) : '';
     };
     sel.addEventListener('change', isiDari);
+    if(kanalSel) kanalSel.addEventListener('change', isiDari);
     isiDari();
   }
 }
@@ -1194,20 +1349,24 @@ async function kirimSurat(asDraft){
   if(!ids.length){ toast('Pilih penerima dulu', true); return; }
   if(!suratState.isi.trim()){ toast('Isi surat masih kosong', true); return; }
 
+  const kanal = suratState.kanal === 'whatsapp' ? 'whatsapp' : 'email';
+
   /* Perbarui token dulu kalau tinggal sedikit — supaya kirim tidak gagal di
      tengah jalan hanya karena sesi hampir habis. */
-  if(!asDraft && Gmail.isConfigured()) await Gmail.ensureConnected();
+  if(!asDraft && kanal === 'email' && Gmail.isConfigured()) await Gmail.ensureConnected();
 
-  const useGmail = Gmail.isConnected() && !asDraft;
+  const useGmail = kanal === 'email' && Gmail.isConnected() && !asDraft;
+  const useWa = kanal === 'whatsapp' && WhatsApp.isConfigured() && WhatsApp.status() === 'connected' && !asDraft;
 
-  /* Jangan pernah mencatat "Terkirim" secara diam-diam saat Gmail belum
-     terhubung — surat tidak benar-benar terkirim dan pengguna tidak tahu.
+  /* Jangan pernah mencatat "Terkirim" secara diam-diam saat kanal belum
+     terhubung — pesan tidak benar-benar terkirim dan pengguna tidak tahu.
      Minta konfirmasi eksplisit dulu. */
-  if(!asDraft && !useGmail){
+  if(!asDraft && !useGmail && !useWa){
+    const apa = kanal === 'whatsapp' ? 'WhatsApp' : 'Gmail';
     const lanjut = confirm(
-      'Gmail belum terhubung, jadi email TIDAK akan benar-benar terkirim.\n\n' +
-      'Surat hanya akan dicatat sebagai "Terkirim" di buku donor (mode simulasi).\n\n' +
-      'Hubungkan Gmail di halaman Setelan kalau ingin kirim sungguhan.\n\n' +
+      apa + ' belum terhubung, jadi pesan TIDAK akan benar-benar terkirim.\n\n' +
+      'Pesan hanya akan dicatat sebagai "Terkirim" di buku donor (mode simulasi).\n\n' +
+      'Hubungkan ' + apa + ' di halaman Setelan kalau ingin kirim sungguhan.\n\n' +
       'Lanjutkan mencatat sebagai simulasi?');
     if(!lanjut) return;
   }
@@ -1220,7 +1379,8 @@ async function kirimSurat(asDraft){
     const subjek = fillTemplate(suratState.subjek, d);
     const isi = fillTemplate(suratState.isi, d);
     let status = asDraft ? 'Draft' : 'Terkirim';
-    let gmailId = '', threadId = '';
+    let gmailId = '', threadId = '', waId = '';
+    const tujuan = kanal === 'whatsapp' ? donorWa(d) : (d.email || '');
 
     if(useGmail){
       if(!d.email){
@@ -1241,15 +1401,32 @@ async function kirimSurat(asDraft){
           gagal++;
         }
       }
+    }else if(useWa){
+      if(!tujuan){
+        status = 'Gagal';
+        errMsg = 'Donor ' + d.id + ' belum punya nomor HP';
+        gagal++;
+      }else{
+        try{
+          const r = await WhatsApp.send({ to: tujuan, text: isi });
+          waId = (r && r.id) || '';
+          ok++;
+        }catch(e){
+          status = 'Gagal';
+          errMsg = e.message || String(e);
+          gagal++;
+        }
+      }
     }else if(!asDraft){
       ok++;
     }
 
     addMessage({
       donorId:id, arah:'keluar', tanggal:new Date().toISOString(),
-      subjek:subjek, isi:isi, status:status,
-      from: Gmail.email || '', to: d.email || '',
-      gmailId:gmailId, threadId:threadId, dibaca:true
+      subjek:subjek, isi:isi, status:status, kanal:kanal,
+      from: kanal === 'whatsapp' ? (WhatsApp.phone || '') : (Gmail.email || ''),
+      to: tujuan,
+      gmailId:gmailId, threadId:threadId, waId:waId, dibaca:true
     });
 
     /* Surat masuk terakhir dari donor ini ditandai "Dibalas" begitu balasan
@@ -1265,8 +1442,9 @@ async function kirimSurat(asDraft){
     }
   }
 
+  const namaKanal = LABEL_KANAL[kanal];
   if(asDraft) toast(ids.length + ' surat disimpan sebagai Draft');
-  else if(useGmail) toast(ok + ' terkirim lewat Gmail' + (gagal ? ', ' + gagal + ' gagal: ' + errMsg : ''), gagal > 0);
+  else if(useGmail || useWa) toast(ok + ' terkirim lewat ' + namaKanal + (gagal ? ', ' + gagal + ' gagal: ' + errMsg : ''), gagal > 0);
   else toast(ids.length + ' surat dicatat sebagai Terkirim (mode simulasi)');
 
   suratState.selected = {};
@@ -1305,12 +1483,12 @@ async function gmailConnect(){
   }
 }
 /* Cocokkan ulang surat masuk yang belum punya donor — dipakai setelah email
-   donor diisi/diubah, tanpa perlu menarik ulang dari Gmail. */
+   atau nomor HP donor diisi/diubah, tanpa perlu menarik ulang dari Gmail. */
 function cocokkanUlang(){
   let n = 0;
   state.messages.forEach(function(m){
     if(m.arah !== 'masuk' || m.donorId) return;
-    const d = donorByEmail(emailOf(m.from));
+    const d = m.kanal === 'whatsapp' ? donorByPhone(m.from) : donorByEmail(emailOf(m.from));
     if(d){ m.donorId = d.id; n++; }
   });
   if(n){ save('messages'); toast(n + ' surat dicocokkan ke donor'); }
@@ -1360,7 +1538,7 @@ async function gmailSync(opts){
        surat lama tidak pernah pindah ke buku donor. */
     let cocok = 0;
     state.messages.forEach(function(m){
-      if(m.arah !== 'masuk' || m.donorId) return;
+      if(m.arah !== 'masuk' || m.donorId || m.kanal === 'whatsapp') return;
       const d = donorByEmail(emailOf(m.from));
       if(d){ m.donorId = d.id; cocok++; }
     });
@@ -1405,6 +1583,142 @@ async function sinkronOtomatis(paksa){
     ]);
   }catch(e){ /* gmailSync sudah menangani errornya sendiri */ }
   finally{ _syncJalan = false; }
+}
+
+/* ---------- 17b. SINKRON WHATSAPP OTOMATIS ---------- */
+/* Sama seperti Gmail: pesan WhatsApp ditarik sendiri di latar belakang supaya
+   pengguna tidak perlu bolak-balik ke Setelan. */
+let _waSyncJalan = false;
+async function waSinkronOtomatis(paksa){
+  if(!state.settings.waAutoSync) return;
+  if(!WhatsApp.isConfigured()) return;
+  if(_waSyncJalan) return;
+  const jeda = Math.max(1, Number(state.settings.waSyncMinutes) || 10) * 60 * 1000;
+  const terakhir = state.settings.waLastSync ? Date.parse(state.settings.waLastSync) : 0;
+  if(!paksa && terakhir && Date.now() - terakhir < jeda) return;
+  _waSyncJalan = true;
+  try{
+    await Promise.race([
+      waSync({ silent:true }),
+      new Promise(function(res){ setTimeout(res, 60000); })
+    ]);
+  }catch(e){ /* waSync sudah menangani errornya sendiri */ }
+  finally{ _waSyncJalan = false; }
+}
+
+/* ---------- 11b. WHATSAPP ---------- */
+/* Simpan alamat Worker + kunci aplikasi, lalu uji sambungan. */
+async function waConnect(){
+  const eEl = document.getElementById('w-endpoint');
+  const kEl = document.getElementById('w-key');
+  const endpoint = (eEl ? eEl.value : '').trim().replace(/\/+$/, '');
+  const appKey = (kEl ? kEl.value : '').trim();
+  if(!endpoint){ toast('Isi alamat Worker dulu', true); return; }
+  if(!/^https:\/\//i.test(endpoint) && !/^http:\/\/localhost/i.test(endpoint)){
+    toast('Alamat Worker harus diawali https://', true); return;
+  }
+  if(!appKey){ toast('Isi kunci aplikasi dulu', true); return; }
+
+  WhatsApp.endpoint = endpoint;
+  WhatsApp.appKey = appKey;
+  state.settings.waEndpoint = endpoint;
+  save('settings');
+  WhatsApp.saveSession();
+
+  try{
+    toast('Menguji sambungan ke Worker…');
+    const r = await WhatsApp.ping();
+    WhatsApp.phone = r.display || '';
+    WhatsApp.saveSession();
+    if(!r.configured){
+      toast('Worker tersambung, tapi WA_TOKEN / WA_PHONE_ID belum diisi di Worker', true);
+    }else{
+      toast('WhatsApp tersambung' + (r.display ? ' — ' + r.display : ''));
+    }
+    render();
+  }catch(e){
+    toast('Gagal menyambung: ' + (e.message || e), true);
+    render();
+  }
+}
+
+/* Tarik pesan WhatsApp yang masuk lewat webhook Worker, cocokkan ke donor
+   lewat nomor HP, lalu tandai sudah diambil supaya tidak ditarik dua kali. */
+async function waSync(opts){
+  opts = opts || {};
+  const senyap = !!opts.silent;
+  if(!WhatsApp.isConfigured()){ if(!senyap) toast('Isi alamat Worker & kunci aplikasi di Setelan', true); return; }
+  if(!senyap) toast('Menarik pesan WhatsApp…');
+  try{
+    const pesan = await WhatsApp.fetchInbox();
+    const ada = {};
+    state.messages.forEach(function(m){ if(m.waId) ada[m.waId] = true; });
+
+    let baru = 0, takDikenal = 0;
+    const diambil = [];
+    pesan.forEach(function(p){
+      if(p.waId && ada[p.waId]){ diambil.push(p.waId); return; }
+      const d = donorByPhone(p.from);
+      if(!d) takDikenal++;
+      addMessage({
+        donorId: d ? d.id : '',
+        arah:'masuk',
+        kanal:'whatsapp',
+        tanggal: p.waktu || new Date().toISOString(),
+        subjek: 'WhatsApp dari ' + (p.nama || waPhonePretty(p.from) || p.from),
+        isi: p.teks || '',
+        status:'Belum dibaca',
+        from: p.from,
+        to: WhatsApp.phone || '',
+        waId: p.waId || '',
+        waNama: p.nama || '',
+        dibaca:false
+      });
+      if(p.waId) diambil.push(p.waId);
+      baru++;
+    });
+
+    /* Nomor donor mungkin baru diisi setelah pesan lama masuk — cocokkan ulang
+       supaya pesan itu pindah ke buku donor yang benar. */
+    let cocok = 0;
+    state.messages.forEach(function(m){
+      if(m.arah !== 'masuk' || m.kanal !== 'whatsapp' || m.donorId) return;
+      const d = donorByPhone(m.from);
+      if(d){ m.donorId = d.id; cocok++; }
+    });
+    if(cocok) save('messages');
+
+    if(diambil.length){
+      try{ await WhatsApp.ack(diambil); }catch(e){ /* biarkan di antrean */ }
+    }
+
+    state.settings.waLastSync = new Date().toISOString();
+    save('settings');
+
+    if(baru){
+      toast(baru + ' pesan WhatsApp baru' + (takDikenal ? ' (' + takDikenal + ' belum dikenal)' : ''));
+    }else if(cocok){
+      toast(cocok + ' pesan lama dicocokkan ke donor');
+    }else if(!senyap){
+      toast('Tidak ada pesan WhatsApp baru');
+    }
+    render();
+  }catch(e){
+    if(!senyap) toast('Sinkron WhatsApp gagal: ' + (e.message || e), true);
+  }
+}
+
+/* Cocokkan ulang pesan WhatsApp yang belum punya donor. */
+function cocokkanWa(){
+  let n = 0;
+  state.messages.forEach(function(m){
+    if(m.arah !== 'masuk' || m.kanal !== 'whatsapp' || m.donorId) return;
+    const d = donorByPhone(m.from);
+    if(d){ m.donorId = d.id; n++; }
+  });
+  if(n){ save('messages'); toast(n + ' pesan WhatsApp dicocokkan ke donor'); }
+  else toast('Tidak ada pesan WhatsApp yang bisa dicocokkan');
+  render();
 }
 
 /* ---------- 12. EKSPOR / IMPOR ---------- */
@@ -1512,9 +1826,13 @@ document.addEventListener('click', function(e){
       closeModal();
       const d = findDonor(id);
       if(!d) break;
+      const terakhir = lastMsg(id);
       suratState.selected = {}; suratState.selected[id] = true;
       suratState.previewId = id;
-      suratState.subjek = 'Re: ' + (lastMsg(id) ? lastMsg(id).subjek : 'Surat dari Kartidaya');
+      /* Balasan mengikuti kanal surat terakhir — kalau donor terakhir menulis
+         lewat WhatsApp, balasannya juga lewat WhatsApp. */
+      suratState.kanal = terakhir && terakhir.kanal === 'whatsapp' ? 'whatsapp' : 'email';
+      suratState.subjek = 'Re: ' + (terakhir ? terakhir.subjek : 'Surat dari Kartidaya');
       suratState.isi = state.templates.length ? state.templates[0].isi : '';
       suratState.tplId = state.templates.length ? state.templates[0].id : '';
       go('surat');
@@ -1526,11 +1844,14 @@ document.addEventListener('click', function(e){
       if(!g('l-donor')){ toast('Pilih donor dulu', true); break; }
       const d = findDonor(g('l-donor'));
       const st = g('l-status') || 'Belum dibaca';
+      const kanal = g('l-kanal') === 'whatsapp' ? 'whatsapp' : 'email';
+      const dari = g('l-dari') || (d ? (kanal === 'whatsapp' ? donorWa(d) : d.email) : '');
       addMessage({
-        donorId:g('l-donor'), arah:'masuk',
+        donorId:g('l-donor'), arah:'masuk', kanal:kanal,
         tanggal: g('l-tanggal') ? new Date(g('l-tanggal') + 'T09:00:00').toISOString() : new Date().toISOString(),
         subjek:g('l-subjek'), isi:g('l-isi'), status:st,
-        from: g('l-dari') || (d ? d.email : ''), to: Gmail.email || '',
+        from: dari,
+        to: kanal === 'whatsapp' ? (WhatsApp.phone || '') : (Gmail.email || ''),
         catatan:g('l-catatan'),
         /* `dibaca` harus mengikuti status — kalau tidak, surat berstatus
            "Belum dibaca" tidak ikut dihitung di badge menu Masuk. */
@@ -1555,9 +1876,13 @@ document.addEventListener('click', function(e){
       m.donorId = donorId;
       const cb = document.getElementById('t-email');
       const d = findDonor(donorId);
-      if(cb && cb.checked && d && !d.email && m.from){
-        d.email = emailOf(m.from);
-        save('donors');
+      if(cb && cb.checked && d && m.from){
+        if(m.kanal === 'whatsapp'){
+          if(!donorWa(d)){ d.hp1 = waPhonePretty(m.from); save('donors'); }
+        }else if(!d.email){
+          d.email = emailOf(m.from);
+          save('donors');
+        }
       }
       save('messages');
       closeModal(); toast('Surat ditautkan ke ' + donorId); render();
@@ -1632,6 +1957,32 @@ document.addEventListener('click', function(e){
     case 'g-copy-prefix': copyText(projectNumber(state.settings.gmailClientId)); break;
     case 'g-disconnect': Gmail.disconnect(); toast('Gmail diputuskan'); render(); break;
     case 'sync': gmailSync(); break;
+    case 'wa-sync': waSync(); break;
+    case 'wa-cocokkan': cocokkanWa(); break;
+    case 'w-save': waConnect(); break;
+    case 'w-disconnect':
+      WhatsApp.disconnect();
+      toast('WhatsApp diputuskan');
+      render();
+      break;
+    case 'wa-auto-toggle':
+      state.settings.waAutoSync = !state.settings.waAutoSync;
+      save('settings');
+      toast(state.settings.waAutoSync ? 'Sinkron WhatsApp otomatis aktif' : 'Sinkron WhatsApp otomatis dimatikan');
+      render();
+      if(state.settings.waAutoSync) waSinkronOtomatis(true);
+      break;
+    case 'wa-min-save': {
+      const el = document.getElementById('set-wamin');
+      const n = Math.min(240, Math.max(1, Number(el ? el.value : 10) || 10));
+      state.settings.waSyncMinutes = n;
+      save('settings'); toast('Jarak sinkron WhatsApp: ' + n + ' menit'); render();
+      break;
+    }
+    case 'kanal-pilih':
+      suratState.kanal = act.getAttribute('data-kanal') === 'whatsapp' ? 'whatsapp' : 'email';
+      render();
+      break;
     case 'auto-sync-toggle':
       state.settings.autoSync = !state.settings.autoSync;
       save('settings');
@@ -1721,6 +2072,7 @@ document.addEventListener('change', function(e){
   if(e.target.id === 'f-sort'){ donorFilter.sort = e.target.value; render(); }
   if(e.target.id === 'k-status'){ kotakFilter.status = e.target.value; render(); }
   if(e.target.id === 'k-donor'){ kotakFilter.donorId = e.target.value; render(); }
+  if(e.target.id === 'k-kanal'){ kotakFilter.kanal = e.target.value; render(); }
 });
 
 document.addEventListener('input', function(e){
@@ -1767,6 +2119,12 @@ Gmail.onStatus = function(){ renderNav(); };
    memutus koneksi — kalau tidak, surat berikutnya diam-diam jadi mode simulasi. */
 Gmail.restoreSession();
 
+/* WhatsApp: alamat Worker & kunci aplikasi juga dipulihkan dari sessionStorage. */
+WhatsApp.endpoint = state.settings.waEndpoint || '';
+WhatsApp.onStatus = function(){ renderNav(); };
+WhatsApp.restoreSession();
+if(!WhatsApp.endpoint && state.settings.waEndpoint) WhatsApp.endpoint = state.settings.waEndpoint;
+
 /* ---------- 16. PENJAGA SESI GMAIL ---------- */
 /* Perbarui token di latar belakang sebelum kedaluwarsa, supaya pengguna tidak
    perlu klik "Hubungkan Gmail" berulang kali. Kalau Google menolak (sesi login
@@ -1796,11 +2154,13 @@ jagaSesiGmail();
 /* ---------- 17. SINKRON OTOMATIS — pemicu ---------- */
 /* Fungsi sinkronOtomatis() ada di bagian 11 bersama gmailSync(). */
 setInterval(sinkronOtomatis, 60 * 1000);
+setInterval(waSinkronOtomatis, 60 * 1000);
 document.addEventListener('visibilitychange', function(){
-  if(!document.hidden) sinkronOtomatis();
+  if(!document.hidden){ sinkronOtomatis(); waSinkronOtomatis(); }
 });
 /* Beri jeda sedikit supaya token sempat dipulihkan lebih dulu. */
 setTimeout(sinkronOtomatis, 3000);
+setTimeout(waSinkronOtomatis, 4000);
 
 function cycleTheme(){
   const order = ['light','dark','auto'];

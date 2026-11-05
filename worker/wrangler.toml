@@ -1,0 +1,14 @@
+name = "kartidaya-wa"
+main = "index.js"
+compatibility_date = "2024-11-01"
+
+# Antrean pesan masuk WhatsApp. Dibuat otomatis saat `wrangler deploy` pertama.
+[[kv_namespaces]]
+binding = "WA_INBOX"
+id = "GANTI_DENGAN_ID_KV_ANDA"
+
+# Rahasia — JANGAN ditulis di sini. Set lewat:
+#   wrangler secret put WA_TOKEN
+#   wrangler secret put WA_PHONE_ID
+#   wrangler secret put WA_VERIFY_TOKEN
+#   wrangler secret put APP_KEY
