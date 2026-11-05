@@ -790,6 +790,8 @@ function viewPengaturan(){
     '<div class="field"><label>OAuth Client ID <span class="hint">— dari Google Cloud Console</span></label>' +
       '<input type="text" id="g-client" class="mono" placeholder="xxxxxxxx.apps.googleusercontent.com" value="' +
         esc(state.settings.gmailClientId) + '"></div>' +
+    '<p class="tiny muted">Client ID yang <b>benar-benar dipakai</b> saat ini:<br>' +
+      '<b class="mono">' + esc(Gmail.clientId || '(kosong)') + '</b></p>' +
     '<p class="tiny muted">Daftarkan origin ini di Google Cloud Console → Credentials → ' +
       'Authorized JavaScript origins:<br><b class="mono">' + esc(Gmail.origin()) + '</b></p>' +
     (projectNumber(state.settings.gmailClientId) ?
