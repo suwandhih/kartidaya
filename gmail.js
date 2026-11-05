@@ -10,6 +10,12 @@ const GMAIL_SCOPES = [
   'https://www.googleapis.com/auth/gmail.readonly'
 ].join(' ');
 
+/* Token disimpan di sessionStorage supaya tidak hilang saat halaman dimuat
+   ulang. Tanpa ini, setiap refresh membuat Gmail "belum terhubung" dan surat
+   diam-diam tercatat sebagai mode simulasi. sessionStorage (bukan
+   localStorage) dipilih agar token hilang saat tab ditutup. */
+const GMAIL_SESSION_KEY = 'kartidaya.gmail.session';
+
 /* ---------- pesan error OAuth yang bisa ditindaklanjuti ---------- */
 function describeOAuthError(resp){
   const code = String((resp && resp.error) || '');
@@ -143,6 +149,37 @@ const Gmail = {
     if(!this.isConfigured()) return 'unconfigured';
     return this.isConnected() ? 'connected' : 'disconnected';
   },
+
+  /* ---------- simpan / pulihkan sesi ---------- */
+  saveSession(){
+    try{
+      if(this.token && Date.now() < this.expiresAt){
+        sessionStorage.setItem(GMAIL_SESSION_KEY, JSON.stringify({
+          token:this.token, expiresAt:this.expiresAt, email:this.email
+        }));
+      }else{
+        sessionStorage.removeItem(GMAIL_SESSION_KEY);
+      }
+    }catch(e){ /* mode privat / storage penuh — abaikan */ }
+  },
+  restoreSession(){
+    try{
+      const raw = sessionStorage.getItem(GMAIL_SESSION_KEY);
+      if(!raw) return false;
+      const s = JSON.parse(raw);
+      if(!s || !s.token || !s.expiresAt || Date.now() >= s.expiresAt){
+        sessionStorage.removeItem(GMAIL_SESSION_KEY);
+        return false;
+      }
+      this.token = s.token;
+      this.expiresAt = s.expiresAt;
+      this.email = s.email || '';
+      return true;
+    }catch(e){ return false; }
+  },
+  clearSession(){
+    try{ sessionStorage.removeItem(GMAIL_SESSION_KEY); }catch(e){ /* abaikan */ }
+  },
   /* Origin yang diterima Google: https apa pun, atau http khusus localhost.
      `file://` selalu ditolak. */
   isSecureOrigin(){
@@ -187,6 +224,7 @@ const Gmail = {
           self.token = resp.access_token;
           self.expiresAt = Date.now() + ((resp.expires_in || 3600) - 60) * 1000;
           try{ await self.fetchProfile(); }catch(e){ /* profil opsional */ }
+          self.saveSession();
           if(self.onStatus) self.onStatus();
           resolve(resp);
         },
@@ -206,6 +244,7 @@ const Gmail = {
     this.token = null;
     this.expiresAt = 0;
     this.email = '';
+    this.clearSession();
     if(this.onStatus) this.onStatus();
   },
 
@@ -227,6 +266,7 @@ const Gmail = {
     if(res.status === 401){
       this.token = null;
       this.expiresAt = 0;
+      this.clearSession();
       if(this.onStatus) this.onStatus();
       throw new Error('Sesi Gmail kedaluwarsa — hubungkan ulang');
     }

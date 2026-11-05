@@ -407,6 +407,8 @@ flowchart TD
 | Status surat tidak bisa diubah | Versi lama masih tersimpan di cache browser | Muat ulang dengan **Ctrl+Shift+R**, lalu buka suratnya — dropdown **Status surat** akan muncul |
 | `Error 403: access_denied` — *"has not completed the Google verification process"* | Email yang dipakai login belum terdaftar sebagai Test user | Lihat bagian di bawah |
 | `Sesi Gmail kedaluwarsa` | Token habis (1 jam / 7 hari) | Klik *Hubungkan Gmail* lagi |
+| Surat tercatat **Terkirim** tapi email tidak pernah sampai | Gmail belum terhubung — surat hanya dicatat (mode simulasi) | Cek badge di bagian **4 · Kirim**: kalau tertulis *Mode simulasi*, hubungkan Gmail dulu di **Setelan** |
+| Gmail terhubung lalu hilang sendiri setelah refresh | Versi lama tidak menyimpan token | Versi terbaru menyimpan token di `sessionStorage` — muat ulang dengan **Ctrl+Shift+R** |
 | `Gagal memuat Google Identity Services` | Tidak ada internet | Cek koneksi internet |
 | Tombol Sinkron bilang *Hubungkan Gmail dulu* | Belum login | Selesaikan Langkah 3 |
 | Data tidak muncul setelah pindah alamat | localStorage terpisah per alamat | Ekspor JSON di alamat lama → Impor di alamat baru |
@@ -463,6 +465,14 @@ Aplikasi tetap **bisa dipakai penuh tanpa Gmail**:
 - Semua fitur lain (donor, kategori, template, ekspor, cetak) berjalan normal
 
 Ini berguna untuk demo dan pelatihan tanpa menyentuh email sungguhan.
+
+> **Penting — jangan tertukar.** Dalam mode simulasi, surat **tercatat**
+> *Terkirim* di buku donor tetapi **emailnya tidak pernah dikirim**. Sejak
+> versi `app.js?v=8`, aplikasi menampilkan **konfirmasi** dulu sebelum mencatat
+> simulasi, supaya tidak ada surat yang dikira sudah terkirim padahal belum.
+>
+> Cara memastikan sedang mengirim sungguhan: lihat badge di bagian
+> **4 · Kirim** — harus tertulis **Gmail aktif**, bukan **Mode simulasi**.
 
 ---
 

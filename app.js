@@ -1134,6 +1134,19 @@ async function kirimSurat(asDraft){
   if(!suratState.isi.trim()){ toast('Isi surat masih kosong', true); return; }
 
   const useGmail = Gmail.isConnected() && !asDraft;
+
+  /* Jangan pernah mencatat "Terkirim" secara diam-diam saat Gmail belum
+     terhubung — surat tidak benar-benar terkirim dan pengguna tidak tahu.
+     Minta konfirmasi eksplisit dulu. */
+  if(!asDraft && !useGmail){
+    const lanjut = confirm(
+      'Gmail belum terhubung, jadi email TIDAK akan benar-benar terkirim.\n\n' +
+      'Surat hanya akan dicatat sebagai "Terkirim" di buku donor (mode simulasi).\n\n' +
+      'Hubungkan Gmail di halaman Setelan kalau ingin kirim sungguhan.\n\n' +
+      'Lanjutkan mencatat sebagai simulasi?');
+    if(!lanjut) return;
+  }
+
   let ok = 0, gagal = 0, errMsg = '';
 
   for(const id of ids){
@@ -1144,18 +1157,24 @@ async function kirimSurat(asDraft){
     let status = asDraft ? 'Draft' : 'Terkirim';
     let gmailId = '', threadId = '';
 
-    if(useGmail && d.email){
-      try{
-        const r = await Gmail.send({
-          from: Gmail.email || '', to: d.email, subject: subjek, body: isi
-        });
-        gmailId = (r && r.id) || '';
-        threadId = (r && r.threadId) || '';
-        ok++;
-      }catch(e){
+    if(useGmail){
+      if(!d.email){
         status = 'Gagal';
-        errMsg = e.message || String(e);
+        errMsg = 'Donor ' + d.id + ' belum punya alamat email';
         gagal++;
+      }else{
+        try{
+          const r = await Gmail.send({
+            from: Gmail.email || '', to: d.email, subject: subjek, body: isi
+          });
+          gmailId = (r && r.id) || '';
+          threadId = (r && r.threadId) || '';
+          ok++;
+        }catch(e){
+          status = 'Gagal';
+          errMsg = e.message || String(e);
+          gagal++;
+        }
       }
     }else if(!asDraft){
       ok++;
@@ -1620,6 +1639,9 @@ loadState();
 applyTheme();
 Gmail.clientId = state.settings.gmailClientId || '';
 Gmail.onStatus = function(){ renderNav(); };
+/* Pulihkan token Gmail dari sessionStorage supaya memuat ulang halaman tidak
+   memutus koneksi — kalau tidak, surat berikutnya diam-diam jadi mode simulasi. */
+Gmail.restoreSession();
 
 function cycleTheme(){
   const order = ['light','dark','auto'];

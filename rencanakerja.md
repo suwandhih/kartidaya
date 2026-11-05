@@ -550,6 +550,47 @@ Diverifikasi di browser: buka surat → status naik ke *Dibaca*; ganti ke
 *Dibalas* → tersimpan; ganti ke *Belum dibaca* → badge naik; kirim balasan →
 surat masuk jadi *Dibalas*.
 
+### Kirim surat tercatat "Terkirim" tapi email tidak sampai — SELESAI (5 Nov 2026)
+
+**Masalah yang dilaporkan:** surat untuk Ferry Kangsadjaja ditandai `00005` dan
+dikirim, tetapi emailnya tidak pernah sampai.
+
+**Akar masalah:** Gmail **belum terhubung** saat surat dikirim. Aplikasi
+diam-diam beralih ke **mode simulasi** — surat hanya dicatat `Terkirim` di buku
+donor, emailnya tidak pernah dikirim. Bukti dari data pengguna:
+
+| Surat | `status` | `gmailId` | Artinya |
+|---|---|---|---|
+| Terima kasih — Ferry Kangsadjaja (09:24) | `Terkirim` | *(kosong)* | tidak dikirim |
+| Terima kasih — Ferry Kangsadjaja (09:26) | `Terkirim` | *(kosong)* | tidak dikirim |
+
+`gmailId` kosong = Gmail API tidak pernah dipanggil.
+
+**Dua penyebab Gmail "belum terhubung":**
+
+1. **Token tidak disimpan.** Token hanya ada di memori (`Gmail.token`), jadi
+   setiap halaman dimuat ulang koneksi hilang. Pengguna menghubungkan Gmail,
+   lalu refresh / pindah halaman → kembali ke mode simulasi tanpa sadar.
+2. **Mode simulasi tidak pernah dikonfirmasi.** `kirimSurat()` langsung
+   mencatat `Terkirim` tanpa memberi tahu bahwa email tidak dikirim.
+
+**Perbaikan (`app.js?v=8` & `gmail.js?v=8`):**
+
+- [x] Token Gmail disimpan di `sessionStorage` (`kartidaya.gmail.session`) dan
+      dipulihkan otomatis saat halaman dimuat — refresh tidak lagi memutus
+      koneksi. Dipilih `sessionStorage` (bukan `localStorage`) supaya token
+      hilang saat tab ditutup.
+- [x] Token kedaluwarsa / `401` / *Putuskan* otomatis menghapus sesi tersimpan
+- [x] `kirimSurat()` menampilkan **konfirmasi** kalau Gmail belum terhubung —
+      pengguna diberi tahu email tidak akan terkirim dan bisa membatalkan
+- [x] Donor tanpa email saat Gmail aktif → status `Gagal` dengan pesan jelas
+      (sebelumnya ikut dicatat `Terkirim`)
+
+Diverifikasi di browser: token dipulihkan dari `sessionStorage`; token
+kedaluwarsa tidak dipulihkan; *Putuskan* membersihkan sesi; kirim tanpa Gmail
+menampilkan konfirmasi dan tidak mencatat apa pun bila dibatalkan; donor tanpa
+email menghasilkan status `Gagal`.
+
 ### Cara menguji kirim
 
 **Kirim (Tes 3):**
