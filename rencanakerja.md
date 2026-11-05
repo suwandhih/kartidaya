@@ -1079,3 +1079,82 @@ baik dipakai **bersama** pixel: pixel untuk perkiraan, tombol untuk kepastian.
 - [ ] Tombol **Konfirmasi sudah menerima** di dalam email
 - [ ] `PANDUAN-GMAIL.md`: dokumentasi + tabel batasan
 - [ ] Uji: kirim ke Gmail sendiri → buka → status berubah jadi **Dibaca**
+
+---
+
+## 16. Penutup 5 Nov 2026 & rencana besok
+
+*Ditulis: 5 November 2026, 22:33 WIB — akhir sesi kerja hari ini.*
+
+### Yang sudah selesai hari ini
+
+| # | Pekerjaan | Bukti |
+|---|---|---|
+| 1 | Integrasi WhatsApp Cloud API (Meta) lewat Cloudflare Worker | commit `98ce05c` |
+| 2 | Deploy Worker + daftar webhook Meta + perbaiki nomor uji | commit `ad019a5` |
+| 3 | Alamat Worker & kunci disimpan di `localStorage` | commit `5a48861` |
+| 4 | Tombol **Putuskan** membersihkan alamat & kunci | commit `81c9815` |
+| 5 | Lacak status pengiriman pesan keluar (chip **Gagal** + alasan) | commit `12d7979` |
+| 6 | Catat temuan `130497` + status akun Meta | commit `58b393c` |
+| 7 | Rencana fitur tanda "email sudah dibaca" | commit `3a2e9a2` |
+
+### Yang masih terblokir — WhatsApp
+
+**Bukan masalah kode.** `health_status` menunjukkan `can_send_message: BLOCKED`
+di tiga tingkat:
+
+| Tingkat | Kode | Arti | Tindakan |
+|---|---|---|---|
+| BUSINESS | `141010` | Bisnis belum lulus verifikasi | Meta Business Suite → **Business Verification** |
+| BUSINESS | `131000` | Profil bisnis belum lengkap | Settings → **Business Info**: Legal Name, Country, Website |
+| WABA | `141006` | Metode pembayaran bermasalah | WhatsApp Manager → **Payment settings** |
+| PHONE_NUMBER | — | `AVAILABLE` (nomor sendiri sehat) | — |
+
+Setelah ketiganya beres → tambahkan **nomor WhatsApp Business sungguhan**
+(nomor Indonesia) lewat *Production setup*. Nomor uji gratis
+`+1 (555) 173-4967` tidak akan pernah bisa kirim ke Indonesia.
+
+### Rencana besok (urutan yang disarankan)
+
+1. **Fase 5 — tanda email dibaca** (bagian 15). Tidak bergantung pada Meta,
+   jadi bisa dikerjakan sambil menunggu verifikasi.
+2. **Uji terima WhatsApp** — kirim WhatsApp dari HP ke nomor bisnis, cek
+   muncul di Kotak Masuk. Ini bisa diuji **sekarang** karena webhook sudah
+   ter-subscribe; yang terblokir hanya arah **kirim**.
+3. **Token permanen** — buat System User token di Meta (token sekarang hanya
+   berlaku 24 jam), lalu `npx wrangler secret put WA_TOKEN`.
+4. **Verifikasi bisnis Meta** — prosesnya lama (bisa berhari-hari), jadi
+   sebaiknya diajukan lebih dulu supaya berjalan paralel.
+
+### Nilai & letak kredensial (jangan diubah tanpa alasan)
+
+| Item | Nilai / letak |
+|---|---|
+| Worker | `https://kartidaya-wa.suwandhih.workers.dev` |
+| KV `WA_INBOX` | `f92cebc2b7724490a76c18be3f3559a1` |
+| `WA_PHONE_ID` | `1391919354008532` |
+| `WA_VERIFY_TOKEN` | `kartidaya-2026` |
+| `APP_KEY` | kartu **WhatsApp** di halaman **Setelan** aplikasi |
+| App Meta | `Kartidaya` — ID `1919651829397502` |
+| Nomor uji | `+1 (555) 173-4967` |
+| Test recipient | `+62 859-2193-9585` |
+| Gmail | `fotohotono03@gmail.com` |
+| Repo | `suwandhih/kartidaya` → `https://suwandhih.github.io/kartidaya/` |
+
+### Cara melanjutkan besok
+
+1. Buka sesi baru, sebut: **"lanjut fitur email dibaca"** → saya kerjakan
+   daftar di bagian 15.
+2. Kalau ingin uji terima WhatsApp dulu, sebut: **"uji terima WhatsApp"**.
+3. Semua konteks ada di dokumen ini; tidak perlu menjelaskan ulang dari awal.
+
+### Berkas yang perlu dibuka besok
+
+| Berkas | Untuk apa |
+|---|---|
+| `gmail.js` | ubah `buildRawMessage()` ke `multipart/alternative` |
+| `worker/index.js` | tambah endpoint `/tr/buka` & `/tr/status` |
+| `app.js` | sisipkan pixel, `emailCekDibaca()`, chip **✓✓ Dibaca** |
+| `app.css` | gaya chip **✓✓ Dibaca** |
+| `PANDUAN-GMAIL.md` | dokumentasi fitur baru |
+| `index.html` | naikkan versi cache-busting |

@@ -119,6 +119,13 @@ Ringkasnya:
 > Alamat & kunci disimpan di `localStorage` browser, jadi tidak perlu diisi
 > ulang setiap membuka aplikasi.
 
+> ⚠️ **Status 5 Nov 2026 — kirim ke nomor Indonesia masih diblokir Meta**
+> (kode `130497`). Akun bisnis belum lulus verifikasi (`141010`), profil bisnis
+> belum lengkap (`131000`), dan metode pembayaran bermasalah (`141006`).
+> Ini kebijakan Meta, bukan bug aplikasi. Arah **terima** pesan sudah bisa
+> diuji; arah **kirim** menunggu ketiga hal itu beres. Rincian:
+> [rencanakerja.md](rencanakerja.md) bagian 14 & 16.
+
 **Kenapa perlu Worker?** Token Meta tidak boleh ada di browser (bisa dicuri lewat
 F12), dan pesan masuk butuh URL publik untuk webhook — dua hal yang tidak bisa
 dilakukan halaman statis. Worker menyimpan token dan menerima webhook; browser
