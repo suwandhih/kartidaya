@@ -257,6 +257,79 @@ Selesai. Sekarang:
 - **Terima** — menu *Masuk* → **⟳ Sinkron Gmail**. Surat masuk 90 hari terakhir
   ditarik dan otomatis dicocokkan ke donor berdasarkan alamat email.
 
+> Rincian langkah pengujian ada di bagian **Cara menguji (5 tes berurutan)**.
+
+---
+
+## Cara menguji (5 tes berurutan)
+
+Kerjakan berurutan. Tes 1 bisa dilakukan **sekarang** tanpa Gmail; tes 2–5 butuh
+Test user sudah didaftarkan.
+
+### Tes 1 — Mode simulasi (tanpa Gmail)
+
+Tujuan: memastikan aplikasi & buku donor berjalan.
+
+1. Buka <https://suwandhih.github.io/kartidaya/>
+2. Menu **Tulis** → pilih template → centang **1 penerima** (mis. Linda Lau)
+3. Lihat bagian **3 · Pratinjau** — token `{/PIC}`, `{/NAMA}`, `{/TANGGAL}`
+   harus sudah terganti jadi nama & tanggal asli
+4. Klik **➤ Kirim (1)**
+5. Muncul pesan: *"1 surat dicatat sebagai Terkirim (mode simulasi)"* ✅
+6. Menu **Donor** → klik kartu **Linda Lau** → surat tadi muncul sebagai bubble
+   kanan (keluar) dengan status **Terkirim** ✅
+7. Di buku donor itu, klik **↓ Catat Surat Masuk** → isi subjek → **Simpan**
+8. Surat muncul sebagai bubble kiri (masuk) ✅
+9. Menu **Masuk** → badge angka bertambah, surat ditandai belum dibaca ✅
+
+Kalau semua lolos, aplikasi inti sehat.
+
+### Tes 2 — Hubungkan Gmail
+
+Prasyarat: `fotohotono03@gmail.com` sudah ada di **Test users**.
+
+1. Menu **Setelan** → kolom *OAuth Client ID* sudah terisi
+2. Klik **Hubungkan Gmail**
+3. Jendela Google terbuka → pilih **fotohotono03@gmail.com**
+4. Bila muncul *"Google hasn't verified this app"* → **Advanced** →
+   **Go to Kartidaya (unsafe)** — normal untuk aplikasi Testing sendiri
+5. Centang izin → **Continue / Allow**
+6. Jendela tertutup, status berubah jadi **Terhubung**, dan alamat akun muncul
+   di bawah tombol ✅
+
+Kalau gagal, pesan errornya sudah berisi langkah perbaikan — cocokkan dengan
+tabel **Kalau ada masalah** di bawah.
+
+### Tes 3 — Kirim email sungguhan
+
+1. Menu **Tulis** → centang penerima yang **emailnya milik Anda sendiri**
+   (paling aman: tambah donor baru dengan email `fotohotono03@gmail.com`)
+2. Klik **➤ Kirim**
+3. Pesan sukses menyebut *"terkirim lewat Gmail"* (bukan *mode simulasi*) ✅
+4. Buka <https://mail.google.com> → cek **Sent** dan **Inbox** ✅
+5. Di aplikasi, buku donor itu menampilkan surat dengan status **Terkirim** ✅
+
+> Kalau status jadi **Gagal**, buka suratnya — pesan error dari Gmail
+> ditampilkan di situ.
+
+### Tes 4 — Sinkron Gmail (terima surat)
+
+1. Dari akun lain (atau minta orang lain), kirim email **ke**
+   `fotohotono03@gmail.com`
+2. Menu **Masuk** → **⟳ Sinkron Gmail**
+3. Surat masuk muncul ✅
+   - Kalau pengirimnya cocok dengan email donor → masuk ke buku donor itu
+   - Kalau tidak cocok → masuk ke **Belum Dikenal**
+4. Klik **⟳ Sinkron Gmail** sekali lagi → jumlahnya **tidak bertambah**
+   (anti-duplikat lewat `gmailId`) ✅
+
+### Tes 5 — Tautkan surat tak dikenal
+
+1. Menu **Masuk** → buka surat di **Belum Dikenal**
+2. Klik **Tautkan ke Donor** → pilih donor
+3. Surat pindah ke buku donor tersebut ✅
+4. Ada opsi menyimpan email pengirim ke data donor — centang bila perlu ✅
+
 ---
 
 ## Cara kerja pencocokan surat masuk
