@@ -1016,3 +1016,66 @@ nomor itu.
   ikut ter-ekspor ke berkas cadangan JSON. Tombol **Putuskan** menghapusnya.
 - **Pencocokan donor** memakai nomor HP, jadi `0811-8862-345`, `08118862345`,
   dan `628118862345` dianggap sama.
+
+---
+
+## 15. Rencana besok — tanda "email sudah dibaca"
+
+**Permintaan pengguna (5 Nov 2026, 22:24):** *"apakah bisa email yg dikirim
+ketika client / member klik email memberi info balik ke kartidaya email tsb di
+klik / dibaca (dianggap dibaca) kalau di whatsapp 2 centang artinya message
+sudah dibaca mirip seperti itu"*
+
+### Jawaban singkat
+
+**Bisa, tapi tidak bisa seakurat 2 centang WhatsApp.** Email tidak punya
+mekanisme bawaan "sudah dibaca". Yang bisa dipakai adalah **tracking pixel**:
+gambar 1×1 tak terlihat yang dimuat dari server kita saat penerima membuka
+email. Saat gambar itu diminta, server mencatat "dibaca".
+
+### Yang perlu diubah
+
+| # | Bagian | Perubahan |
+|---|---|---|
+| 1 | `gmail.js` `buildRawMessage()` | Sekarang `Content-Type: text/plain` (baris 81). Ubah ke **`multipart/alternative`** (teks + HTML) supaya pixel bisa disisipkan |
+| 2 | `worker/index.js` | Endpoint baru `GET /tr/buka?id=<pesanId>` → catat waktu + user-agent ke KV, balas **GIF 1×1** |
+| 3 | `worker/index.js` | Endpoint baru `POST /tr/status` → aplikasi menanyakan pesan mana yang sudah dibuka (mirip `/wa/status-pesan`) |
+| 4 | `app.js` `kirimSurat()` | Sisipkan `<img src="<worker>/tr/buka?id=<id>">` di versi HTML; simpan `trId` di pesan |
+| 5 | `app.js` | Fungsi `emailCekDibaca()` dipanggil dari `sinkronOtomatis()`; status pesan keluar naik **Terkirim → Dibaca** |
+| 6 | `app.js` / `app.css` | Chip **✓✓ Dibaca** pada pesan keluar email, sejajar dengan chip WhatsApp |
+| 7 | `PANDUAN-GMAIL.md` | Bagian baru: cara kerja, batasan, cara uji |
+
+### Batasan yang harus diterima (penting)
+
+| Kejadian | Akibat |
+|---|---|
+| Penerima memakai Gmail/Outlook | Gambar di-*proxy* lewat server mereka — tetap tercatat, tapi IP & waktu tidak akurat |
+| Klien email memblokir gambar otomatis (bawaan banyak klien) | Email **sudah dibaca** tapi **tidak tercatat** (salah negatif) |
+| Apple Mail *Privacy Protection* | Gambar dimuat otomatis walau email belum dibuka (salah positif) |
+| Email dibuka di panel pratinjau | Tetap dihitung "dibaca" |
+
+**Kesimpulan:** status ini hanya bisa diartikan **"kemungkinan besar sudah
+dibaca"**, bukan bukti pasti. Jangan dipakai sebagai dasar hukum/kesepakatan.
+
+### Alternatif yang lebih pasti
+
+Tambahkan **tombol konfirmasi** di dalam email, mis.
+*"✅ Konfirmasi sudah menerima"* → tautan ke `GET /tr/konfirmasi?id=<pesanId>`.
+Kalau penerima mengklik, itu **bukti nyata** dibaca + ditindaklanjuti. Paling
+baik dipakai **bersama** pixel: pixel untuk perkiraan, tombol untuk kepastian.
+
+### Catatan
+
+- Gmail API **tidak** menyediakan info "dibaca" untuk pesan yang kita kirim —
+  jadi pixel memang satu-satunya jalan tanpa pihak ketiga.
+- Fitur ini **tidak bergantung** pada masalah `130497` WhatsApp; bisa
+  dikerjakan lebih dulu sambil menunggu verifikasi bisnis Meta.
+
+### Fase 5 — tanda email dibaca
+
+- [ ] `gmail.js`: dukung `multipart/alternative` (teks + HTML)
+- [ ] `worker/index.js`: `GET /tr/buka` (pixel) + `POST /tr/status`
+- [ ] `app.js`: sisipkan pixel saat kirim, `emailCekDibaca()`, chip **✓✓ Dibaca**
+- [ ] Tombol **Konfirmasi sudah menerima** di dalam email
+- [ ] `PANDUAN-GMAIL.md`: dokumentasi + tabel batasan
+- [ ] Uji: kirim ke Gmail sendiri → buka → status berubah jadi **Dibaca**
