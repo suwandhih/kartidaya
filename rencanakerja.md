@@ -383,7 +383,8 @@ Secret** — aman untuk aplikasi yang seluruhnya jalan di browser.
 1. **Arti huruf terakhir `[Z]`** pada ID-DONOR (`R` / `U`). Sementara: bisa diisi manual, default `R`.
 2. Apakah **counter** ID dihitung per huruf (keputusan saat ini) atau global.
 3. Apakah perlu **login / multi-user** (saat ini tidak, karena demo tanpa server).
-4. **Alamat Gmail** yang akan dipakai — belum ditentukan.
+4. **Alamat Gmail** yang akan dipakai — **`fotohotono03@gmail.com`** (ditetapkan
+   5 Nov 2026). Alamat ini harus didaftarkan di **Test users**.
 5. Apakah perlu **lampiran file** sungguhan (saat ini hanya catatan nama file).
 6. Apakah perlu **balas semua / teruskan** (belum dibuat; saat ini hanya *Balas*).
 7. Apakah perlu **template HTML** (berformat tebal/miring), bukan teks biasa.
@@ -396,7 +397,7 @@ Secret** — aman untuk aplikasi yang seluruhnya jalan di browser.
 
 ## 13. Status Terakhir & Langkah Berikutnya
 
-*Diperbarui: 4 November 2026, 23:26 WIB*
+*Diperbarui: 5 November 2026, 14:20 WIB*
 
 ### Yang sudah selesai
 
@@ -409,46 +410,55 @@ Secret** — aman untuk aplikasi yang seluruhnya jalan di browser.
   - `http://localhost:8080`
 - **Data Access sudah benar** — `gmail.send` (sensitive) + `gmail.readonly`
   (restricted), tidak ada scope berbahaya
+- **GitHub Pages sudah pulih & ter-deploy** — `describeOAuthError()`,
+  toast 12 detik, dan `.nojekyll` sudah live (diverifikasi 5 Nov 2026)
+- **Client ID sudah tersimpan** di halaman Setelan (localStorage)
+- **Client ID valid** — diuji langsung: Google menerima client ID + origin
+  `https://suwandhih.github.io` dan menampilkan halaman login normal
+  (bukan `invalid_client` / `origin_mismatch`)
+- **Mode simulasi teruji** — kirim surat tercatat `Terkirim` di buku donor
 
 ### Yang belum selesai
 
 | # | Tugas | Keterangan |
 |---|---|---|
 | 1 | **Audience → Test users → Add users** | Masukkan `fotohotono03@gmail.com` lalu **Save**. Ini penyebab error `access_denied` |
-| 2 | Tempel Client ID di halaman Setelan | `205859365311-25o5qioqg7pddnoab91oe42q26teistt.apps.googleusercontent.com` |
-| 3 | Uji **Hubungkan Gmail** | Belum pernah berhasil |
-| 4 | Uji **kirim email sungguhan** | Belum pernah |
-| 5 | Uji **Sinkron Gmail** (tarik surat masuk) | Belum pernah |
-| 6 | Verifikasi deploy GitHub Pages | Tertunda karena gangguan GitHub |
+| 2 | Uji **Hubungkan Gmail** | Belum pernah berhasil — masih gagal di tahap login |
+| 3 | Uji **kirim email sungguhan** | Belum pernah |
+| 4 | Uji **Sinkron Gmail** (tarik surat masuk) | Belum pernah |
 
 ### Kendala saat ini
 
-**GitHub Actions & Pages sedang gangguan** (insiden resmi GitHub,
-<https://stspg.io/pjgptg3cfc6n>). Semua build Pages berhenti di status `queued`
-sejak commit `fa9084f`, sehingga perbaikan berikut **belum ter-deploy**:
+**Hambatan tunggal: `fotohotono03@gmail.com` belum terdaftar sebagai Test user.**
 
-- `describeOAuthError()` — pesan error OAuth berisi langkah perbaikan
-- Toast error tampil 12 detik + bisa diklik untuk menutup
-- `.nojekyll` (agar Pages melewati Jekyll)
+Bukti dari pengujian 5 Nov 2026:
 
-Kode-nya sudah benar dan sudah ada di repo. Tinggal menunggu GitHub pulih, lalu
-picu build ulang:
+1. Client ID **valid** — Google menampilkan halaman login normal untuk
+   `suwandhih.github.io` (kalau client ID salah, muncul `invalid_client`).
+2. Origin **sudah benar** — tidak ada `origin_mismatch`.
+3. Yang tersisa hanya daftar Test user. Selama status OAuth masih **Testing**,
+   Google menolak semua akun yang tidak ada di daftar itu dengan
+   `Error 403: access_denied`.
 
-```powershell
-gh api -X POST repos/suwandhih/kartidaya/pages/builds
-```
+**Cara memperbaiki (di Google Cloud Console):**
 
-### Cara melanjutkan besok
+1. Buka <https://console.cloud.google.com/auth/audience> (project `Kartidaya`)
+2. Bagian **Test users** → **Add users**
+3. Masukkan `fotohotono03@gmail.com` → **Save**
+4. Tunggu ±1 menit, lalu di aplikasi: **Setelan → Hubungkan Gmail**
 
-1. Cek apakah GitHub sudah pulih:
-   <https://www.githubstatus.com/>
-2. Kalau sudah, picu build ulang (perintah di atas), lalu verifikasi:
-   ```powershell
-   curl.exe -s "https://suwandhih.github.io/kartidaya/gmail.js" | Select-String "describeOAuthError"
-   ```
-3. **Bereskan Test users** (tugas #1 di atas) — ini yang menghambat
-4. Jalankan server lokal sebagai cadangan: `serve.bat` → <http://localhost:8080>
-5. Tempel Client ID → **Hubungkan Gmail**
+> Catatan: daftar Test user **tidak bisa** diperiksa/diubah lewat API atau CLI —
+> hanya lewat Console. Jadi langkah ini harus dikerjakan manual.
+
+### Cara melanjutkan
+
+1. **Bereskan Test users** (langkah di atas) — ini satu-satunya penghambat
+2. Buka <https://suwandhih.github.io/kartidaya/> → **Setelan**
+3. Client ID sudah terisi; klik **Hubungkan Gmail** → login dengan
+   `fotohotono03@gmail.com` → izinkan akses
+4. Setelah terhubung: uji **kirim email sungguhan** ke alamat sendiri
+5. Lalu uji **⟳ Sinkron sekarang** untuk menarik surat masuk
+6. Cadangan lokal kalau perlu: `serve.bat` → <http://localhost:8080>
 
 ### Catatan penting
 
