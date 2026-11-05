@@ -16,6 +16,14 @@
 
 const WA_SESSION_KEY = 'kartidaya.wa.session';
 
+/* Alamat Worker & kunci aplikasi disimpan di localStorage (bukan sessionStorage)
+   supaya pengguna tidak perlu mengetik ulang setiap membuka aplikasi. Keduanya
+   tidak berbahaya kalau bocor: alamat Worker hanya URL publik, dan kunci hanya
+   berguna untuk Worker ini. Token Meta tetap tidak pernah menyentuh browser. */
+function waStore(){
+  try{ return window.localStorage; }catch(e){ return null; }
+}
+
 const WhatsApp = {
   endpoint: '',      /* contoh: https://kartidaya-wa.namaanda.workers.dev */
   appKey: '',
@@ -104,12 +112,15 @@ const WhatsApp = {
 
   /* ---------- sesi ---------- */
 
-  /* Simpan pengaturan yang tidak sensitif saja. Kunci aplikasi ikut disimpan
-     karena tanpa itu pengguna harus mengetik ulang setiap membuka aplikasi;
-     risikonya terbatas karena kunci hanya berguna untuk Worker ini. */
+  /* Simpan alamat Worker & kunci aplikasi supaya tidak perlu diisi ulang.
+     Kunci ikut disimpan karena tanpa itu pengguna harus mengetik ulang setiap
+     membuka aplikasi; risikonya terbatas karena kunci hanya berguna untuk
+     Worker ini. */
   saveSession(){
+    const st = waStore();
+    if(!st) return;
     try{
-      sessionStorage.setItem(WA_SESSION_KEY, JSON.stringify({
+      st.setItem(WA_SESSION_KEY, JSON.stringify({
         endpoint: this.endpoint,
         appKey: this.appKey,
         ok: !!this._ok
@@ -117,8 +128,10 @@ const WhatsApp = {
     }catch(e){ /* mode privat — abaikan */ }
   },
   restoreSession(){
+    const st = waStore();
+    if(!st) return false;
     try{
-      const raw = sessionStorage.getItem(WA_SESSION_KEY);
+      const raw = st.getItem(WA_SESSION_KEY);
       if(!raw) return false;
       const s = JSON.parse(raw);
       if(!s || !s.endpoint) return false;
@@ -129,7 +142,9 @@ const WhatsApp = {
     }catch(e){ return false; }
   },
   clearSession(){
-    try{ sessionStorage.removeItem(WA_SESSION_KEY); }catch(e){ /* abaikan */ }
+    const st = waStore();
+    if(!st) return;
+    try{ st.removeItem(WA_SESSION_KEY); }catch(e){ /* abaikan */ }
   },
   disconnect(){
     this._ok = false;

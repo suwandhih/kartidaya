@@ -1011,6 +1011,8 @@ function viewPengaturan(){
     '<div class="field"><label>Kunci aplikasi <span class="hint">— APP_KEY di Worker</span></label>' +
       '<input type="password" id="w-key" class="mono" placeholder="kunci rahasia" value="' +
         esc(WhatsApp.appKey || '') + '"></div>' +
+    '<p class="tiny muted">Alamat &amp; kunci disimpan di browser ini, jadi tidak perlu diisi ulang ' +
+      'setiap membuka aplikasi. Kunci tidak ikut ter-ekspor ke berkas cadangan.</p>' +
     '<div class="btn-row">' +
       '<button class="btn primary" data-action="w-save">Simpan &amp; uji sambungan</button>' +
       '<button class="btn" data-action="wa-sync">⟳ Sinkron WhatsApp</button>' +
@@ -1962,6 +1964,8 @@ document.addEventListener('click', function(e){
     case 'w-save': waConnect(); break;
     case 'w-disconnect':
       WhatsApp.disconnect();
+      state.settings.waEndpoint = '';
+      save('settings');
       toast('WhatsApp diputuskan');
       render();
       break;
@@ -2119,11 +2123,13 @@ Gmail.onStatus = function(){ renderNav(); };
    memutus koneksi — kalau tidak, surat berikutnya diam-diam jadi mode simulasi. */
 Gmail.restoreSession();
 
-/* WhatsApp: alamat Worker & kunci aplikasi juga dipulihkan dari sessionStorage. */
-WhatsApp.endpoint = state.settings.waEndpoint || '';
+/* WhatsApp: alamat Worker & kunci aplikasi dipulihkan dari localStorage supaya
+   pengguna tidak perlu mengisi ulang setiap membuka aplikasi. Kunci sengaja
+   TIDAK disimpan di state.settings, karena state ikut ter-ekspor ke berkas
+   cadangan JSON. */
 WhatsApp.onStatus = function(){ renderNav(); };
 WhatsApp.restoreSession();
-if(!WhatsApp.endpoint && state.settings.waEndpoint) WhatsApp.endpoint = state.settings.waEndpoint;
+if(state.settings.waEndpoint) WhatsApp.endpoint = state.settings.waEndpoint;
 
 /* ---------- 16. PENJAGA SESI GMAIL ---------- */
 /* Perbarui token di latar belakang sebelum kedaluwarsa, supaya pengguna tidak
