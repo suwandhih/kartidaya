@@ -148,6 +148,9 @@ const WhatsApp = {
   },
   disconnect(){
     this._ok = false;
+    this.phone = '';
+    this.endpoint = '';
+    this.appKey = '';
     this.clearSession();
     if(this.onStatus) this.onStatus();
   }
