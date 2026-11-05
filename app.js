@@ -159,7 +159,7 @@ function toast(msg, isErr){
 }
 function donorName(d){ return d.pic || d.namaLengkap || d.instansi || '(tanpa nama)'; }
 /* Nomor project Google Cloud tersembunyi di depan Client ID:
-   `205859365311-xxxx.apps.googleusercontent.com` → `205859365311`.
+   `531116872278-xxxx.apps.googleusercontent.com` → `531116872278`.
    Dipakai untuk memastikan user membuka project yang benar saat mengurus
    Test users — penyebab paling umum error `access_denied`. */
 function projectNumber(clientId){

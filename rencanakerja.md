@@ -397,67 +397,68 @@ Secret** — aman untuk aplikasi yang seluruhnya jalan di browser.
 
 ## 13. Status Terakhir & Langkah Berikutnya
 
-*Diperbarui: 5 November 2026, 14:20 WIB*
+*Diperbarui: 5 November 2026, 14:45 WIB*
 
-### Yang sudah selesai
+### Akar masalah `access_denied` — SUDAH DITEMUKAN & DIPERBAIKI
 
-- Aplikasi lengkap & berjalan (Fase 1, 2, 3)
-- Repo publik: <https://github.com/suwandhih/kartidaya>
-- Aplikasi live: <https://suwandhih.github.io/kartidaya/>
-- Google Cloud project `Kartidaya` + Gmail API aktif
-- OAuth Client ID dibuat, origin terdaftar:
-  - `https://suwandhih.github.io`
-  - `http://localhost:8080`
-- **Data Access sudah benar** — `gmail.send` (sensitive) + `gmail.readonly`
-  (restricted), tidak ada scope berbahaya
-- **GitHub Pages sudah pulih & ter-deploy** — `describeOAuthError()`,
-  toast 12 detik, dan `.nojekyll` sudah live (diverifikasi 5 Nov 2026)
-- **Client ID sudah tersimpan** di halaman Setelan (localStorage)
-- **Client ID valid** — diuji langsung: Google menerima client ID + origin
-  `https://suwandhih.github.io` dan menampilkan halaman login normal
-  (bukan `invalid_client` / `origin_mismatch`)
-- **Mode simulasi teruji** — kirim surat tercatat `Terkirim` di buku donor
+Penyebab sebenarnya **bukan** Test users. Client ID lama
+(`205859365311-…`) milik **project Google Cloud lain** yang tidak bisa diakses
+akun `suwandhih@gmail.com`:
+
+| | |
+|---|---|
+| Client ID lama | `205859365311-…` → project **205859365311** |
+| Akses akun ini | ❌ *"You need additional access to the project: 205859365311"* |
+| Project `Kartidaya` milik user | `kartidaya-513714` → nomor **531116872278** |
+| Kondisi project itu | ❌ *"Google Auth Platform not configured yet"* — belum ada OAuth client |
+
+Jadi Test user selama ini ditambahkan di project yang **tidak memiliki OAuth
+client**, sehingga tidak berpengaruh sama sekali.
+
+### Yang sudah dikerjakan 5 Nov 2026 (lewat Cloud Console)
+
+Semua di project **`kartidaya-513714`**:
+
+- [x] Konfigurasi Google Auth Platform dibuat (App name `Kartidaya`,
+      user support `suwandhih@gmail.com`, tipe **External**)
+- [x] **OAuth Client ID baru** dibuat — `Kartidaya Web`, tipe *Web application*
+- [x] Authorized JavaScript origin: `https://suwandhih.github.io`
+- [x] **Gmail API diaktifkan**
+- [x] **Data Access**: `gmail.send` (sensitive) + `gmail.readonly` (restricted)
+      → *"Data access changes saved!"*
+- [x] **Test users**: `fotohotono03@gmail.com` ditambahkan → **Save**
+- [x] Client ID baru dipasang di halaman Setelan aplikasi
+- [x] Diverifikasi: alur GIS Google menerima Client ID + origin baru
+      (redirect ke halaman login, bukan `invalid_client` / `origin_mismatch`)
+
+**Client ID yang dipakai sekarang:**
+
+```
+531116872278-hep5meju0djk30qrsee5ec4np2t895qo.apps.googleusercontent.com
+```
+
+> Client secret `GOCSPX-…` **tidak dipakai** aplikasi ini (alur token GIS).
+> Jangan pernah menaruhnya di kode.
 
 ### Yang belum selesai
 
 | # | Tugas | Keterangan |
 |---|---|---|
-| 1 | **Audience → Test users → Add users** | Masukkan `fotohotono03@gmail.com` lalu **Save**. Ini penyebab error `access_denied` |
-| 2 | Uji **Hubungkan Gmail** | Belum pernah berhasil — masih gagal di tahap login |
-| 3 | Uji **kirim email sungguhan** | Belum pernah |
-| 4 | Uji **Sinkron Gmail** (tarik surat masuk) | Belum pernah |
-
-### Kendala saat ini
-
-**Hambatan tunggal: `fotohotono03@gmail.com` belum terdaftar sebagai Test user.**
-
-Bukti dari pengujian 5 Nov 2026:
-
-1. Client ID **valid** — Google menampilkan halaman login normal untuk
-   `suwandhih.github.io` (kalau client ID salah, muncul `invalid_client`).
-2. Origin **sudah benar** — tidak ada `origin_mismatch`.
-3. Yang tersisa hanya daftar Test user. Selama status OAuth masih **Testing**,
-   Google menolak semua akun yang tidak ada di daftar itu dengan
-   `Error 403: access_denied`.
-
-**Cara memperbaiki (di Google Cloud Console):**
-
-1. Buka <https://console.cloud.google.com/auth/audience> (project `Kartidaya`)
-2. Bagian **Test users** → **Add users**
-3. Masukkan `fotohotono03@gmail.com` → **Save**
-4. Tunggu ±1 menit, lalu di aplikasi: **Setelan → Hubungkan Gmail**
-
-> Catatan: daftar Test user **tidak bisa** diperiksa/diubah lewat API atau CLI —
-> hanya lewat Console. Jadi langkah ini harus dikerjakan manual.
+| 1 | Uji **Hubungkan Gmail** | Perlu login manual sebagai `fotohotono03@gmail.com` |
+| 2 | Uji **kirim email sungguhan** | Belum pernah |
+| 3 | Uji **Sinkron Gmail** (tarik surat masuk) | Belum pernah |
 
 ### Cara melanjutkan
 
-1. **Bereskan Test users** (langkah di atas) — ini satu-satunya penghambat
-2. Buka <https://suwandhih.github.io/kartidaya/> → **Setelan**
-3. Client ID sudah terisi; klik **Hubungkan Gmail** → login dengan
-   `fotohotono03@gmail.com` → izinkan akses
-4. Setelah terhubung: uji **kirim email sungguhan** ke alamat sendiri
-5. Lalu uji **⟳ Sinkron sekarang** untuk menarik surat masuk
+1. Buka <https://suwandhih.github.io/kartidaya/> → **Setelan**
+2. Client ID baru sudah terisi; klik **Hubungkan Gmail**
+3. Login dengan **`fotohotono03@gmail.com`** (bukan `suwandhih@gmail.com`)
+4. Bila muncul *"Google hasn't verified this app"* → **Advanced** →
+   **Go to Kartidaya (unsafe)** — normal untuk aplikasi Testing sendiri
+5. Setelah status **Terhubung**: uji kirim email, lalu **⟳ Sinkron sekarang**
+
+> Catatan: langkah login **tidak bisa** diotomasi — Google memblokir popup
+> otomatis dan butuh kredensial akun. Sisanya sudah beres.
 6. Cadangan lokal kalau perlu: `serve.bat` → <http://localhost:8080>
 
 ### Catatan penting
