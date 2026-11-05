@@ -799,6 +799,9 @@ function viewPengaturan(){
         'Buka <b>project itu</b> di Google Cloud Console — bukan project lain — lalu ' +
         '<b>Audience → Test users → Add users</b> → masukkan <b class="mono">fotohotono03@gmail.com</b> → <b>Save</b>.' +
         '<div class="btn-row" style="margin-top:10px">' +
+          '<a class="btn sm primary" target="_blank" rel="noopener" href="' +
+            'https://console.cloud.google.com/auth/audience?project=' +
+            esc(projectNumber(state.settings.gmailClientId)) + '">Buka Test users project ini ↗</a>' +
           '<button class="btn sm" data-action="g-copy-cid">Salin Client ID</button>' +
           '<button class="btn sm" data-action="g-copy-prefix">Salin nomor project</button>' +
         '</div>' +
