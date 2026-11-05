@@ -479,9 +479,42 @@ otomatis menggantinya ke Client ID project Kartidaya saat dimuat.
 
 | # | Tugas | Keterangan |
 |---|---|---|
-| 1 | Uji **Hubungkan Gmail** | Perlu login manual sebagai `fotohotono03@gmail.com` |
-| 2 | Uji **kirim email sungguhan** | Belum pernah |
-| 3 | Uji **Sinkron Gmail** (tarik surat masuk) | Belum pernah |
+| 1 | Uji **kirim email sungguhan** | Belum pernah |
+| 2 | Uji **Sinkron Gmail** (tarik surat masuk) | Belum pernah |
+
+### Hubungkan Gmail — BERHASIL (5 Nov 2026, 15:28 WIB)
+
+`fotohotono03@gmail.com` **sudah berhasil terhubung**. Akar masalahnya ada dua,
+keduanya sudah diperbaiki:
+
+1. Client ID lama milik project lain → diganti Client ID project `kartidaya-513714`
+2. Browser masih memakai `app.js` dari cache + Client ID lama di localStorage
+   → ditambah migrasi otomatis dan cache-busting
+
+Perbaikan tambahan setelah terhubung:
+
+- [x] Header `From` diperkuat — kalau profil Gmail belum terbaca, header
+      dihilangkan dan Gmail mengisi sendiri (sebelumnya `From: me` ditolak Gmail)
+- [x] `app.js?v=4` & `gmail.js?v=4`
+
+### Cara menguji kirim & terima
+
+**Kirim (Tes 3):**
+
+1. Menu **Donor** → **+ Tambah** → buat donor uji dengan email
+   `fotohotono03@gmail.com` (kirim ke diri sendiri paling aman)
+2. Menu **Tulis** → centang donor uji itu → **➤ Kirim**
+3. Pesan sukses harus menyebut *"terkirim lewat Gmail"* (bukan *mode simulasi*)
+4. Cek <https://mail.google.com> → **Sent** dan **Inbox**
+5. Kalau status jadi **Gagal**, buka suratnya — pesan error Gmail ada di situ
+
+**Terima (Tes 4):**
+
+1. Kirim email **ke** `fotohotono03@gmail.com` dari akun lain
+2. Menu **Masuk** → **⟳ Sinkron Gmail**
+3. Surat muncul; cocok email donor → masuk buku donor, tidak cocok →
+   **Belum Dikenal**
+4. Klik Sinkron sekali lagi → jumlah **tidak bertambah** (anti-duplikat)
 
 ### Cara melanjutkan
 
