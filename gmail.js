@@ -62,7 +62,12 @@ function wrap76(s){ return String(s).replace(/(.{76})/g, '$1\r\n'); }
 /* ---------- bangun pesan RFC 2822 ---------- */
 function buildRawMessage(o){
   const encHeader = function(s){ return '=?UTF-8?B?' + b64encode(String(s || '')) + '?='; };
-  const head = ['From: ' + o.from, 'To: ' + o.to];
+  /* `From` wajib alamat lengkap. Kalau profil Gmail belum sempat terbaca,
+     header `From: me` ditolak Gmail — lebih baik dihilangkan, Gmail akan
+     mengisi sendiri dari akun yang login. */
+  const head = [];
+  if(o.from && o.from.indexOf('@') > 0) head.push('From: ' + o.from);
+  head.push('To: ' + o.to);
   if(o.cc) head.push('Cc: ' + o.cc);
   head.push(
     'Subject: ' + encHeader(o.subject),

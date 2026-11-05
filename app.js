@@ -1107,7 +1107,7 @@ async function kirimSurat(asDraft){
     if(useGmail && d.email){
       try{
         const r = await Gmail.send({
-          from: Gmail.email || 'me', to: d.email, subject: subjek, body: isi
+          from: Gmail.email || '', to: d.email, subject: subjek, body: isi
         });
         gmailId = (r && r.id) || '';
         threadId = (r && r.threadId) || '';
