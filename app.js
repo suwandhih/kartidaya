@@ -471,7 +471,8 @@ function viewKotak(arah){
       }).join('') + '</select>' +
     '<select id="k-donor" style="max-width:230px">' + donorOpts + '</select>' +
     (isMasuk
-      ? '<button class="btn primary" data-action="sync">⟳ Sinkron Gmail</button>'
+      ? '<button class="btn" data-action="cocokkan">⇄ Cocokkan ulang</button>' +
+        '<button class="btn primary" data-action="sync">⟳ Sinkron Gmail</button>'
       : '<button class="btn primary" data-go="surat">✎ Tulis Surat</button>') +
   '</div>' +
   '<p class="tiny muted" style="margin:-6px 0 12px">' + list.length + ' surat</p>' +
@@ -1168,6 +1169,20 @@ async function gmailConnect(){
     toast('Gagal: ' + (e.message || e), true);
   }
 }
+/* Cocokkan ulang surat masuk yang belum punya donor — dipakai setelah email
+   donor diisi/diubah, tanpa perlu menarik ulang dari Gmail. */
+function cocokkanUlang(){
+  let n = 0;
+  state.messages.forEach(function(m){
+    if(m.arah !== 'masuk' || m.donorId) return;
+    const d = donorByEmail(emailOf(m.from));
+    if(d){ m.donorId = d.id; n++; }
+  });
+  if(n){ save('messages'); toast(n + ' surat dicocokkan ke donor'); }
+  else toast('Tidak ada surat yang bisa dicocokkan');
+  render();
+}
+
 async function gmailSync(){
   if(!Gmail.isConnected()){ toast('Hubungkan Gmail dulu di Setelan', true); return; }
   toast('Menarik surat masuk…');
@@ -1200,8 +1215,19 @@ async function gmailSync(){
       });
       baru++;
     }
+    /* Surat yang dulu masuk sebagai "Belum Dikenal" dicocokkan ulang —
+       email donor mungkin baru diisi setelah surat itu ditarik. Tanpa ini,
+       surat lama tidak pernah pindah ke buku donor. */
+    let cocok = 0;
+    state.messages.forEach(function(m){
+      if(m.arah !== 'masuk' || m.donorId) return;
+      const d = donorByEmail(emailOf(m.from));
+      if(d){ m.donorId = d.id; cocok++; }
+    });
+    if(cocok) save('messages');
+
     toast(baru ? baru + ' surat masuk ditarik' + (takDikenal ? ' (' + takDikenal + ' belum dikenal)' : '')
-               : 'Tidak ada surat baru');
+               : (cocok ? cocok + ' surat lama dicocokkan ke donor' : 'Tidak ada surat baru'));
     render();
   }catch(e){
     toast('Sinkron gagal: ' + (e.message || e), true);
@@ -1428,6 +1454,7 @@ document.addEventListener('click', function(e){
     case 'g-copy-prefix': copyText(projectNumber(state.settings.gmailClientId)); break;
     case 'g-disconnect': Gmail.disconnect(); toast('Gmail diputuskan'); render(); break;
     case 'sync': gmailSync(); break;
+    case 'cocokkan': cocokkanUlang(); break;
     case 'sign-save': {
       const el = document.getElementById('set-sign');
       state.settings.signature = el ? el.value : '';
