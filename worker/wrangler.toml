@@ -5,7 +5,7 @@ compatibility_date = "2024-11-01"
 # Antrean pesan masuk WhatsApp. Dibuat otomatis saat `wrangler deploy` pertama.
 [[kv_namespaces]]
 binding = "WA_INBOX"
-id = "GANTI_DENGAN_ID_KV_ANDA"
+id = "f92cebc2b7724490a76c18be3f3559a1"
 
 # Rahasia — JANGAN ditulis di sini. Set lewat:
 #   wrangler secret put WA_TOKEN

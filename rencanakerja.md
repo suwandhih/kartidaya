@@ -934,16 +934,20 @@ Browser Kartidaya ──── POST /wa/send ────► Worker ────
 | **⇄ Cocokkan ulang** setelah nomor HP donor diisi | pesan pindah ke buku donor yang benar ✅ |
 | Anti-duplikat | pesan dengan `waId` sama tidak ditarik dua kali ✅ |
 
-### Yang belum dikerjakan (butuh akun pengguna)
+### Status deploy (sudah dikerjakan)
 
-| # | Tugas | Kenapa belum |
-|---|---|---|
-| 1 | Deploy Worker ke Cloudflare | Butuh `wrangler login` (membuka browser) atau tempel kode lewat dashboard |
-| 2 | Buat KV namespace `WA_INBOX` | Butuh akun Cloudflare |
-| 3 | Set 4 secret Worker | Butuh token Meta & kunci pilihan pengguna |
-| 4 | Setup Meta Business + nomor WhatsApp Business | Butuh akun Meta pengguna |
-| 5 | Daftarkan webhook di Meta | Butuh Worker sudah ter-deploy |
-| 6 | Uji kirim/terima WhatsApp sungguhan | Butuh langkah 1–5 selesai |
+| # | Tugas | Status | Nilai |
+|---|---|---|---|
+| 1 | Deploy Worker ke Cloudflare | ✅ | `https://kartidaya-wa.suwandhih.workers.dev` |
+| 2 | Buat KV namespace `WA_INBOX` | ✅ | id `f92cebc2b7724490a76c18be3f3559a1` |
+| 3 | Set 4 secret Worker | ✅ | `WA_TOKEN`, `WA_PHONE_ID`, `WA_VERIFY_TOKEN`, `APP_KEY` |
+| 4 | Setup Meta Business + nomor WhatsApp Business | ✅ | App `Kartidaya` (ID `1919651829397502`), nomor uji `+1 (555) 173-4967` |
+| 5 | Daftarkan webhook di Meta | ✅ | Callback `/wa/webhook`, field `messages` ter-subscribe |
+| 6 | Daftarkan nomor uji sebagai *test recipient* | ✅ | `+62 859-2193-9585` |
+| 7 | Uji kirim WhatsApp sungguhan | ✅ | `POST /wa/send` → `wamid.HBgNNjI4NTkyMTkzOTU4NRUCABEYEjg2NDQ0M0E3OTgxOEU5QzExOQA=` |
+| 8 | Uji terima WhatsApp (webhook → KV → Kotak Masuk) | ⏳ | menunggu balasan dari HP |
+| 9 | Token permanen (System User) | ⏳ | token sekarang hanya berlaku 24 jam |
+| 10 | Verifikasi bisnis Meta (untuk produksi) | ⏳ | mode Development cukup untuk uji |
 
 Langkah-langkahnya ada di **`PANDUAN-WHATSAPP.md`** bagian 3–6.
 

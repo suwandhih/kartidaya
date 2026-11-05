@@ -64,7 +64,14 @@ Browser Kartidaya  ◄──────────  Kotak Masuk + buku donor
      `whatsapp_business_management`
    - Simpan token → ini `WA_TOKEN`
 5. Tambahkan nomor HP Anda sebagai **test recipient** di API Setup supaya bisa
-   menerima pesan saat masih mode pengembangan.
+   menerima pesan saat masih mode pengembangan:
+   - Di halaman **API Setup**, klik **Manage phone number list**
+   - **Add a recipient phone number** → **Country** = `Indonesia (ID +62)`
+   - **Phone number** = nomor Anda tanpa `0` di depan
+     (contoh: `085921939585` → tulis `85921939585`)
+   - **Next** → Meta mengirim **kode 5 digit lewat WhatsApp** ke nomor itu
+   - Masukkan kode → **Next** → nomor muncul di daftar **Recipient**
+   - Maksimal **5 nomor** per aplikasi
 
 > **Catatan:** nomor uji gratis dari Meta hanya bisa mengirim ke nomor yang
 > didaftarkan sebagai test recipient. Untuk produksi, nomor bisnis harus
@@ -106,6 +113,13 @@ npx wrangler deploy
 https://kartidaya-wa.namaanda.workers.dev
 ```
 
+> **Nilai yang sudah dipakai Kartidaya** (jangan diubah tanpa alasan):
+> - Worker: `https://kartidaya-wa.suwandhih.workers.dev`
+> - KV `WA_INBOX`: `f92cebc2b7724490a76c18be3f3559a1`
+> - `WA_PHONE_ID`: `1391919354008532`
+> - `WA_VERIFY_TOKEN`: `kartidaya-2026`
+> - `APP_KEY`: lihat kartu **WhatsApp** di halaman **Setelan** aplikasi
+
 ### Cara 2 — lewat dashboard Cloudflare
 
 1. Buka https://dash.cloudflare.com → **Workers & Pages** → **Create** → **Worker**
@@ -125,7 +139,7 @@ https://kartidaya-wa.namaanda.workers.dev
 1. Buka aplikasi Meta → **WhatsApp** → **Configuration** → **Webhook** → **Edit**
 2. **Callback URL**:
    ```
-   https://kartidaya-wa.namaanda.workers.dev/wa/webhook
+   https://kartidaya-wa.suwandhih.workers.dev/wa/webhook
    ```
 3. **Verify token**: isi sama persis dengan `WA_VERIFY_TOKEN` di Worker
 4. Klik **Verify and save** — Meta akan memanggil `GET /wa/webhook`.
@@ -142,7 +156,7 @@ https://kartidaya-wa.namaanda.workers.dev
 1. Buka https://suwandhih.github.io/kartidaya/ → **Setelan**
 2. Gulir ke kartu **WhatsApp**
 3. Isi:
-   - **Alamat Worker** → `https://kartidaya-wa.namaanda.workers.dev`
+   - **Alamat Worker** → `https://kartidaya-wa.suwandhih.workers.dev`
    - **Kunci aplikasi** → sama dengan `APP_KEY` di Worker
 4. Klik **Simpan & uji sambungan**
    - Berhasil → chip berubah jadi **Tersambung** dan nomor WhatsApp Business muncul
