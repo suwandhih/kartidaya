@@ -1029,11 +1029,26 @@ function openCatatMasuk(donorId){
         STATUS_MASUK.map(function(s){ return '<option>' + s + '</option>'; }).join('') + '</select></div>' +
     '</div>' +
     '<div class="field"><label>Subjek</label><input type="text" id="l-subjek" placeholder="Subjek surat masuk"></div>' +
+    '<div class="field"><label>Dari <span class="hint">— email pengirim</span></label>' +
+      '<input type="email" id="l-dari" class="mono" placeholder="nama@contoh.com"></div>' +
     '<div class="field"><label>Isi / Ringkasan</label><textarea id="l-isi" style="min-height:120px"></textarea></div>' +
     '<div class="field"><label>Catatan</label><input type="text" id="l-catatan"></div>';
   openModal({ title:'Catat Surat Masuk', body:body,
     footer:'<button class="btn" data-close>Batal</button>' +
       '<button class="btn primary" data-action="catat-masuk-simpan">Simpan</button>' });
+
+  /* Isi otomatis email pengirim dari data donor supaya tidak perlu diketik
+     ulang; tetap bisa diubah kalau surat datang dari alamat lain. */
+  const sel = document.getElementById('l-donor');
+  const dari = document.getElementById('l-dari');
+  if(sel && dari){
+    const isiDari = function(){
+      const d = findDonor(sel.value);
+      dari.value = d ? (d.email || '') : '';
+    };
+    sel.addEventListener('change', isiDari);
+    isiDari();
+  }
 }
 
 /* ---------- Kelola Template ---------- */
@@ -1356,7 +1371,8 @@ document.addEventListener('click', function(e){
         donorId:g('l-donor'), arah:'masuk',
         tanggal: g('l-tanggal') ? new Date(g('l-tanggal') + 'T09:00:00').toISOString() : new Date().toISOString(),
         subjek:g('l-subjek'), isi:g('l-isi'), status:g('l-status'),
-        from: d ? d.email : '', to: Gmail.email || '', catatan:g('l-catatan'), dibaca:true
+        from: g('l-dari') || (d ? d.email : ''), to: Gmail.email || '',
+        catatan:g('l-catatan'), dibaca:true
       });
       closeModal(); toast('Surat masuk dicatat'); render();
       break;
