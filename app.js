@@ -23,6 +23,15 @@ const PENGIRIMAN = ['','Email','WhatsApp','POS','Kurir','Lainnya'];
 const STATUS_KELUAR = ['Draft','Terkirim','Gagal'];
 const STATUS_MASUK = ['Belum dibaca','Dibaca','Dibalas'];
 
+/* Warna chip status: merah untuk gagal, hijau untuk yang butuh perhatian
+   (belum dibaca), abu-abu untuk yang sudah selesai. */
+function statusChipClass(s){
+  if(s === 'Gagal') return 'warn';
+  if(s === 'Belum dibaca') return 'hot';
+  if(s === 'Draft') return 'plain';
+  return 'plain';
+}
+
 const DEFAULT_CATEGORIES = [
   'Member Support','Church Local','Individual - Local','Funder - Foreign','Organization'
 ];
@@ -487,7 +496,7 @@ function viewKotak(arah){
       '<div class="mail-subj">' + esc(m.subjek) + '</div>' +
       '<div class="mail-prev">' + esc(String(m.isi || '').replace(/\s+/g,' ').slice(0, 130)) + '</div>' +
       '<div class="mail-foot">' +
-        '<span class="chip' + (m.status === 'Gagal' ? ' warn' : (m.status === 'Draft' ? ' plain' : '')) + '">' + esc(m.status) + '</span>' +
+        '<span class="chip ' + statusChipClass(m.status) + '">' + esc(m.status) + '</span>' +
         (d ? '<span class="chip plain mono">' + esc(d.id) + '</span>'
            : '<span class="chip warn">belum dikenal</span>') +
       '</div>' +
@@ -972,13 +981,28 @@ function openMessage(msgId){
   const m = state.messages.filter(function(x){ return x.id === msgId; })[0];
   if(!m) return;
   const d = findDonor(m.donorId);
-  if(m.arah === 'masuk' && !m.dibaca){ m.dibaca = true; save('messages'); }
+  /* Membuka surat masuk berarti surat itu sudah dibaca — statusnya ikut naik
+     dari "Belum dibaca" ke "Dibaca" supaya tidak tertinggal sebagai baru. */
+  if(m.arah === 'masuk' && !m.dibaca){
+    m.dibaca = true;
+    if(m.status === 'Belum dibaca') m.status = 'Dibaca';
+    save('messages');
+  }
+
+  const statusRow = m.arah === 'masuk'
+    ? '<div class="field" style="max-width:230px"><label>Status surat</label>' +
+        '<select data-msg-status="' + esc(m.id) + '">' +
+          STATUS_MASUK.map(function(s){
+            return '<option' + (m.status === s ? ' selected' : '') + '>' + esc(s) + '</option>';
+          }).join('') + '</select></div>'
+    : '';
 
   const body = '<div class="row" style="margin-bottom:12px">' +
       '<span class="chip' + (m.arah === 'masuk' ? ' plain' : '') + '">' +
         (m.arah === 'masuk' ? '↓ Masuk' : '↑ Keluar') + '</span>' +
-      '<span class="chip plain">' + esc(m.status) + '</span>' +
+      '<span class="chip ' + statusChipClass(m.status) + '" id="m-status-chip">' + esc(m.status) + '</span>' +
       '<span class="tiny muted mono">' + fmtDateTime(m.tanggal) + '</span></div>' +
+    statusRow +
     '<div class="kv">' +
       kv('Donor', d ? donorName(d) + ' (' + d.id + ')' : '—') +
       kv('Dari', m.from) + kv('Kepada', m.to) + kv('Subjek', m.subjek) +
@@ -1143,6 +1167,18 @@ async function kirimSurat(asDraft){
       from: Gmail.email || '', to: d.email || '',
       gmailId:gmailId, threadId:threadId, dibaca:true
     });
+
+    /* Surat masuk terakhir dari donor ini ditandai "Dibalas" begitu balasan
+       benar-benar terkirim, supaya statusnya tidak tertinggal "Dibaca". */
+    if(status === 'Terkirim'){
+      const masuk = state.messages.filter(function(m){
+        return m.arah === 'masuk' && m.donorId === id && m.status !== 'Dibalas';
+      }).sort(function(a,b){ return String(a.tanggal).localeCompare(String(b.tanggal)); });
+      if(masuk.length){
+        masuk[masuk.length - 1].status = 'Dibalas';
+        save('messages');
+      }
+    }
   }
 
   if(asDraft) toast(ids.length + ' surat disimpan sebagai Draft');
@@ -1511,6 +1547,20 @@ document.addEventListener('click', function(e){
 });
 
 document.addEventListener('change', function(e){
+  const st = e.target.closest('[data-msg-status]');
+  if(st){
+    const m = state.messages.filter(function(x){ return x.id === st.getAttribute('data-msg-status'); })[0];
+    if(m){
+      m.status = st.value;
+      if(m.arah === 'masuk') m.dibaca = st.value !== 'Belum dibaca';
+      save('messages');
+      const chip = document.getElementById('m-status-chip');
+      if(chip){ chip.className = 'chip ' + statusChipClass(m.status); chip.textContent = m.status; }
+      toast('Status diubah ke "' + m.status + '"');
+      renderNav();
+    }
+    return;
+  }
   const r = e.target.closest('[data-recip]');
   if(r){
     const id = r.getAttribute('data-recip');

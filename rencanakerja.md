@@ -199,6 +199,18 @@ masuk yang tercampur urut waktu, seperti percakapan di Outlook.
 | `catatan` | keterangan tambahan |
 | `dibaca` | boolean, untuk penanda belum dibaca |
 
+### Arti status surat masuk
+
+| Status | Arti | Kapan berubah |
+|---|---|---|
+| **Belum dibaca** | Email baru, belum pernah dibuka | Otomatis saat surat ditarik dari Gmail |
+| **Dibaca** | Email sudah dibuka | Otomatis saat surat dibuka, atau disetel manual |
+| **Dibalas** | Sudah dikirimi balasan | Otomatis setelah balasan terkirim, atau disetel manual |
+
+Status bisa diubah manual lewat dropdown **Status surat** di dalam modal surat
+masuk. Menyetel ke *Belum dibaca* membuat surat itu dihitung lagi di badge
+**Belum Dibaca**.
+
 ### Tampilan
 
 - **Buku donor** — klik kartu donor → semua suratnya urut waktu, bubble kiri (masuk)
@@ -480,7 +492,6 @@ otomatis menggantinya ke Client ID project Kartidaya saat dimuat.
 | # | Tugas | Keterangan |
 |---|---|---|
 | 1 | Uji **kirim email sungguhan** | Belum pernah |
-
 ### Hubungkan Gmail — BERHASIL (5 Nov 2026, 15:28 WIB)
 
 `fotohotono03@gmail.com` **sudah berhasil terhubung**. Akar masalahnya ada dua,
@@ -512,6 +523,32 @@ Kendala yang ditemukan & diperbaiki:
 
 Diverifikasi: setelah email donor diisi, klik **Cocokkan ulang** → surat pindah
 ke buku Ferry, counter jadi **↓1 masuk**.
+
+### Status surat masuk bisa diubah — SELESAI (5 Nov 2026)
+
+**Masalah yang dilaporkan:** status surat masuk tidak bisa diubah — tidak ada
+tempat untuk mengubahnya setelah surat tersimpan.
+
+**Akar masalah:** status hanya bisa disetel saat surat **dibuat** (Catat Surat
+Masuk, atau otomatis oleh Sinkron Gmail). Di modal surat, status hanya tampil
+sebagai chip read-only. Selain itu, membuka surat hanya mengubah flag `dibaca`
+tetapi **tidak** menaikkan `status` dari *Belum dibaca* ke *Dibaca*, sehingga
+surat yang sudah dibuka tetap terlihat "Belum dibaca".
+
+**Perbaikan (`app.js?v=7`):**
+
+- [x] Dropdown **Status surat** di modal surat masuk — bisa pilih
+      *Belum dibaca* / *Dibaca* / *Dibalas*, langsung tersimpan
+- [x] Membuka surat *Belum dibaca* otomatis menaikkan status ke *Dibaca*
+- [x] Mengirim balasan otomatis menandai surat masuk terakhir donor itu sebagai
+      *Dibalas*
+- [x] Chip status diberi warna: hijau = *Belum dibaca*, abu-abu = *Dibaca* /
+      *Dibalas*, merah = *Gagal*
+- [x] Menyetel ke *Belum dibaca* ikut memperbarui badge **Belum Dibaca** di menu
+
+Diverifikasi di browser: buka surat → status naik ke *Dibaca*; ganti ke
+*Dibalas* → tersimpan; ganti ke *Belum dibaca* → badge naik; kirim balasan →
+surat masuk jadi *Dibalas*.
 
 ### Cara menguji kirim
 

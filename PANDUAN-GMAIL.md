@@ -349,6 +349,32 @@ Kasus: surat sudah masuk sebagai **Belum Dikenal**, lalu email donor baru diisi.
 > dari `suwandhih@gmail.com`, maka email donor harus `suwandhih@gmail.com` —
 > bukan alamat lain.
 
+### Tes 7 — Ubah status surat masuk
+
+Tiga status surat masuk:
+
+| Status | Arti |
+|---|---|
+| **Belum dibaca** | Email baru, belum pernah dibuka |
+| **Dibaca** | Email sudah dibuka |
+| **Dibalas** | Sudah dikirimi balasan |
+
+1. Menu **Masuk** → klik salah satu surat
+2. Di bawah baris chip ada dropdown **Status surat** — pilih status lain
+3. Pesan *"Status diubah ke …"* muncul dan chip di atas ikut berubah ✅
+4. Tutup modal → chip di daftar Kotak Masuk juga sudah berubah ✅
+
+Perilaku otomatis:
+
+- **Membuka** surat berstatus *Belum dibaca* → otomatis jadi *Dibaca* ✅
+- **Mengirim** balasan ke donor itu → surat masuk terakhirnya otomatis jadi
+  *Dibalas* ✅
+- Menyetel kembali ke *Belum dibaca* membuat surat itu dihitung lagi di badge
+  **Belum Dibaca** di menu ✅
+
+> Status juga bisa disetel saat mencatat surat masuk manual
+> (**↓ Catat Surat Masuk** → kolom **Status**).
+
 ---
 
 ## Cara kerja pencocokan surat masuk
@@ -378,6 +404,7 @@ flowchart TD
 | `origin_mismatch` | Origin belum terdaftar | Salin origin dari halaman **Setelan** ke *Authorized JavaScript origins* |
 | `access_denied` | Email belum jadi Test user | Tambahkan email di **Test users** (langkah 2.3 no. 4) |
 | Surat masuk tidak muncul di buku donor | Email donor belum diisi / tidak sama dengan alamat pengirim | Isi email donor, lalu **⇄ Cocokkan ulang** di Kotak Masuk |
+| Status surat tidak bisa diubah | Versi lama masih tersimpan di cache browser | Muat ulang dengan **Ctrl+Shift+R**, lalu buka suratnya — dropdown **Status surat** akan muncul |
 | `Error 403: access_denied` — *"has not completed the Google verification process"* | Email yang dipakai login belum terdaftar sebagai Test user | Lihat bagian di bawah |
 | `Sesi Gmail kedaluwarsa` | Token habis (1 jam / 7 hari) | Klik *Hubungkan Gmail* lagi |
 | `Gagal memuat Google Identity Services` | Tidak ada internet | Cek koneksi internet |
