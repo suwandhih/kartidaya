@@ -158,6 +158,22 @@ function toast(msg, isErr){
   setTimeout(function(){ el.remove(); }, isErr ? 12000 : 3000);
 }
 function donorName(d){ return d.pic || d.namaLengkap || d.instansi || '(tanpa nama)'; }
+/* Nomor project Google Cloud tersembunyi di depan Client ID:
+   `205859365311-xxxx.apps.googleusercontent.com` → `205859365311`.
+   Dipakai untuk memastikan user membuka project yang benar saat mengurus
+   Test users — penyebab paling umum error `access_denied`. */
+function projectNumber(clientId){
+  const m = String(clientId || '').match(/^(\d{6,})-/);
+  return m ? m[1] : '';
+}
+async function copyText(t){
+  try{
+    await navigator.clipboard.writeText(t);
+    toast('Disalin: ' + t);
+  }catch(e){
+    toast('Gagal menyalin — salin manual: ' + t, true);
+  }
+}
 function donorLabel(d){ return (d.panggilan ? d.panggilan + ' ' : '') + donorName(d); }
 function findDonor(id){
   for(let i = 0; i < state.donors.length; i++) if(state.donors[i].id === id) return state.donors[i];
@@ -776,6 +792,20 @@ function viewPengaturan(){
         esc(state.settings.gmailClientId) + '"></div>' +
     '<p class="tiny muted">Daftarkan origin ini di Google Cloud Console → Credentials → ' +
       'Authorized JavaScript origins:<br><b class="mono">' + esc(Gmail.origin()) + '</b></p>' +
+    (projectNumber(state.settings.gmailClientId) ?
+      '<div class="warnbox">' +
+        '<b>Kalau muncul “Access blocked / Error 403: access_denied”</b><br>' +
+        'Client ID ini milik <b>project nomor ' + esc(projectNumber(state.settings.gmailClientId)) + '</b>. ' +
+        'Buka <b>project itu</b> di Google Cloud Console — bukan project lain — lalu ' +
+        '<b>Audience → Test users → Add users</b> → masukkan <b class="mono">fotohotono03@gmail.com</b> → <b>Save</b>.' +
+        '<div class="btn-row" style="margin-top:10px">' +
+          '<button class="btn sm" data-action="g-copy-cid">Salin Client ID</button>' +
+          '<button class="btn sm" data-action="g-copy-prefix">Salin nomor project</button>' +
+        '</div>' +
+        '<p class="tiny" style="margin:8px 0 0">Cara memastikan project yang benar: di halaman ' +
+        '<b>Credentials</b>, Client ID yang sama harus terlihat di daftar. Kalau tidak ada, ' +
+        'Anda sedang membuka project yang salah.</p>' +
+      '</div>' : '') +
     '<div class="btn-row">' +
       '<button class="btn primary" data-action="g-save">Simpan Client ID</button>' +
       '<button class="btn" data-action="g-connect">' + (st === 'connected' ? 'Hubungkan ulang' : 'Hubungkan Gmail') + '</button>' +
@@ -1369,6 +1399,8 @@ document.addEventListener('click', function(e){
       break;
     }
     case 'g-connect': gmailConnect(); break;
+    case 'g-copy-cid': copyText(state.settings.gmailClientId); break;
+    case 'g-copy-prefix': copyText(projectNumber(state.settings.gmailClientId)); break;
     case 'g-disconnect': Gmail.disconnect(); toast('Gmail diputuskan'); render(); break;
     case 'sync': gmailSync(); break;
     case 'sign-save': {

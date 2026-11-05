@@ -15,10 +15,14 @@ function describeOAuthError(resp){
   const code = String((resp && resp.error) || '');
   const desc = String((resp && resp.error_description) || '');
   if(code === 'access_denied'){
-    return 'Akses ditolak (access_denied). Email yang dipakai login belum ' +
-      'terdaftar sebagai Test user. Buka Google Auth Platform → Audience → ' +
-      'Test users → Add users, masukkan alamat Gmail yang tadi dipakai login, ' +
-      'lalu Save. Tunggu ±1 menit dan coba lagi.';
+    const pn = (String(Gmail.clientId || '').match(/^(\d{6,})-/)) || [];
+    return 'Akses ditolak (access_denied). Alamat yang dipakai login belum ' +
+      'terdaftar sebagai Test user di project pemilik Client ID ini' +
+      (pn[1] ? ' (project nomor ' + pn[1] + ')' : '') + '. ' +
+      'Buka Google Cloud Console → pastikan project yang dibuka adalah project ' +
+      'yang sama dengan Client ID di halaman Setelan → Audience → Test users → ' +
+      'Add users → masukkan alamat Gmail yang tadi dipakai login → Save. ' +
+      'Tunggu ±1 menit lalu coba lagi.';
   }
   if(code === 'origin_mismatch'){
     return 'Origin belum terdaftar (origin_mismatch). Salin origin dari halaman ' +
