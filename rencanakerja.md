@@ -456,6 +456,25 @@ Semua di project **`kartidaya-513714`**:
 > Client secret `GOCSPX-…` **tidak dipakai** aplikasi ini (alur token GIS).
 > Jangan pernah menaruhnya di kode.
 
+### Perbaikan lanjutan — Client ID lama masih terpakai
+
+Setelah konfigurasi Google selesai, error `access_denied` **masih muncul**.
+Penyebabnya: browser masih menyimpan **Client ID lama** (`205859365311-…`) di
+`localStorage`, dan `app.js` juga masih tersimpan di cache browser.
+
+Perbaikan yang ditambahkan:
+
+- [x] `DEFAULT_CLIENT_ID` — Client ID project Kartidaya dipakai sebagai nilai awal
+- [x] **Migrasi otomatis** — Client ID berawalan `205859365311-` diganti otomatis
+      saat aplikasi dimuat
+- [x] Halaman Setelan menampilkan **Client ID yang benar-benar dipakai**
+- [x] Tombol **Pakai Client ID bawaan** untuk reset manual
+- [x] Peringatan di Setelan kalau Client ID bukan milik project Kartidaya
+- [x] **Cache-busting** `app.js?v=3` & `gmail.js?v=3` di `index.html`
+
+Diverifikasi: dengan `localStorage` sengaja diisi Client ID lama, aplikasi
+otomatis menggantinya ke Client ID project Kartidaya saat dimuat.
+
 ### Yang belum selesai
 
 | # | Tugas | Keterangan |
@@ -467,8 +486,10 @@ Semua di project **`kartidaya-513714`**:
 ### Cara melanjutkan
 
 1. Buka <https://suwandhih.github.io/kartidaya/> → **Setelan**
-2. Client ID baru sudah terisi; klik **Hubungkan Gmail**
-3. Login dengan **`fotohotono03@gmail.com`** (bukan `suwandhih@gmail.com`)
+2. Pastikan baris *"Client ID yang benar-benar dipakai saat ini"* menampilkan
+   `531116872278-…`. Kalau masih `205859365311-…`, klik
+   **Pakai Client ID bawaan** (atau tekan `Ctrl+Shift+R` untuk buang cache)
+3. Klik **Hubungkan Gmail**, lalu login dengan **`fotohotono03@gmail.com`**
 4. Bila muncul *"Google hasn't verified this app"* → **Advanced** →
    **Go to Kartidaya (unsafe)** — normal untuk aplikasi Testing sendiri
 5. Setelah status **Terhubung**: uji kirim email, lalu **⟳ Sinkron sekarang**
