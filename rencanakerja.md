@@ -480,7 +480,6 @@ otomatis menggantinya ke Client ID project Kartidaya saat dimuat.
 | # | Tugas | Keterangan |
 |---|---|---|
 | 1 | Uji **kirim email sungguhan** | Belum pernah |
-| 2 | Uji **Sinkron Gmail** (tarik surat masuk) | Belum pernah |
 
 ### Hubungkan Gmail — BERHASIL (5 Nov 2026, 15:28 WIB)
 
@@ -497,7 +496,24 @@ Perbaikan tambahan setelah terhubung:
       dihilangkan dan Gmail mengisi sendiri (sebelumnya `From: me` ditolak Gmail)
 - [x] `app.js?v=4` & `gmail.js?v=4`
 
-### Cara menguji kirim & terima
+### Terima surat — BERHASIL (5 Nov 2026, 15:51 WIB)
+
+Email dari `suwandhih@gmail.com` **berhasil masuk** ke buku donor
+**Ferry Kangsadjaja** (`F00004R`).
+
+Kendala yang ditemukan & diperbaiki:
+
+- Surat sudah ditarik sebagai **Belum Dikenal** karena email donor Ferry masih
+  `ferryk@indo.net.id` (data awal Excel), bukan `suwandhih@gmail.com`
+- **Bug:** surat yang sudah masuk sebagai Belum Dikenal **tidak pernah** pindah
+  ke buku donor walau email donornya kemudian diisi
+- **Perbaikan:** Sinkron Gmail otomatis mencocokkan ulang, plus tombol
+  **⇄ Cocokkan ulang** di Kotak Masuk (`app.js?v=5`)
+
+Diverifikasi: setelah email donor diisi, klik **Cocokkan ulang** → surat pindah
+ke buku Ferry, counter jadi **↓1 masuk**.
+
+### Cara menguji kirim
 
 **Kirim (Tes 3):**
 
@@ -508,7 +524,7 @@ Perbaikan tambahan setelah terhubung:
 4. Cek <https://mail.google.com> → **Sent** dan **Inbox**
 5. Kalau status jadi **Gagal**, buka suratnya — pesan error Gmail ada di situ
 
-**Terima (Tes 4):**
+**Terima (Tes 4) — sudah lolos:**
 
 1. Kirim email **ke** `fotohotono03@gmail.com` dari akun lain
 2. Menu **Masuk** → **⟳ Sinkron Gmail**
