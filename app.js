@@ -13,6 +13,11 @@ const LS = {
   settings:'kartidaya.v2.settings'
 };
 
+/* OAuth Client ID project `kartidaya-513714` (nomor 531116872278).
+   Dipakai sebagai nilai awal supaya browser yang masih menyimpan Client ID
+   lama tidak terus gagal dengan `access_denied`. */
+const DEFAULT_CLIENT_ID = '531116872278-hep5meju0djk30qrsee5ec4np2t895qo.apps.googleusercontent.com';
+
 const PANGGILAN = ['','Ibu','Bapak','Saudara','Saudari'];
 const PENGIRIMAN = ['','Email','WhatsApp','POS','Kurir','Lainnya'];
 const STATUS_KELUAR = ['Draft','Terkirim','Gagal'];
@@ -106,7 +111,7 @@ function loadState(){
   state.messages   = readLS(LS.messages, null) || [];
   state.settings   = readLS(LS.settings, null) || {};
   if(!state.settings.theme) state.settings.theme = 'light';
-  if(!state.settings.gmailClientId) state.settings.gmailClientId = '';
+  if(!state.settings.gmailClientId) state.settings.gmailClientId = DEFAULT_CLIENT_ID;
   if(!state.settings.signature) state.settings.signature = 'Hormat kami,\nKartidaya';
   if(firstRun) save();
 }
@@ -792,6 +797,9 @@ function viewPengaturan(){
         esc(state.settings.gmailClientId) + '"></div>' +
     '<p class="tiny muted">Client ID yang <b>benar-benar dipakai</b> saat ini:<br>' +
       '<b class="mono">' + esc(Gmail.clientId || '(kosong)') + '</b></p>' +
+    (Gmail.clientId && Gmail.clientId !== DEFAULT_CLIENT_ID ?
+      '<div class="warnbox">Client ID ini <b>bukan</b> milik project Kartidaya. ' +
+      'Ini penyebab <b>access_denied</b>. Klik <b>Pakai Client ID bawaan</b> di bawah.</div>' : '') +
     '<p class="tiny muted">Daftarkan origin ini di Google Cloud Console → Credentials → ' +
       'Authorized JavaScript origins:<br><b class="mono">' + esc(Gmail.origin()) + '</b></p>' +
     (projectNumber(state.settings.gmailClientId) ?
@@ -813,6 +821,7 @@ function viewPengaturan(){
       '</div>' : '') +
     '<div class="btn-row">' +
       '<button class="btn primary" data-action="g-save">Simpan Client ID</button>' +
+      '<button class="btn" data-action="g-default">Pakai Client ID bawaan</button>' +
       '<button class="btn" data-action="g-connect">' + (st === 'connected' ? 'Hubungkan ulang' : 'Hubungkan Gmail') + '</button>' +
       '<button class="btn" data-action="sync">⟳ Sinkron sekarang</button>' +
       '<button class="btn danger" data-action="g-disconnect">Putuskan</button>' +
@@ -1404,6 +1413,11 @@ document.addEventListener('click', function(e){
       break;
     }
     case 'g-connect': gmailConnect(); break;
+    case 'g-default':
+      state.settings.gmailClientId = DEFAULT_CLIENT_ID;
+      Gmail.clientId = DEFAULT_CLIENT_ID;
+      save('settings'); toast('Client ID bawaan dipakai'); render();
+      break;
     case 'g-copy-cid': copyText(state.settings.gmailClientId); break;
     case 'g-copy-prefix': copyText(projectNumber(state.settings.gmailClientId)); break;
     case 'g-disconnect': Gmail.disconnect(); toast('Gmail diputuskan'); render(); break;
