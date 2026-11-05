@@ -420,16 +420,32 @@ client**, sehingga tidak berpengaruh sama sekali.
 Semua di project **`kartidaya-513714`**:
 
 - [x] Konfigurasi Google Auth Platform dibuat (App name `Kartidaya`,
-      user support `suwandhih@gmail.com`, tipe **External**)
+      tipe **External**)
 - [x] **OAuth Client ID baru** dibuat — `Kartidaya Web`, tipe *Web application*
 - [x] Authorized JavaScript origin: `https://suwandhih.github.io`
 - [x] **Gmail API diaktifkan**
 - [x] **Data Access**: `gmail.send` (sensitive) + `gmail.readonly` (restricted)
       → *"Data access changes saved!"*
 - [x] **Test users**: `fotohotono03@gmail.com` ditambahkan → **Save**
+- [x] **Developer contact** diubah jadi **hanya `fotohotono03@gmail.com`**
+      (`suwandhih@gmail.com` dihapus) → *"Branding changes saved!"*
+- [x] **IAM**: `fotohotono03@gmail.com` diberi role **OAuth Config Editor**
+      agar bisa membuka project ini sendiri
 - [x] Client ID baru dipasang di halaman Setelan aplikasi
 - [x] Diverifikasi: alur GIS Google menerima Client ID + origin baru
       (redirect ke halaman login, bukan `invalid_client` / `origin_mismatch`)
+
+> **Kebijakan email:** `suwandhih@gmail.com` adalah email pribadi dan
+> **tidak boleh dipakai** untuk aplikasi ini. Semua konfigurasi yang bisa
+> diubah sudah dipindah ke `fotohotono03@gmail.com`.
+>
+> Satu pengecualian yang **tidak bisa** diubah: field **User support email**
+> di halaman Branding hanya menerima akun yang sedang login di browser.
+> Karena project ini dibuat dari akun `suwandhih@gmail.com`, field itu masih
+> menampilkan email tersebut. Ini hanya alamat kontak yang tampil di layar
+> izin Google — **tidak memengaruhi pengiriman email**, dan tidak dipakai
+> aplikasi sama sekali. Untuk menggantinya sepenuhnya, project harus dibuat
+> ulang dari akun `fotohotono03@gmail.com`.
 
 **Client ID yang dipakai sekarang:**
 
@@ -456,10 +472,10 @@ Semua di project **`kartidaya-513714`**:
 4. Bila muncul *"Google hasn't verified this app"* → **Advanced** →
    **Go to Kartidaya (unsafe)** — normal untuk aplikasi Testing sendiri
 5. Setelah status **Terhubung**: uji kirim email, lalu **⟳ Sinkron sekarang**
+6. Cadangan lokal kalau perlu: `serve.bat` → <http://localhost:8080>
 
 > Catatan: langkah login **tidak bisa** diotomasi — Google memblokir popup
 > otomatis dan butuh kredensial akun. Sisanya sudah beres.
-6. Cadangan lokal kalau perlu: `serve.bat` → <http://localhost:8080>
 
 ### Catatan penting
 
