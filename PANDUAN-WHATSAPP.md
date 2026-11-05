@@ -238,7 +238,7 @@ Status bisa diubah manual dari dropdown di dalam pesan.
 | 1 | Worker hidup | Buka `https://<worker>/wa/status` di browser | Muncul JSON, bukan error |
 | 2 | Kunci aplikasi | Setelan → isi alamat + kunci → **Simpan & uji sambungan** | Chip jadi **Tersambung** |
 | 3 | Kunci salah | Ubah kunci jadi ngawur → **Simpan & uji sambungan** | Muncul pesan "Kunci aplikasi salah" |
-| 4 | Kirim | Tulis → **✆ WhatsApp** → pilih donor → **Kirim** | Pesan sampai di HP, buku donor bertambah |
+| 4 | Kirim | Tulis → **✆ WhatsApp** → pilih donor → **Kirim** | Pesan sampai di HP, buku donor bertambah. **Kalau akun belum terverifikasi**, status jadi **Gagal** dengan alasan `130497` — lihat bagian 11 |
 | 5 | Nomor kosong | Pilih donor tanpa HP → **Kirim** | Status **Gagal**, ada keterangan |
 | 6 | Terima | Kirim WhatsApp dari HP ke nomor bisnis | Muncul di Kotak Masuk dalam ≤10 menit |
 | 7 | Cocokkan | Pesan dari nomor donor terdaftar | Chip donor ID muncul, bukan "belum dikenal" |
@@ -257,7 +257,11 @@ Status bisa diubah manual dari dropdown di dalam pesan.
 | Pesan masuk tidak muncul | Webhook belum di-subscribe ke `messages` | Meta → Configuration → Webhook fields → centang **messages** |
 | Pesan masuk tidak muncul | Sinkron otomatis mati | Setelan → **Sinkron WhatsApp otomatis** → **Aktif** |
 | Kirim gagal, error `131030` | Nomor tujuan bukan test recipient | Tambahkan nomor itu di Meta → API Setup |
+| Kirim gagal, error `130497` | **Akun bisnis diblokir kirim ke negara tujuan** | Selesaikan verifikasi bisnis + lengkapi profil + metode pembayaran (lihat bagian 11) |
 | Kirim gagal, error `131047` | Di luar jendela 24 jam | Balas dulu pesan terakhir dari pelanggan, atau pakai template disetujui |
+| Kirim gagal, error `141006` | Metode pembayaran WABA bermasalah | Tambahkan metode pembayaran sah di Meta Business Suite |
+| Kirim gagal, error `141010` | Bisnis belum lulus verifikasi | Ajukan verifikasi bisnis di Meta Business Suite |
+| Kirim gagal, error `131000` | Profil bisnis belum lengkap | Isi **Legal Name, Country, Website** di Settings → Business Info |
 | Kirim gagal, error `190` | Token kedaluwarsa | Buat token permanen baru, `wrangler secret put WA_TOKEN` |
 | Pesan dobel | Webhook dikirim ulang Meta | Worker sudah anti-duplikat lewat `waId`; kalau tetap dobel, hapus manual |
 | Chip tetap "Belum diatur" | Alamat Worker belum diisi | Isi di Setelan, klik **Simpan & uji sambungan** |
@@ -271,6 +275,24 @@ Status bisa diubah manual dari dropdown di dalam pesan.
 - **Jendela 24 jam**: WhatsApp hanya mengizinkan pesan bebas dalam 24 jam
   setelah pelanggan terakhir menulis. Di luar itu harus pakai *message template*
   yang disetujui Meta.
+- **Nomor uji gratis tidak bisa kirim ke nomor Indonesia.** Meta memblokir
+  akun bisnis yang belum lulus verifikasi untuk mengirim ke negara tertentu,
+  dan Indonesia termasuk di dalamnya. Gejalanya: API **menerima** pesan
+  (`wamid` terbit) tetapi statusnya berubah jadi **failed** beberapa detik
+  kemudian dengan kode `130497`. Template yang sudah disetujui pun kena.
+  Untuk benar-benar bisa mengirim ke donatur Indonesia, tiga hal ini harus
+  beres lebih dulu:
+  1. **Profil bisnis lengkap** — Legal Name, Country, Website
+     (Settings → Business Info). Tanpa ini muncul `131000`.
+  2. **Verifikasi bisnis** lulus (Settings → Business Verification).
+     Tanpa ini muncul `141010`.
+  3. **Metode pembayaran** sah di WhatsApp Business Account.
+     Tanpa ini muncul `141006`.
+  Setelah itu tambahkan **nomor WhatsApp Business sungguhan** (nomor
+  Indonesia) lewat *Production setup* di Meta.
+- **Cek kesehatan akun** kapan saja:
+  `GET /v21.0/<PHONE_NUMBER_ID>?fields=health_status` — lihat
+  `can_send_message` per tingkat (BUSINESS / WABA / PHONE_NUMBER).
 - **Biaya**: Meta memberi kuota percakapan gratis per bulan; di atas itu
   dikenakan tarif per percakapan. Cloudflare Workers gratis sampai 100.000
   permintaan/hari.

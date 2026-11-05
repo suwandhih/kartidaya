@@ -410,10 +410,15 @@ Secret** — aman untuk aplikasi yang seluruhnya jalan di browser.
 - [x] Kartu **WhatsApp** di Setelan (alamat Worker, kunci, uji sambungan)
 - [x] **Catat Surat Masuk** dengan pilihan kanal
 - [x] `PANDUAN-WHATSAPP.md`
-- [ ] Deploy Worker ke Cloudflare *(butuh akun pengguna)*
-- [ ] Setup Meta Business + nomor WhatsApp Business *(butuh akun pengguna)*
-- [ ] Daftarkan webhook di Meta *(butuh Worker ter-deploy)*
-- [ ] Uji kirim/terima WhatsApp sungguhan *(butuh langkah di atas)*
+- [x] Deploy Worker ke Cloudflare — `https://kartidaya-wa.suwandhih.workers.dev`
+- [x] Setup Meta Business + nomor WhatsApp Business (nomor uji `+1 (555) 173-4967`)
+- [x] Daftarkan webhook di Meta (field `messages` ter-subscribe)
+- [x] Lacak status kirim (`statuses` → KV → chip **Gagal** + alasan)
+- [ ] Uji kirim/terima WhatsApp sungguhan — **terblokir `130497`**: akun bisnis
+      belum lulus verifikasi, jadi Meta menolak kirim ke nomor Indonesia.
+      Perlu: profil bisnis lengkap (`131000`), verifikasi bisnis (`141010`),
+      metode pembayaran (`141006`), lalu nomor WhatsApp Business sungguhan.
+      Rincian di bagian 14.
 
 ---
 
@@ -944,12 +949,54 @@ Browser Kartidaya ──── POST /wa/send ────► Worker ────
 | 4 | Setup Meta Business + nomor WhatsApp Business | ✅ | App `Kartidaya` (ID `1919651829397502`), nomor uji `+1 (555) 173-4967` |
 | 5 | Daftarkan webhook di Meta | ✅ | Callback `/wa/webhook`, field `messages` ter-subscribe |
 | 6 | Daftarkan nomor uji sebagai *test recipient* | ✅ | `+62 859-2193-9585` |
-| 7 | Uji kirim WhatsApp sungguhan | ✅ | `POST /wa/send` → `wamid.HBgNNjI4NTkyMTkzOTU4NRUCABEYEjg2NDQ0M0E3OTgxOEU5QzExOQA=` |
+| 7 | Uji kirim WhatsApp sungguhan | ❌ | API menerima (`wamid` terbit) tapi **gagal asinkron**: `130497` — akun bisnis diblokir untuk kirim ke nomor Indonesia |
 | 8 | Uji terima WhatsApp (webhook → KV → Kotak Masuk) | ⏳ | menunggu balasan dari HP |
 | 9 | Token permanen (System User) | ⏳ | token sekarang hanya berlaku 24 jam |
-| 10 | Verifikasi bisnis Meta (untuk produksi) | ⏳ | mode Development cukup untuk uji |
+| 10 | Verifikasi bisnis Meta (untuk produksi) | ⏳ | **wajib** — lihat temuan di bawah |
+| 11 | Lengkapi profil bisnis (Legal Name, Country, Website) | ⏳ | error `131000` — wajib sebelum verifikasi bisa diproses |
+| 12 | Perbaiki metode pembayaran WABA | ⏳ | error `141006` — memblokir percakapan yang dimulai bisnis |
+| 13 | Lacak status kirim di UI (chip **Gagal** + alasan) | ✅ | commit `12d7979` — jalur kode terverifikasi lewat webhook sintetis |
 
 Langkah-langkahnya ada di **`PANDUAN-WHATSAPP.md`** bagian 3–6.
+
+### Temuan penting: kenapa WhatsApp tidak pernah sampai
+
+`GET /1391919354008532?fields=health_status` mengembalikan
+`can_send_message: "BLOCKED"` di **tiga** tingkat sekaligus:
+
+| Tingkat | ID | Kode | Arti |
+|---|---|---|---|
+| BUSINESS | `258248731445492` | `141010` | Bisnis belum lulus **verifikasi bisnis** |
+| BUSINESS | `258248731445492` | `131000` | Profil bisnis belum lengkap: **Legal Name, Country, Website** |
+| WABA | `1602818214333695` | `141006` | **Metode pembayaran bermasalah** — memblokir percakapan yang dimulai bisnis |
+| PHONE_NUMBER | `1391919354008532` | — | `AVAILABLE` (nomor sendiri sehat) |
+
+`business_verification_status` = `not_verified`, `account_review_status` = `APPROVED`.
+
+Akibatnya setiap kirim ke nomor Indonesia ditolak Meta dengan:
+
+```json
+{ "code": 130497,
+  "title": "Business account is restricted from messaging users in this country." }
+```
+
+Ini **kebijakan Meta**, bukan bug di kode Kartidaya. Bahkan template
+`hello_world` yang sudah disetujui pun gagal dengan kode yang sama. Error
+`131047` (jendela 24 jam) pada pesan bebas hanyalah gejala kedua — tidak
+relevan selama `130497` masih aktif.
+
+**Kesimpulan:** integrasi WhatsApp **tidak bisa diuji sampai tuntas** dengan
+nomor uji gratis `+1 (555) 173-4967`. Yang diperlukan:
+
+1. Lengkapi profil bisnis (Legal Name, Country, Website) → hilangkan `131000`.
+2. Ajukan **verifikasi bisnis** di Meta Business Suite → hilangkan `141010`.
+3. Tambahkan **metode pembayaran** yang sah di WABA → hilangkan `141006`.
+4. Tambahkan **nomor WhatsApp Business sungguhan** (nomor Indonesia) → Fase 2
+   *Production setup*.
+
+Alternatif untuk sekadar membuktikan pipa data bekerja: daftarkan satu nomor
+uji dari negara yang **tidak** dibatasi (mis. nomor Amerika), lalu kirim ke
+nomor itu.
 
 ### Catatan penting WhatsApp
 
@@ -959,7 +1006,11 @@ Langkah-langkahnya ada di **`PANDUAN-WHATSAPP.md`** bagian 3–6.
   setelah pelanggan terakhir menulis. Di luar itu harus pakai *message template*
   yang disetujui Meta.
 - **Nomor uji gratis** Meta hanya bisa mengirim ke nomor yang didaftarkan
-  sebagai *test recipient*.
+  sebagai *test recipient*, **dan** akun bisnis harus sudah lulus verifikasi
+  bisnis. Selama belum, kirim ke nomor Indonesia ditolak dengan `130497`.
+- **Status kirim bisa dilacak**: webhook `statuses` disimpan di KV, lalu
+  dibaca aplikasi lewat `POST /wa/status-pesan`. Pesan yang gagal tampil
+  sebagai **Gagal** dengan alasan di modal pesan.
 - **Kunci aplikasi disimpan di `localStorage`** — tidak perlu diisi ulang
   setiap membuka aplikasi. Kunci hanya berguna untuk Worker ini, dan tidak
   ikut ter-ekspor ke berkas cadangan JSON. Tombol **Putuskan** menghapusnya.
