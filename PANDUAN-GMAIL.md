@@ -257,11 +257,11 @@ Selesai. Sekarang:
 - **Terima** — menu *Masuk* → **⟳ Sinkron Gmail**. Surat masuk 90 hari terakhir
   ditarik dan otomatis dicocokkan ke donor berdasarkan alamat email.
 
-> Rincian langkah pengujian ada di bagian **Cara menguji (5 tes berurutan)**.
+> Rincian langkah pengujian ada di bagian **Cara menguji (6 tes berurutan)**.
 
 ---
 
-## Cara menguji (5 tes berurutan)
+## Cara menguji (6 tes berurutan)
 
 Kerjakan berurutan. Tes 1 bisa dilakukan **sekarang** tanpa Gmail; tes 2–5 butuh
 Test user sudah didaftarkan.
@@ -330,6 +330,23 @@ tabel **Kalau ada masalah** di bawah.
 3. Surat pindah ke buku donor tersebut ✅
 4. Ada opsi menyimpan email pengirim ke data donor — centang bila perlu ✅
 
+### Tes 6 — Cocokkan ulang setelah email donor diubah
+
+Kasus: surat sudah masuk sebagai **Belum Dikenal**, lalu email donor baru diisi.
+
+1. Menu **Donor** → buka donor → **Ubah Data** → isi **Email** dengan alamat
+   pengirim surat itu → **Simpan**
+2. Menu **Masuk** → klik **⇄ Cocokkan ulang**
+3. Surat langsung pindah ke buku donor tersebut ✅
+4. Buka buku donor itu → surat muncul sebagai bubble masuk ✅
+
+> **Sinkron Gmail** juga otomatis melakukan pencocokan ulang ini, jadi
+> menekan Sinkron sekali saja sudah cukup.
+
+> **Penting:** pencocokan memakai **alamat email pengirim**. Kalau surat datang
+> dari `suwandhih@gmail.com`, maka email donor harus `suwandhih@gmail.com` —
+> bukan alamat lain.
+
 ---
 
 ## Cara kerja pencocokan surat masuk
@@ -358,6 +375,7 @@ flowchart TD
 | `Popup window closed` | Jendela izin ditutup sebelum selesai | Klik *Hubungkan Gmail* lagi, jangan tutup jendelanya |
 | `origin_mismatch` | Origin belum terdaftar | Salin origin dari halaman **Setelan** ke *Authorized JavaScript origins* |
 | `access_denied` | Email belum jadi Test user | Tambahkan email di **Test users** (langkah 2.3 no. 4) |
+| Surat masuk tidak muncul di buku donor | Email donor belum diisi / tidak sama dengan alamat pengirim | Isi email donor, lalu **⇄ Cocokkan ulang** di Kotak Masuk |
 | `Error 403: access_denied` — *"has not completed the Google verification process"* | Email yang dipakai login belum terdaftar sebagai Test user | Lihat bagian di bawah |
 | `Sesi Gmail kedaluwarsa` | Token habis (1 jam / 7 hari) | Klik *Hubungkan Gmail* lagi |
 | `Gagal memuat Google Identity Services` | Tidak ada internet | Cek koneksi internet |
