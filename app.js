@@ -22,12 +22,20 @@ const PANGGILAN = ['','Ibu','Bapak','Saudara','Saudari'];
 const PENGIRIMAN = ['','Email','WhatsApp','POS','Kurir','Lainnya'];
 const STATUS_KELUAR = ['Draft','Terkirim','Gagal'];
 const STATUS_MASUK = ['Belum dibaca','Dibaca','Dibalas'];
+const ARTI_STATUS_MASUK = {
+  'Belum dibaca': 'email baru, belum dibuka',
+  'Dibaca': 'sudah dibuka',
+  'Dibalas': 'sudah dikirimi balasan'
+};
 
-/* Warna chip status: merah untuk gagal, hijau untuk yang butuh perhatian
-   (belum dibaca), abu-abu untuk yang sudah selesai. */
+/* Warna chip status surat masuk: hijau pekat = butuh perhatian (belum dibaca),
+   biru = sudah dibaca, hijau muda = sudah dibalas. Surat keluar: abu-abu untuk
+   draft, hijau muda untuk terkirim, kuning untuk gagal. */
 function statusChipClass(s){
   if(s === 'Gagal') return 'warn';
   if(s === 'Belum dibaca') return 'hot';
+  if(s === 'Dibaca') return 'info';
+  if(s === 'Dibalas') return 'ok';
   if(s === 'Draft') return 'plain';
   return 'plain';
 }
@@ -642,7 +650,7 @@ function viewBuku(donorId){
       return '<div class="bubble ' + (isIn ? 'in' : 'out') + '" data-open-msg="' + esc(m.id) + '">' +
         '<div class="b-head">' +
           '<span class="b-dir">' + (isIn ? '↓ Masuk' : '↑ Keluar') + '</span>' +
-          '<span class="b-status">' + esc(m.status) + '</span>' +
+          '<span class="chip ' + statusChipClass(m.status) + '">' + esc(m.status) + '</span>' +
           '<span class="b-time">' + fmtDateTime(m.tanggal) + '</span>' +
         '</div>' +
         '<div class="b-subj">' + esc(m.subjek) + '</div>' +
@@ -1033,11 +1041,15 @@ function openMessage(msgId){
   }
 
   const statusRow = m.arah === 'masuk'
-    ? '<div class="field" style="max-width:230px"><label>Status surat</label>' +
+    ? '<div class="field" style="max-width:280px"><label>Status surat</label>' +
         '<select data-msg-status="' + esc(m.id) + '">' +
           STATUS_MASUK.map(function(s){
-            return '<option' + (m.status === s ? ' selected' : '') + '>' + esc(s) + '</option>';
-          }).join('') + '</select></div>'
+            return '<option value="' + esc(s) + '"' + (m.status === s ? ' selected' : '') + '>' +
+              esc(s) + ' — ' + esc(ARTI_STATUS_MASUK[s]) + '</option>';
+          }).join('') + '</select></div>' +
+        '<p class="tiny muted" style="margin:-4px 0 12px">' +
+          '<b>Belum dibaca</b> = email baru (dihitung di badge menu Masuk) · ' +
+          '<b>Dibaca</b> = sudah dibuka · <b>Dibalas</b> = sudah dikirimi balasan.</p>'
     : '';
 
   const body = '<div class="row" style="margin-bottom:12px">' +
@@ -1093,8 +1105,13 @@ function openCatatMasuk(donorId){
       '<div class="field"><label>Tanggal</label><input type="date" id="l-tanggal" value="' +
         new Date().toISOString().slice(0,10) + '"></div>' +
       '<div class="field"><label>Status</label><select id="l-status">' +
-        STATUS_MASUK.map(function(s){ return '<option>' + s + '</option>'; }).join('') + '</select></div>' +
+        STATUS_MASUK.map(function(s){
+          return '<option value="' + esc(s) + '">' + esc(s) + ' — ' + esc(ARTI_STATUS_MASUK[s]) + '</option>';
+        }).join('') + '</select></div>' +
     '</div>' +
+    '<p class="tiny muted" style="margin:-4px 0 12px">Status menentukan apakah surat ini dihitung ' +
+      'sebagai <b>belum dibaca</b> di menu Masuk. Pilih <b>Dibaca</b> kalau surat ini sudah Anda ' +
+      'baca lebih dulu (mis. surat lama yang baru dicatat).</p>' +
     '<div class="field"><label>Subjek</label><input type="text" id="l-subjek" placeholder="Subjek surat masuk"></div>' +
     '<div class="field"><label>Dari <span class="hint">— email pengirim</span></label>' +
       '<input type="email" id="l-dari" class="mono" placeholder="nama@contoh.com"></div>' +
@@ -1507,12 +1524,16 @@ document.addEventListener('click', function(e){
       const g = function(x){ const el = document.getElementById(x); return el ? el.value.trim() : ''; };
       if(!g('l-donor')){ toast('Pilih donor dulu', true); break; }
       const d = findDonor(g('l-donor'));
+      const st = g('l-status') || 'Belum dibaca';
       addMessage({
         donorId:g('l-donor'), arah:'masuk',
         tanggal: g('l-tanggal') ? new Date(g('l-tanggal') + 'T09:00:00').toISOString() : new Date().toISOString(),
-        subjek:g('l-subjek'), isi:g('l-isi'), status:g('l-status'),
+        subjek:g('l-subjek'), isi:g('l-isi'), status:st,
         from: g('l-dari') || (d ? d.email : ''), to: Gmail.email || '',
-        catatan:g('l-catatan'), dibaca:true
+        catatan:g('l-catatan'),
+        /* `dibaca` harus mengikuti status — kalau tidak, surat berstatus
+           "Belum dibaca" tidak ikut dihitung di badge menu Masuk. */
+        dibaca: st !== 'Belum dibaca'
       });
       closeModal(); toast('Surat masuk dicatat'); render();
       break;
@@ -1675,7 +1696,10 @@ document.addEventListener('change', function(e){
       const chip = document.getElementById('m-status-chip');
       if(chip){ chip.className = 'chip ' + statusChipClass(m.status); chip.textContent = m.status; }
       toast('Status diubah ke "' + m.status + '"');
-      renderNav();
+      /* Daftar di belakang modal harus ikut berubah — kalau tidak, chip di
+         Kotak Masuk / buku donor masih menampilkan status lama sampai halaman
+         digambar ulang, dan pengguna mengira perubahannya tidak tersimpan. */
+      render();
     }
     return;
   }

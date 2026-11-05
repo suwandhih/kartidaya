@@ -201,15 +201,20 @@ masuk yang tercampur urut waktu, seperti percakapan di Outlook.
 
 ### Arti status surat masuk
 
-| Status | Arti | Kapan berubah |
-|---|---|---|
-| **Belum dibaca** | Email baru, belum pernah dibuka | Otomatis saat surat ditarik dari Gmail |
-| **Dibaca** | Email sudah dibuka | Otomatis saat surat dibuka, atau disetel manual |
-| **Dibalas** | Sudah dikirimi balasan | Otomatis setelah balasan terkirim, atau disetel manual |
+| Status | Arti | Warna chip | Kapan berubah |
+|---|---|---|---|
+| **Belum dibaca** | Email baru, belum pernah dibuka | hijau pekat (`hot`) | Otomatis saat surat ditarik dari Gmail |
+| **Dibaca** | Email sudah dibuka | biru (`info`) | Otomatis saat surat dibuka, atau disetel manual |
+| **Dibalas** | Sudah dikirimi balasan | hijau muda (`ok`) | Otomatis setelah balasan terkirim, atau disetel manual |
 
 Status bisa diubah manual lewat dropdown **Status surat** di dalam modal surat
 masuk. Menyetel ke *Belum dibaca* membuat surat itu dihitung lagi di badge
 **Belum Dibaca**.
+
+**Gunanya:** menyaring dan memantau pekerjaan. Dropdown **Semua status** di
+Kotak Masuk bisa menyaring *Belum dibaca* (surat yang belum ditangani) atau
+*Dibalas* (memastikan semua sudah dijawab). Chip berwarna membuat status terlihat
+sekilas tanpa membuka surat.
 
 ### Tampilan
 
@@ -700,6 +705,57 @@ balik setelan, untuk sinkron"*
 | Tab kembali aktif, baru saja sinkron | dilewati ✅ |
 | Tombol Aktif/Mati | tersimpan di `localStorage`, input jarak hilang saat mati ✅ |
 | Input jarak `9999` | dijepit ke `240` ✅ |
+
+### Status surat masuk — diperjelas & 2 bug diperbaiki (5 Nov 2026)
+
+**Pertanyaan pengguna:** *"status di ubah belum baca, dibaca dan dibalas tidak ada
+beda .. kolom catat surat masuk tetap tidak ada informasi lain .. jadi fungsi ini
+apa?"*
+
+**Jawaban:** fungsinya menyaring & memantau pekerjaan — *Belum dibaca* = surat
+yang belum ditangani, *Dibalas* = sudah dijawab. Tetapi memang ada **dua bug**
+yang membuat status tampak tidak berguna:
+
+| # | Bug | Akibat yang dilihat pengguna |
+|---|---|---|
+| 1 | `renderNav()` dipanggil, bukan `render()` | Chip di daftar Kotak Masuk **tidak ikut berubah** setelah status diubah — hanya chip di dalam modal yang berubah. Setelah modal ditutup, chip lama muncul lagi, seolah perubahan tidak tersimpan |
+| 2 | `dibaca:true` dipaku di `catat-masuk-simpan` | Surat yang dicatat manual dengan status *Belum dibaca* **tidak pernah** dihitung di badge menu Masuk |
+
+Ditambah dua masalah tampilan:
+
+| # | Masalah | Akibat |
+|---|---|---|
+| 3 | `Dibaca` dan `Dibalas` sama-sama `chip plain` | Ketiga status **tidak bisa dibedakan** secara visual |
+| 4 | Dropdown hanya berisi nama status | Tidak ada penjelasan artinya di UI |
+
+**Perbaikan (`app.js?v=11`, `app.css?v=11`):**
+
+- [x] `render()` dipanggil setelah status diubah → daftar Kotak Masuk dan buku
+      donor langsung ikut berubah
+- [x] `dibaca` mengikuti status saat mencatat surat masuk manual
+- [x] Warna chip dibedakan: `Belum dibaca` → hijau pekat (`hot`),
+      `Dibaca` → biru (`info`), `Dibalas` → hijau muda (`ok`).
+      Ditambah variabel `--info`/`--info-soft`/`--ok`/`--ok-soft` untuk tema
+      terang & gelap
+- [x] Dropdown status menampilkan artinya: *"Dibalas — sudah dikirimi balasan"*
+- [x] Keterangan singkat di bawah dropdown, baik di modal surat maupun di form
+      **Catat Surat Masuk**
+- [x] Chip status di **buku donor** memakai `statusChipClass()` (sebelumnya teks
+      polos tanpa warna)
+- [x] `app.css` ikut diberi `?v=` supaya perubahan warna tidak tertahan cache
+
+**Verifikasi di browser:**
+
+| Uji | Hasil |
+|---|---|
+| Ubah status di modal → chip di daftar di belakang modal | langsung berubah ✅ |
+| Tutup modal → chip di daftar | tetap sesuai ✅ |
+| `Dibalas` → chip `chip ok`; `Dibaca` → `chip info`; `Belum dibaca` → `chip hot` | ✅ |
+| Setel ke `Belum dibaca` → `dibaca:false`, badge Masuk naik | ✅ |
+| Catat manual status `Belum dibaca` → `dibaca:false`, badge naik | ✅ |
+| Catat manual status `Dibaca` → `dibaca:true`, badge tidak naik | ✅ |
+| Filter **Semua status** = `Belum dibaca` / `Dibalas` | menyaring dengan benar ✅ |
+| Chip di buku donor | berwarna sesuai status ✅ |
 
 ### Cara menguji kirim
 

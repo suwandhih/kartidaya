@@ -396,16 +396,18 @@ Kasus: surat sudah masuk sebagai **Belum Dikenal**, lalu email donor baru diisi.
 
 Tiga status surat masuk:
 
-| Status | Arti |
-|---|---|
-| **Belum dibaca** | Email baru, belum pernah dibuka |
-| **Dibaca** | Email sudah dibuka |
-| **Dibalas** | Sudah dikirimi balasan |
+| Status | Arti | Warna chip | Efek |
+|---|---|---|---|
+| **Belum dibaca** | Email baru, belum pernah dibuka | hijau pekat | dihitung di badge **Masuk** |
+| **Dibaca** | Email sudah dibuka | biru | tidak dihitung |
+| **Dibalas** | Sudah dikirimi balasan | hijau muda | tidak dihitung |
 
 1. Menu **Masuk** → klik salah satu surat
-2. Di bawah baris chip ada dropdown **Status surat** — pilih status lain
-3. Pesan *"Status diubah ke …"* muncul dan chip di atas ikut berubah ✅
-4. Tutup modal → chip di daftar Kotak Masuk juga sudah berubah ✅
+2. Di bawah baris chip ada dropdown **Status surat** — tiap pilihan sudah
+   disertai artinya, mis. *"Dibalas — sudah dikirimi balasan"*
+3. Pilih status lain → pesan *"Status diubah ke …"* muncul, chip di modal **dan**
+   chip di daftar Kotak Masuk langsung berubah ✅
+4. Tutup modal → chip di daftar tetap sesuai pilihan baru ✅
 
 Perilaku otomatis:
 
@@ -416,7 +418,14 @@ Perilaku otomatis:
   **Belum Dibaca** di menu ✅
 
 > Status juga bisa disetel saat mencatat surat masuk manual
-> (**↓ Catat Surat Masuk** → kolom **Status**).
+> (**↓ Catat Surat Masuk** → kolom **Status**). Pilih **Dibaca** kalau surat itu
+> sudah Anda baca lebih dulu — mis. surat lama yang baru dicatat. Kalau dibiarkan
+> **Belum dibaca**, surat itu ikut dihitung di badge menu Masuk.
+
+> **Gunanya status:** menyaring dan memantau pekerjaan. Di **Kotak Masuk** ada
+> dropdown **Semua status** — pilih *Belum dibaca* untuk melihat surat yang belum
+> ditangani, atau *Dibalas* untuk memastikan semua sudah dijawab. Chip berwarna
+> juga membuat status terlihat sekilas tanpa membuka surat.
 
 ### Tes 8 — Sesi Gmail diperbarui otomatis
 
@@ -485,6 +494,8 @@ flowchart TD
 | `access_denied` | Email belum jadi Test user | Tambahkan email di **Test users** (langkah 2.3 no. 4) |
 | Surat masuk tidak muncul di buku donor | Email donor belum diisi / tidak sama dengan alamat pengirim | Isi email donor, lalu **⇄ Cocokkan ulang** di Kotak Masuk |
 | Status surat tidak bisa diubah | Versi lama masih tersimpan di cache browser | Muat ulang dengan **Ctrl+Shift+R**, lalu buka suratnya — dropdown **Status surat** akan muncul |
+| Chip status di daftar tidak ikut berubah setelah diubah | Bug versi lama: daftar tidak digambar ulang | Versi terbaru langsung memperbarui daftar — muat ulang dengan **Ctrl+Shift+R** |
+| Surat berstatus *Belum dibaca* tidak muncul di badge Masuk | Bug versi lama: `dibaca` selalu `true` saat mencatat manual | Versi terbaru mengikuti status — muat ulang dengan **Ctrl+Shift+R** |
 | `Error 403: access_denied` — *"has not completed the Google verification process"* | Email yang dipakai login belum terdaftar sebagai Test user | Lihat bagian di bawah |
 | `Sesi Gmail kedaluwarsa` | Token habis (1 jam / 7 hari) | Versi terbaru memperbarui token otomatis. Kalau tetap muncul, klik *Hubungkan Gmail* sekali lagi |
 | Muncul pesan *"Sesi Gmail perlu diperbarui"* | Sesi login Google di browser sudah berakhir, jadi pembaruan senyap ditolak | Buka **Setelan** → klik **Hubungkan Gmail** sekali. Untuk menghilangkan batas 7 hari, ajukan verifikasi aplikasi ke Google |
