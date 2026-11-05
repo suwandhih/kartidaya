@@ -44,7 +44,9 @@
 <div id="modal-root"></div>
 <div id="toast"></div>
 
-<script src="gmail.js"></script>
-<script src="app.js"></script>
+<!-- Versi dinaikkan setiap kali app.js/gmail.js berubah supaya browser tidak
+     memakai salinan lama dari cache (penyebab Client ID lama tetap terpakai). -->
+<script src="gmail.js?v=3"></script>
+<script src="app.js?v=3"></script>
 </body>
 </html>
