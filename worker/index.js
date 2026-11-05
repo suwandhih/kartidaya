@@ -13,6 +13,7 @@
      POST /wa/webhook  → terima pesan masuk dari Meta
      GET  /wa/inbox    → ambil pesan masuk yang belum diambil aplikasi
      POST /wa/ack      → tandai pesan sudah diambil aplikasi
+     POST /wa/status-pesan → kabar status pesan keluar (terkirim/gagal)
 
    Semua endpoint kecuali /wa/webhook butuh header:
      X-App-Key: <APP_KEY>
@@ -126,6 +127,11 @@ async function waProfile(env) {
 const INBOX_KEY = 'inbox';
 const MAX_QUEUE = 500;
 
+/* Status pengiriman pesan keluar, dikunci per wamid. Meta mengirim kabar
+   terakhir lewat webhook field `messages` dengan bentuk `statuses`. */
+const STATUS_KEY = 'status';
+const MAX_STATUS = 500;
+
 async function readQueue(env) {
   try {
     const raw = await env.WA_INBOX.get(INBOX_KEY);
@@ -139,6 +145,27 @@ async function writeQueue(env, list) {
   /* Simpan hanya yang terbaru supaya nilai KV tidak membengkak. */
   const trimmed = list.slice(-MAX_QUEUE);
   await env.WA_INBOX.put(INBOX_KEY, JSON.stringify(trimmed));
+}
+
+async function readStatuses(env) {
+  try {
+    const raw = await env.WA_INBOX.get(STATUS_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+async function writeStatuses(env, map) {
+  const keys = Object.keys(map);
+  if (keys.length > MAX_STATUS) {
+    /* Buang yang paling lama supaya nilai KV tidak membengkak. */
+    keys.sort(function (a, b) {
+      return String(map[a].waktu || '').localeCompare(String(map[b].waktu || ''));
+    });
+    for (const k of keys.slice(0, keys.length - MAX_STATUS)) delete map[k];
+  }
+  await env.WA_INBOX.put(STATUS_KEY, JSON.stringify(map));
 }
 
 /* ---------- penanganan webhook ---------- */
@@ -190,6 +217,37 @@ function parseWebhook(body) {
   return out;
 }
 
+/* Ubah payload Meta menjadi daftar kabar status pesan KELUAR.
+   Meta mengirim `sent` → `delivered` → `read`, atau `failed` beserta alasannya.
+   Tanpa ini, pesan yang ditolak Meta (mis. di luar jendela 24 jam) tetap
+   terlihat "Terkirim" di aplikasi. */
+function parseStatuses(body) {
+  const out = [];
+  const entries = (body && body.entry) || [];
+  for (const entry of entries) {
+    const changes = entry.changes || [];
+    for (const ch of changes) {
+      const v = ch.value || {};
+      const statuses = v.statuses || [];
+      for (const s of statuses) {
+        const err = (s.errors && s.errors[0]) || null;
+        out.push({
+          waId: s.id || '',
+          status: s.status || '',
+          to: normalizePhone(s.recipient_id),
+          waktu: s.timestamp
+            ? new Date(Number(s.timestamp) * 1000).toISOString()
+            : new Date().toISOString(),
+          kode: err ? err.code : null,
+          pesan: err ? (err.title || err.message || '') : '',
+          detail: err && err.error_data ? (err.error_data.details || '') : ''
+        });
+      }
+    }
+  }
+  return out;
+}
+
 /* ---------- router ---------- */
 
 export default {
@@ -229,6 +287,18 @@ export default {
           }
           await writeQueue(env, queue);
         }
+
+        /* Kabar status pesan keluar (sent / delivered / read / failed). */
+        const kabar = parseStatuses(body);
+        if (kabar.length) {
+          const map = await readStatuses(env);
+          for (const s of kabar) {
+            if (!s.waId) continue;
+            map[s.waId] = s;
+          }
+          await writeStatuses(env, map);
+        }
+
         /* Meta butuh 200 cepat, kalau tidak akan dikirim ulang terus. */
         return new Response('OK', { status: 200 });
       }
@@ -272,6 +342,20 @@ export default {
       if (path === '/wa/inbox' && req.method === 'GET') {
         const queue = await readQueue(env);
         return withCors(json({ ok: true, messages: queue }), req);
+      }
+
+      /* Kabar status pesan keluar. Aplikasi memanggil ini setelah mengirim
+         supaya pesan yang ditolak Meta bisa ditandai "Gagal", bukan "Terkirim". */
+      if (path === '/wa/status-pesan' && req.method === 'POST') {
+        const body = await req.json().catch(function () { return null; });
+        const ids = (body && body.ids) || [];
+        if (!Array.isArray(ids) || !ids.length) {
+          return withCors(json({ ok: true, statuses: {} }), req);
+        }
+        const map = await readStatuses(env);
+        const hasil = {};
+        for (const id of ids) if (map[id]) hasil[id] = map[id];
+        return withCors(json({ ok: true, statuses: hasil }), req);
       }
 
       if (path === '/wa/ack' && req.method === 'POST') {

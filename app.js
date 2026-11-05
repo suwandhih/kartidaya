@@ -1208,6 +1208,7 @@ function openMessage(msgId){
       kv(m.kanal === 'whatsapp' ? 'Kepada (nomor)' : 'Kepada', m.kanal === 'whatsapp' ? waPhonePretty(m.to) : m.to) +
       kv('Subjek', m.subjek) +
       kv('Lampiran', m.lampiran) + kv('Catatan', m.catatan) +
+      (m.waError ? kv('Alasan gagal', m.waError + (m.waKode ? ' (kode ' + m.waKode + ')' : '')) : '') +
     '</div>' +
     '<div class="sep"></div>' +
     (m.kanal === 'whatsapp'
@@ -1644,6 +1645,38 @@ async function waConnect(){
   }
 }
 
+/* Periksa kabar status pesan WhatsApp yang sudah dikirim. Meta mengabari
+   lewat webhook: sent → delivered → read, atau failed. Tanpa ini, pesan yang
+   ditolak Meta (mis. di luar jendela 24 jam) tetap terlihat "Terkirim". */
+async function waCekStatus(){
+  if(!WhatsApp.isConfigured()) return 0;
+  const tertunda = state.messages.filter(function(m){
+    return m.kanal === 'whatsapp' && m.arah === 'keluar' && m.waId && m.status === 'Terkirim';
+  });
+  if(!tertunda.length) return 0;
+  let kabar;
+  try{
+    kabar = await WhatsApp.statusPesan(tertunda.map(function(m){ return m.waId; }));
+  }catch(e){ return 0; }
+
+  let berubah = 0;
+  tertunda.forEach(function(m){
+    const s = kabar[m.waId];
+    if(!s) return;
+    if(s.status === 'failed'){
+      m.status = 'Gagal';
+      m.waError = s.detail || s.pesan || 'Ditolak Meta';
+      m.waKode = s.kode || null;
+      berubah++;
+    }else if(s.status === 'delivered' || s.status === 'read'){
+      m.waTerkirim = s.status;
+      berubah++;
+    }
+  });
+  if(berubah) save('messages');
+  return berubah;
+}
+
 /* Tarik pesan WhatsApp yang masuk lewat webhook Worker, cocokkan ke donor
    lewat nomor HP, lalu tandai sudah diambil supaya tidak ditarik dua kali. */
 async function waSync(opts){
@@ -1694,11 +1727,18 @@ async function waSync(opts){
       try{ await WhatsApp.ack(diambil); }catch(e){ /* biarkan di antrean */ }
     }
 
+    /* Cek juga kabar status pesan keluar — pesan yang ditolak Meta harus
+       berubah jadi "Gagal", bukan tetap "Terkirim". */
+    let gagal = 0;
+    try{ gagal = await waCekStatus(); }catch(e){ /* abaikan */ }
+
     state.settings.waLastSync = new Date().toISOString();
     save('settings');
 
     if(baru){
       toast(baru + ' pesan WhatsApp baru' + (takDikenal ? ' (' + takDikenal + ' belum dikenal)' : ''));
+    }else if(gagal){
+      toast(gagal + ' pesan WhatsApp gagal terkirim — cek buku donor', true);
     }else if(cocok){
       toast(cocok + ' pesan lama dicocokkan ke donor');
     }else if(!senyap){

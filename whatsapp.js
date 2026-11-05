@@ -110,6 +110,15 @@ const WhatsApp = {
     return this.api('/wa/ack', { method:'POST', body:{ ids: ids } });
   },
 
+  /* Kabar status pesan keluar. Meta mengabari lewat webhook: sent → delivered
+     → read, atau failed beserta alasannya. Dipakai supaya pesan yang ditolak
+     Meta (mis. di luar jendela 24 jam) ditandai "Gagal", bukan "Terkirim". */
+  async statusPesan(ids){
+    if(!ids || !ids.length) return {};
+    const r = await this.api('/wa/status-pesan', { method:'POST', body:{ ids: ids } });
+    return (r && r.statuses) || {};
+  },
+
   /* ---------- sesi ---------- */
 
   /* Simpan alamat Worker & kunci aplikasi supaya tidak perlu diisi ulang.
