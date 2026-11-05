@@ -28,14 +28,14 @@ const ARTI_STATUS_MASUK = {
   'Dibalas': 'sudah dikirimi balasan'
 };
 
-/* Warna chip status surat masuk: hijau pekat = butuh perhatian (belum dibaca),
-   biru = sudah dibaca, hijau muda = sudah dibalas. Surat keluar: abu-abu untuk
-   draft, hijau muda untuk terkirim, kuning untuk gagal. */
+/* Warna chip status surat. Surat masuk dibedakan tegas supaya sekilas pun
+   langsung terbaca: kuning = belum dibaca, biru = sudah dibaca, hijau = sudah
+   dibalas. Surat keluar: abu-abu draft, hijau muda terkirim, kuning gagal. */
 function statusChipClass(s){
   if(s === 'Gagal') return 'warn';
-  if(s === 'Belum dibaca') return 'hot';
-  if(s === 'Dibaca') return 'info';
-  if(s === 'Dibalas') return 'ok';
+  if(s === 'Belum dibaca') return 'st-baru';
+  if(s === 'Dibaca') return 'st-dibaca';
+  if(s === 'Dibalas') return 'st-dibalas';
   if(s === 'Draft') return 'plain';
   return 'plain';
 }
@@ -647,7 +647,8 @@ function viewBuku(donorId){
       '<span class="chip plain">↓' + countMsg(donorId,'masuk') + ' masuk</span></div>' +
     (book.length ? '<div class="thread">' + book.map(function(m){
       const isIn = m.arah === 'masuk';
-      return '<div class="bubble ' + (isIn ? 'in' : 'out') + '" data-open-msg="' + esc(m.id) + '">' +
+      return '<div class="bubble ' + (isIn ? 'in' : 'out') + (isIn && !m.dibaca ? ' unread' : '') +
+        '" data-open-msg="' + esc(m.id) + '">' +
         '<div class="b-head">' +
           '<span class="b-dir">' + (isIn ? '↓ Masuk' : '↑ Keluar') + '</span>' +
           '<span class="chip ' + statusChipClass(m.status) + '">' + esc(m.status) + '</span>' +

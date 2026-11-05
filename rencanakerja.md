@@ -203,9 +203,9 @@ masuk yang tercampur urut waktu, seperti percakapan di Outlook.
 
 | Status | Arti | Warna chip | Kapan berubah |
 |---|---|---|---|
-| **Belum dibaca** | Email baru, belum pernah dibuka | hijau pekat (`hot`) | Otomatis saat surat ditarik dari Gmail |
-| **Dibaca** | Email sudah dibuka | biru (`info`) | Otomatis saat surat dibuka, atau disetel manual |
-| **Dibalas** | Sudah dikirimi balasan | hijau muda (`ok`) | Otomatis setelah balasan terkirim, atau disetel manual |
+| **Belum dibaca** | Email baru, belum pernah dibuka | kuning (`st-baru`) | Otomatis saat surat ditarik dari Gmail |
+| **Dibaca** | Email sudah dibuka | biru (`st-dibaca`) | Otomatis saat surat dibuka, atau disetel manual |
+| **Dibalas** | Sudah dikirimi balasan | hijau (`st-dibalas`) | Otomatis setelah balasan terkirim, atau disetel manual |
 
 Status bisa diubah manual lewat dropdown **Status surat** di dalam modal surat
 masuk. Menyetel ke *Belum dibaca* membuat surat itu dihitung lagi di badge
@@ -733,10 +733,14 @@ Ditambah dua masalah tampilan:
 - [x] `render()` dipanggil setelah status diubah → daftar Kotak Masuk dan buku
       donor langsung ikut berubah
 - [x] `dibaca` mengikuti status saat mencatat surat masuk manual
-- [x] Warna chip dibedakan: `Belum dibaca` → hijau pekat (`hot`),
-      `Dibaca` → biru (`info`), `Dibalas` → hijau muda (`ok`).
-      Ditambah variabel `--info`/`--info-soft`/`--ok`/`--ok-soft` untuk tema
-      terang & gelap
+- [x] Warna chip dibedakan tegas: `Belum dibaca` → **kuning** (`st-baru`),
+      `Dibaca` → **biru** (`st-dibaca`), `Dibalas` → **hijau** (`st-dibalas`).
+      Ditambah variabel `--st-baru`/`--st-dibaca`/`--st-dibalas` untuk tema
+      terang & gelap. Versi pertama (`info`/`ok`) terlalu mirip sehingga
+      pengguna masih menganggap "tampil sama saja" — diganti hue yang jauh
+      berbeda plus garis tepi sewarna
+- [x] Kartu surat belum dibaca diberi latar kuning tipis + garis kiri kuning
+      (`.mail.unread`, `.bubble.in.unread`) supaya terlihat sekilas
 - [x] Dropdown status menampilkan artinya: *"Dibalas — sudah dikirimi balasan"*
 - [x] Keterangan singkat di bawah dropdown, baik di modal surat maupun di form
       **Catat Surat Masuk**
@@ -750,7 +754,10 @@ Ditambah dua masalah tampilan:
 |---|---|
 | Ubah status di modal → chip di daftar di belakang modal | langsung berubah ✅ |
 | Tutup modal → chip di daftar | tetap sesuai ✅ |
-| `Dibalas` → chip `chip ok`; `Dibaca` → `chip info`; `Belum dibaca` → `chip hot` | ✅ |
+| `Dibalas` → chip `chip st-dibalas`; `Dibaca` → `chip st-dibaca`; `Belum dibaca` → `chip st-baru` | ✅ |
+| Warna terang: kuning `#fdf3d7`/`#a16207`, biru `#e3edf8`/`#2f5d8a`, hijau `#e2f2e6`/`#2f6b3f` | ✅ |
+| Warna gelap: kuning `#3a2f14`/`#f0c14b`, biru `#1b2530`/`#8fb6dd`, hijau `#1a2620`/`#8fc79c` | ✅ |
+| Kartu belum dibaca → latar kuning + garis kiri kuning | ✅ |
 | Setel ke `Belum dibaca` → `dibaca:false`, badge Masuk naik | ✅ |
 | Catat manual status `Belum dibaca` → `dibaca:false`, badge naik | ✅ |
 | Catat manual status `Dibaca` → `dibaca:true`, badge tidak naik | ✅ |

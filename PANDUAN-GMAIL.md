@@ -398,9 +398,12 @@ Tiga status surat masuk:
 
 | Status | Arti | Warna chip | Efek |
 |---|---|---|---|
-| **Belum dibaca** | Email baru, belum pernah dibuka | hijau pekat | dihitung di badge **Masuk** |
-| **Dibaca** | Email sudah dibuka | biru | tidak dihitung |
-| **Dibalas** | Sudah dikirimi balasan | hijau muda | tidak dihitung |
+| **Belum dibaca** | Email baru, belum pernah dibuka | **kuning** + garis tepi | dihitung di badge **Masuk** |
+| **Dibaca** | Email sudah dibuka | **biru** + garis tepi | tidak dihitung |
+| **Dibalas** | Sudah dikirimi balasan | **hijau** + garis tepi | tidak dihitung |
+
+Kartu surat yang belum dibaca juga diberi **latar kuning tipis** dan garis kiri
+kuning, jadi terlihat sekilas tanpa membaca chip-nya.
 
 1. Menu **Masuk** → klik salah satu surat
 2. Di bawah baris chip ada dropdown **Status surat** — tiap pilihan sudah
