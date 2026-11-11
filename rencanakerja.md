@@ -1268,7 +1268,7 @@ Lebih hemat dikerjakan sekali jalan.
 **Perlu keputusan Anda:** gambar majalah **diunggah setiap kali kirim**, atau
 **disimpan sekali** lalu dipakai berulang untuk semua penerima?
 
-### 17.4 Ekspor semua data ke Excel (`.xlsx`)
+### 17.4 Ekspor semua data ke Excel (`.xlsx`) — ✅ SELESAI (11 Nov 2026)
 
 **Sekarang:** hanya ada **Ekspor CSV Donor** ([app.js:1772](C:/data/Kartidaya/app.js:1772)).
 Belum ada `.xlsx`, dan belum mencakup surat/kategori/template.
@@ -1293,6 +1293,41 @@ Belum ada `.xlsx`, dan belum mencakup surat/kategori/template.
 
 **Saran:** pakai SheetJS yang disimpan di repo (`vendor/xlsx.full.min.js`).
 Sekali unduh, aplikasi tetap jalan offline.
+
+**Keputusan pengguna (11 Nov 2026):** *"pembuat excel atau aplikasi export to
+excel tetap ada di aplikasi saja.. supaya tidak terlalu banyak aplikasi"* —
+pustaka **disimpan di dalam repo**, bukan aplikasi terpisah, bukan CDN.
+
+**Hasil (`app.js?v=18`):**
+
+- [x] `vendor/xlsx.full.min.js` (SheetJS 0.20.3, 952 KB) disimpan di repo
+- [x] Tombol **↓ Ekspor Excel (.xlsx)** di Setelan → Data (paling atas, ditandai *primary*)
+- [x] 6 lembar: **Donor, Surat, Kategori, Template, Keuangan, Program**
+- [x] Lebar kolom otomatis mengikuti isi terpanjang (maks 48)
+- [x] Nama berkas: `kartidaya-YYYY-MM-DD.xlsx`
+- [x] Keterangan di UI: pustaka sudah di dalam aplikasi, tidak perlu internet tambahan
+
+**Catatan bentuk data di lembar Keuangan:** satu baris **per program**, bukan
+per transaksi. Tujuannya supaya di Excel bisa langsung di-*pivot* atau
+di-`SUMIF` per program. Kolom: `TANGGAL | ID-DONOR | NAMA | KATEGORI | PROGRAM |
+JUMLAH | MATA UANG | CATATAN`.
+
+**Verifikasi di browser:**
+
+| Uji | Hasil |
+|---|---|
+| Pustaka termuat | `XLSX.version` = `0.20.3` ✅ |
+| Tombol muncul di Setelan | ✅ |
+| Nama berkas | `kartidaya-2026-11-11.xlsx` ✅ |
+| Daftar lembar | Donor, Surat, Kategori, Template, Keuangan, Program ✅ |
+| Lembar Donor | 18 baris, 15 kolom ✅ |
+| Lembar Surat | 1 baris, 16 kolom, tanggal terformat ✅ |
+| Lembar Kategori | 5 baris + jumlah donor ✅ |
+| Lembar Template | 3 baris ✅ |
+| Lembar Keuangan | 2 baris (1 transaksi 2 program → 2 baris) ✅ |
+| Lembar Program | 5 baris + total diterima `Rp 750.000` ✅ |
+| Lebar kolom otomatis | `[10, 20, 29, 34]` ✅ |
+| **Tulis → baca ulang** | 38.752 byte, 6 lembar terbaca kembali dengan jumlah baris sama ✅ |
 
 ### 17.5 Form baru — Keuangan (Finance) — ✅ SELESAI (11 Nov 2026)
 
@@ -1409,7 +1444,7 @@ tanggal, total per program, tombol **+ Tambah**.
 |---|---|---|---|
 | 1 | **17.1 Kelola Template** (tambah + edit) | ±30 menit | ✅ **selesai** |
 | 2 | **17.5 Master Program + Form Keuangan** | ±2 jam | ✅ **selesai** |
-| 3 | **17.4 Ekspor XLSX** (6 lembar) | ±1,5 jam | Butuh data keuangan sudah ada |
+| 3 | **17.4 Ekspor XLSX** (6 lembar) | ±1,5 jam | ✅ **selesai** |
 | 4 | **17.2 + 17.3 + Fase 5** (HTML email: kwitansi, majalah, tanda dibaca) | ±3 jam | Sama-sama mengubah `buildRawMessage()` — dikerjakan sekali jalan |
 
 **Total perkiraan: ±7 jam kerja** (bisa dipecah beberapa sesi).
@@ -1443,9 +1478,9 @@ tanggal, total per program, tombol **+ Tambah**.
 - [x] Uji: input, ubah, hapus, filter
 
 **17.4 Ekspor**
-- [ ] `vendor/xlsx.full.min.js` masuk repo
-- [ ] Ekspor 6 lembar
-- [ ] Uji: buka hasil di Excel/LibreOffice
+- [x] `vendor/xlsx.full.min.js` masuk repo
+- [x] Ekspor 6 lembar
+- [x] Uji: buka hasil di Excel/LibreOffice
 
 **17.2 / 17.3 / Fase 5**
 - [ ] `buildRawMessage()` → `multipart/alternative`

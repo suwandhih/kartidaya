@@ -1485,12 +1485,17 @@ function viewPengaturan(){
       (bytes/1024).toFixed(1) + ' KB</b> · ' + state.donors.length + ' donor · ' +
       state.messages.length + ' surat · ' + state.templates.length + ' template.</p>' +
     '<div class="btn-row">' +
+      '<button class="btn primary" data-action="ekspor-xlsx">↓ Ekspor Excel (.xlsx)</button>' +
       '<button class="btn" data-action="ekspor-json">↓ Ekspor JSON</button>' +
       '<button class="btn" data-action="ekspor-csv">↓ Ekspor CSV Donor</button>' +
       '<button class="btn" data-action="impor-json">↑ Impor JSON</button>' +
       '<button class="btn" data-action="muat-contoh">Muat data contoh</button>' +
       '<button class="btn danger" data-action="reset">Hapus semua data</button>' +
     '</div>' +
+    '<p class="tiny muted" style="margin-top:8px">Excel berisi 6 lembar: ' +
+      '<b>Donor</b>, <b>Surat</b>, <b>Kategori</b>, <b>Template</b>, <b>Keuangan</b>, <b>Program</b>. ' +
+      'Pustaka pembuat Excel sudah ada di dalam aplikasi (<b class="mono">vendor/xlsx.full.min.js</b>) — ' +
+      'tidak perlu aplikasi atau internet tambahan.</p>' +
     '<input type="file" id="file-import" accept=".json,application/json" class="hidden">' +
   '</div>' +
 
@@ -2284,6 +2289,149 @@ function download(filename, content, mime){
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
 }
+
+/* ---------- EKSPOR EXCEL (.xlsx) ---------- */
+/* Pustaka SheetJS disimpan di vendor/ supaya aplikasi tetap jalan tanpa
+   internet dan tidak perlu aplikasi tambahan. */
+function xlsxSiap(){
+  return typeof XLSX !== 'undefined' && XLSX && XLSX.utils;
+}
+/* Ubah daftar objek jadi lembar Excel. `cols` menentukan urutan & judul kolom. */
+function lembar(rows, cols){
+  const head = cols.map(function(c){ return c[1]; });
+  const body = rows.map(function(r){
+    return cols.map(function(c){
+      const v = typeof c[2] === 'function' ? c[2](r) : r[c[0]];
+      return (v === null || v === undefined) ? '' : v;
+    });
+  });
+  return XLSX.utils.aoa_to_sheet([head].concat(body));
+}
+/* Lebar kolom otomatis dari isi terpanjang, supaya hasilnya langsung rapi. */
+function rapikanKolom(ws, cols){
+  ws['!cols'] = cols.map(function(c, i){
+    let max = String(c[1]).length;
+    const ref = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+    for(let r = ref.s.r + 1; r <= ref.e.r; r++){
+      const cell = ws[XLSX.utils.encode_cell({ r:r, c:i })];
+      if(cell && cell.v !== undefined && cell.v !== null){
+        max = Math.max(max, String(cell.v).length);
+      }
+    }
+    return { wch: Math.min(48, Math.max(10, max + 2)) };
+  });
+}
+function exportXLSX(){
+  if(!xlsxSiap()){
+    toast('Pustaka Excel belum termuat — muat ulang halaman', true);
+    return;
+  }
+  const wb = XLSX.utils.book_new();
+
+  /* 1. Donor */
+  const kolDonor = [
+    ['id','ID-DONOR'], ['kategori','KATEGORI'], ['panggilan','PANGGILAN'],
+    ['pic','PIC'], ['namaLengkap','NAMA LENGKAP'], ['instansi','INSTANSI'],
+    ['email','EMAIL'], ['hp1','HP 1'], ['hp2','HP 2'],
+    ['pengiriman','PENGIRIMAN'], ['dateStart','DATE START'],
+    ['asalGereja','ASAL GEREJA'], ['alamat','ALAMAT'],
+    ['tglLahir','TGL LAHIR'], ['catatan','CATATAN']
+  ];
+  const wsDonor = lembar(state.donors, kolDonor);
+  rapikanKolom(wsDonor, kolDonor);
+  XLSX.utils.book_append_sheet(wb, wsDonor, 'Donor');
+
+  /* 2. Surat — keluar & masuk, urut waktu terbaru dulu */
+  const kolSurat = [
+    ['tanggal','TANGGAL', function(m){ return fmtDateTime(m.tanggal); }],
+    ['arah','ARAH', function(m){ return m.arah === 'masuk' ? 'Masuk' : 'Keluar'; }],
+    ['kanal','KANAL', function(m){ return LABEL_KANAL[m.kanal === 'whatsapp' ? 'whatsapp' : 'email']; }],
+    ['status','STATUS'],
+    ['donorId','ID-DONOR'],
+    ['donor','DONOR', function(m){ const d = findDonor(m.donorId); return d ? donorName(d) : ''; }],
+    ['kategori','KATEGORI', function(m){ const d = findDonor(m.donorId); return d ? (d.kategori || '') : ''; }],
+    ['subjek','SUBJEK'],
+    ['isi','ISI'],
+    ['from','DARI'], ['to','KEPADA'], ['cc','CC'],
+    ['gmailId','GMAIL ID'], ['waId','WA ID'],
+    ['lampiran','LAMPIRAN'], ['catatan','CATATAN']
+  ];
+  const surat = state.messages.slice().sort(function(a,b){
+    return String(b.tanggal).localeCompare(String(a.tanggal));
+  });
+  const wsSurat = lembar(surat, kolSurat);
+  rapikanKolom(wsSurat, kolSurat);
+  XLSX.utils.book_append_sheet(wb, wsSurat, 'Surat');
+
+  /* 3. Kategori */
+  const kolKat = [
+    ['nama','KATEGORI'],
+    ['jumlah','JUMLAH DONOR', function(r){ return r.jumlah; }]
+  ];
+  const kat = state.categories.map(function(c){
+    return { nama:c, jumlah: state.donors.filter(function(d){ return d.kategori === c; }).length };
+  });
+  const wsKat = lembar(kat, kolKat);
+  rapikanKolom(wsKat, kolKat);
+  XLSX.utils.book_append_sheet(wb, wsKat, 'Kategori');
+
+  /* 4. Template */
+  const kolTpl = [['nama','NAMA TEMPLATE'], ['subjek','SUBJEK'], ['isi','ISI']];
+  const wsTpl = lembar(state.templates, kolTpl);
+  rapikanKolom(wsTpl, kolTpl);
+  XLSX.utils.book_append_sheet(wb, wsTpl, 'Template');
+
+  /* 5. Keuangan — satu baris per program, supaya mudah dijumlahkan di Excel */
+  const kolFin = [
+    ['tanggal','TANGGAL'],
+    ['donorId','ID-DONOR'],
+    ['donor','NAMA', function(f){ const d = findDonor(f.donorId); return d ? donorName(d) : ''; }],
+    ['kategori','KATEGORI', function(f){ const d = findDonor(f.donorId); return d ? (d.kategori || '') : ''; }],
+    ['program','PROGRAM', function(f){ return programNama(f.programId); }],
+    ['jumlah','JUMLAH', function(f){ return Number(f.jumlah) || 0; }],
+    ['mataUang','MATA UANG', function(f){ return f.mataUang || 'IDR'; }],
+    ['catatan','CATATAN']
+  ];
+  const finBaris = [];
+  state.finance.forEach(function(f){
+    (f.program || []).forEach(function(x){
+      finBaris.push({
+        tanggal:f.tanggal, donorId:f.donorId, programId:x.id,
+        jumlah:x.jumlah, mataUang:f.mataUang, catatan:f.catatan
+      });
+    });
+  });
+  finBaris.sort(function(a,b){ return String(b.tanggal).localeCompare(String(a.tanggal)); });
+  const wsFin = lembar(finBaris, kolFin);
+  rapikanKolom(wsFin, kolFin);
+  XLSX.utils.book_append_sheet(wb, wsFin, 'Keuangan');
+
+  /* 6. Program */
+  const kolPrg = [
+    ['id','ID PROGRAM'], ['nama','NAMA PROGRAM'],
+    ['aktif','STATUS', function(p){ return p.aktif === false ? 'Nonaktif' : 'Aktif'; }],
+    ['transaksi','JUMLAH TRANSAKSI', function(p){
+      return state.finance.filter(function(f){
+        return (f.program || []).some(function(x){ return x.id === p.id; });
+      }).length;
+    }],
+    ['total','TOTAL DITERIMA', function(p){
+      const t = totalPerUang(state.finance.filter(function(f){
+        return (f.program || []).some(function(x){ return x.id === p.id; });
+      }).map(function(f){
+        return { mataUang:f.mataUang, jumlah:nominalProgram(f, p.id) };
+      }));
+      return Object.keys(t).sort().map(function(k){ return fmtUang(t[k], k); }).join(' + ');
+    }]
+  ];
+  const wsPrg = lembar(state.programs, kolPrg);
+  rapikanKolom(wsPrg, kolPrg);
+  XLSX.utils.book_append_sheet(wb, wsPrg, 'Program');
+
+  const nama = 'kartidaya-' + new Date().toISOString().slice(0,10) + '.xlsx';
+  XLSX.writeFile(wb, nama);
+  toast('Excel diunduh: ' + nama + ' (6 lembar)');
+}
 function importJSON(file){
   const reader = new FileReader();
   reader.onload = function(){
@@ -2592,6 +2740,7 @@ document.addEventListener('click', function(e){
       break;
     }
     case 'ekspor-json': exportJSON(); break;
+    case 'ekspor-xlsx': exportXLSX(); break;
     case 'ekspor-csv': exportCSV(); break;
     case 'impor-json': document.getElementById('file-import').click(); break;
     case 'muat-contoh':
