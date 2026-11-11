@@ -1229,7 +1229,7 @@ itupun tidak bisa diedit setelahnya.
 | Hapus template uji | kembali 3 template, `localStorage` ikut 3 ✅ |
 | Data donor | tetap 18, tidak tersentuh ✅ |
 
-### 17.2 Lampiran kwitansi di email — per penerima berbeda
+### 17.2 Lampiran kwitansi di email — per penerima berbeda — ✅ SELESAI (11 Nov 2026)
 
 **Yang diminta:** setiap email bisa membawa **kwitansi** yang isinya berbeda per
 penerima. Di dalam email tampil **isi surat + kwitansi**, dan kwitansi memuat
@@ -1248,6 +1248,57 @@ penerima. Di dalam email tampil **isi surat + kwitansi**, dan kwitansi memuat
 **Catatan:** karena butuh HTML, pekerjaan ini **menggabung** dengan Fase 5
 (email dibaca). Keduanya sama-sama mengubah `buildRawMessage()` di `gmail.js`.
 Lebih hemat dikerjakan sekali jalan.
+
+**Klarifikasi pengguna (11 Nov 2026):** kwitansi ada **2 bahasa** — Indonesia
+(`KWITANSI`) dan Inggris (`FUND RECEIPT`). Contoh asli dilampirkan sebagai
+gambar. Donor menerima dan melihatnya **di badan email**, bukan lampiran.
+
+**Keputusan:** sumber data kwitansi = **data Keuangan** (jumlah & program
+otomatis), bukan diisi manual.
+
+**Hasil (`app.js?v=19`, `gmail.js?v=19`):**
+
+- [x] `buildRawMessage()` mendukung `multipart/alternative` (teks + HTML)
+- [x] Tanpa `html` → tetap satu bagian teks seperti sebelumnya (tidak ada regresi)
+- [x] `kwitansiHTML()` — tabel bergaya kwitansi, semua gaya **inline** (klien email membuang `<style>`)
+- [x] Dua bahasa: **Indonesia** & **Inggris**, bisa dipilih di halaman Tulis
+- [x] Data otomatis dari **Keuangan**: nama donor, program, jumlah, tanggal
+- [x] **Terbilang** otomatis: `14088444` → `#Empat belas juta delapan puluh delapan ribu empat ratus empat puluh empat rupiah#`
+- [x] Nomor kwitansi otomatis: `KWT/20261014/G00015R`
+- [x] Logo di kop — `vendor/kartidaya-logo.svg` (placeholder, bisa diganti lewat `state.settings.logoUrl`)
+- [x] Pratinjau kwitansi di halaman Tulis
+- [x] Pilihan transaksi kalau donor punya lebih dari satu
+- [x] Kwitansi otomatis mati kalau kanal WhatsApp (tidak bisa tabel HTML)
+- [x] Peringatan kalau donor belum punya transaksi di Keuangan
+
+**Bentuk data:** tidak ada field baru — kwitansi dibaca dari `state.finance`
+yang sudah ada. Yang ditambah hanya `suratState.kwitansi`,
+`suratState.kwitansiBahasa`, `suratState.kwitansiFinId`.
+
+**Verifikasi di browser:**
+
+| Uji | Hasil |
+|---|---|
+| `terbilang(14088444)` | `#Empat belas juta delapan puluh delapan ribu empat ratus empat puluh empat rupiah#` ✅ |
+| `terbilang(172800000)` | `#Seratus tujuh puluh dua juta delapan ratus ribu rupiah#` ✅ |
+| `terbilang(0)` | `#Nol rupiah#` ✅ |
+| `terbilang(250, 'USD')` | `#Dua ratus lima puluh dolar Amerika#` ✅ |
+| `tanggalKwitansi('2026-10-14')` | `14 Oktober 2026` ✅ |
+| Kwitansi ID | judul `KWITANSI`, label `Telah terima dari` / `Uang sejumlah` / `Untuk` / `Terbilang` ✅ |
+| Kwitansi EN | judul `FUND RECEIPT`, label `Received from` / `The sum of` / `On account of` / `Amount` ✅ |
+| Tanpa tag `<style>` | ✅ (semua inline) |
+| Tombol **Lampirkan kwitansi** | Mati → Aktif ✅ |
+| Pilihan bahasa | 2 tombol, pratinjau ikut berubah ✅ |
+| Pratinjau kwitansi | nama, jumlah, program, tanggal, nomor tampil ✅ |
+| Pindah ke WhatsApp | kwitansi otomatis mati, tombol hilang ✅ |
+| MIME `multipart/alternative` | 2 part (teks + HTML), boundary benar, penutup benar ✅ |
+| `Content-Transfer-Encoding` | hanya di level part, **tidak** di header utama ✅ |
+| Tanpa kwitansi | tetap `text/plain` satu bagian ✅ |
+| HTML dibaca kembali dari MIME | kwitansi & nama donor utuh ✅ |
+| Kirim 2 donor sekaligus | 2 email, isi kwitansi **berbeda per penerima** ✅ |
+| Subjek `{/NAMA}` | terisi `Ferry Kangsadjaja` ✅ |
+| Kwitansi USD | `$` + `250.00` + terbilang `dolar Amerika` ✅ |
+| Kwitansi mati saat kirim | `html` kosong, email tetap terkirim ✅ |
 
 ### 17.3 Majalah di email — ±10 halaman
 
@@ -1483,9 +1534,9 @@ tanggal, total per program, tombol **+ Tambah**.
 - [x] Uji: buka hasil di Excel/LibreOffice
 
 **17.2 / 17.3 / Fase 5**
-- [ ] `buildRawMessage()` → `multipart/alternative`
-- [ ] Data kwitansi per donor + token
-- [ ] Pratinjau kwitansi di halaman Tulis
+- [x] `buildRawMessage()` → `multipart/alternative`
+- [x] Data kwitansi per donor + token
+- [x] Pratinjau kwitansi di halaman Tulis
 - [ ] Unggah & host gambar majalah
 - [ ] Pixel tanda dibaca + chip **✓✓ Dibaca**
 - [ ] Uji kirim ke Gmail sendiri

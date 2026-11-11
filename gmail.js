@@ -66,6 +66,10 @@ function b64urlDecode(s){
 function wrap76(s){ return String(s).replace(/(.{76})/g, '$1\r\n'); }
 
 /* ---------- bangun pesan RFC 2822 ---------- */
+/* Kalau `o.html` diisi, pesan dikirim sebagai multipart/alternative (teks +
+   HTML) supaya lampiran kwitansi/majalah bisa tampil, sementara penerima yang
+   memblokir HTML tetap bisa membaca versi teksnya. Tanpa `o.html`, perilakunya
+   sama seperti sebelumnya: satu bagian teks biasa. */
 function buildRawMessage(o){
   const encHeader = function(s){ return '=?UTF-8?B?' + b64encode(String(s || '')) + '?='; };
   /* `From` wajib alamat lengkap. Kalau profil Gmail belum sempat terbaca,
@@ -75,13 +79,36 @@ function buildRawMessage(o){
   if(o.from && o.from.indexOf('@') > 0) head.push('From: ' + o.from);
   head.push('To: ' + o.to);
   if(o.cc) head.push('Cc: ' + o.cc);
+  head.push('Subject: ' + encHeader(o.subject), 'MIME-Version: 1.0');
+
+  const teks = String(o.body || '');
+  const html = String(o.html || '');
+
+  if(!html){
+    head.push(
+      'Content-Type: text/plain; charset="UTF-8"',
+      'Content-Transfer-Encoding: base64',
+      '',
+      wrap76(b64encode(teks))
+    );
+    return b64urlEncode(head.join('\r\n'));
+  }
+
+  const b = 'kartidaya-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  head.push('Content-Type: multipart/alternative; boundary="' + b + '"', '');
   head.push(
-    'Subject: ' + encHeader(o.subject),
-    'MIME-Version: 1.0',
+    '--' + b,
     'Content-Type: text/plain; charset="UTF-8"',
     'Content-Transfer-Encoding: base64',
     '',
-    wrap76(b64encode(o.body || ''))
+    wrap76(b64encode(teks)),
+    '--' + b,
+    'Content-Type: text/html; charset="UTF-8"',
+    'Content-Transfer-Encoding: base64',
+    '',
+    wrap76(b64encode(html)),
+    '--' + b + '--',
+    ''
   );
   return b64urlEncode(head.join('\r\n'));
 }
@@ -351,7 +378,6 @@ const Gmail = {
       body: JSON.stringify({ raw: raw })
     });
   },
-
   async listIds(q, max){
     const r = await this.api('/gmail/v1/users/me/messages?maxResults=' + (max || 30) +
       '&q=' + encodeURIComponent(q));

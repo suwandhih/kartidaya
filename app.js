@@ -132,6 +132,155 @@ const MATA_UANG = [
 ];
 const KODE_UANG = MATA_UANG.map(function(m){ return m.kode; });
 
+/* ---------- KWITANSI ---------- */
+/* Kwitansi tampil di badan email (HTML), bukan lampiran PDF. Dua bahasa:
+   `id` (KWITANSI) dan `en` (FUND RECEIPT). Label diambil dari tabel di bawah
+   supaya penambahan bahasa lain cukup menambah satu baris. */
+const KWITANSI_LABEL = {
+  id: { judul:'KWITANSI', dari:'Telah terima dari', jumlah:'Uang sejumlah',
+        untuk:'Untuk', terbilang:'Terbilang', kota:'Jakarta' },
+  en: { judul:'FUND RECEIPT', dari:'Received from', jumlah:'The sum of',
+        untuk:'On account of', terbilang:'Amount', kota:'Jakarta' }
+};
+const KWITANSI_BAHASA = ['id','en'];
+const KWITANSI_NAMA_BAHASA = { id:'Indonesia', en:'Inggris' };
+
+/* Ubah angka jadi kata untuk baris "Terbilang".
+   Contoh: 14088444 → "Empat belas juta delapan puluh delapan ribu empat ratus
+   empat puluh empat rupiah". */
+const TERBILANG_SATUAN = ['','satu','dua','tiga','empat','lima','enam','tujuh','delapan','sembilan',
+  'sepuluh','sebelas'];
+function terbilangInt(n){
+  n = Math.floor(Math.abs(Number(n) || 0));
+  if(n === 0) return 'nol';
+  if(n < 12) return TERBILANG_SATUAN[n];
+  if(n < 20) return terbilangInt(n - 10) + ' belas';
+  if(n < 100) return terbilangInt(Math.floor(n / 10)) + ' puluh' + (n % 10 ? ' ' + terbilangInt(n % 10) : '');
+  if(n < 200) return 'seratus' + (n % 100 ? ' ' + terbilangInt(n % 100) : '');
+  if(n < 1000) return terbilangInt(Math.floor(n / 100)) + ' ratus' + (n % 100 ? ' ' + terbilangInt(n % 100) : '');
+  if(n < 2000) return 'seribu' + (n % 1000 ? ' ' + terbilangInt(n % 1000) : '');
+  if(n < 1000000) return terbilangInt(Math.floor(n / 1000)) + ' ribu' + (n % 1000 ? ' ' + terbilangInt(n % 1000) : '');
+  if(n < 1000000000) return terbilangInt(Math.floor(n / 1000000)) + ' juta' + (n % 1000000 ? ' ' + terbilangInt(n % 1000000) : '');
+  if(n < 1000000000000) return terbilangInt(Math.floor(n / 1000000000)) + ' miliar' + (n % 1000000000 ? ' ' + terbilangInt(n % 1000000000) : '');
+  return terbilangInt(Math.floor(n / 1000000000000)) + ' triliun' + (n % 1000000000000 ? ' ' + terbilangInt(n % 1000000000000) : '');
+}
+function terbilang(n, mataUang){
+  const m = uangInfo(mataUang || 'IDR');
+  const v = Math.abs(Number(n) || 0);
+  const bulat = Math.floor(v);
+  const sen = Math.round((v - bulat) * 100);
+  let t = terbilangInt(bulat);
+  if(sen) t += ' koma ' + terbilangInt(sen);
+  t = t.charAt(0).toUpperCase() + t.slice(1);
+  const namaUang = { IDR:'rupiah', USD:'dolar Amerika', SGD:'dolar Singapura',
+    EUR:'euro', AUD:'dolar Australia', MYR:'ringgit' }[m.kode] || m.nama.toLowerCase();
+  return '#' + t + ' ' + namaUang + '#';
+}
+/* Tanggal gaya kwitansi: "14 Oktober 2026". */
+function tanggalKwitansi(iso){
+  const d = iso ? new Date(iso) : new Date();
+  if(isNaN(d)) return '';
+  return d.toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' });
+}
+/* Ambil transaksi keuangan milik donor. Kalau `finId` diisi, pakai itu saja. */
+function kwitansiDonor(donorId, finId){
+  const list = state.finance.filter(function(f){
+    return f.donorId === donorId && (!finId || f.id === finId);
+  }).sort(function(a,b){ return String(b.tanggal).localeCompare(String(a.tanggal)); });
+  return list[0] || null;
+}
+/* Nomor kwitansi dibuat dari tanggal + ID donor supaya stabil dan mudah dicari:
+   KWT/20261111/F00004R */
+function nomorKwitansi(f, donorId){
+  const tgl = String((f && f.tanggal) || new Date().toISOString().slice(0,10)).replace(/-/g,'');
+  return 'KWT/' + tgl + '/' + (donorId || '');
+}
+/* Data kwitansi siap pakai untuk satu donor. */
+function dataKwitansi(d, finId){
+  const f = kwitansiDonor(d.id, finId);
+  const program = f ? (f.program || []).map(function(x){ return programNama(x.id); }).join(', ') : '';
+  return {
+    ada: !!f,
+    finId: f ? f.id : '',
+    nomor: nomorKwitansi(f, d.id),
+    tanggal: f ? f.tanggal : '',
+    jumlah: f ? totalTransaksi(f) : 0,
+    mataUang: f ? (f.mataUang || 'IDR') : 'IDR',
+    program: program,
+    catatan: f ? (f.catatan || '') : ''
+  };
+}
+/* HTML kwitansi. Semua gaya ditulis inline karena klien email membuang <style>. */
+function kwitansiHTML(d, bahasa, finId){
+  const L = KWITANSI_LABEL[bahasa] || KWITANSI_LABEL.id;
+  const k = dataKwitansi(d, finId);
+  const logo = state.settings.logoUrl || 'vendor/kartidaya-logo.svg';
+  const logoAbs = /^https?:/i.test(logo) ? logo : new URL(logo, location.href).href;
+  const garis = 'border-bottom:1px solid #333;';
+  const label = 'width:150px;vertical-align:top;padding:7px 0;font-weight:bold;font-size:13px;';
+  const titik = 'width:14px;vertical-align:top;padding:7px 0;font-size:13px;';
+  const isi = 'vertical-align:top;padding:7px 0;font-size:13px;' + garis;
+  const baris = function(l, v){
+    return '<tr><td style="' + label + '">' + esc(l) + '</td>' +
+      '<td style="' + titik + '">:</td>' +
+      '<td style="' + isi + '">' + (v || '&nbsp;') + '</td></tr>';
+  };
+  const kosong = '<tr><td style="' + label + '">&nbsp;</td><td style="' + titik + '">&nbsp;</td>' +
+    '<td style="' + isi + '">&nbsp;</td></tr>';
+  /* Nama penerima: pakai PIC kalau ada, kalau tidak instansi. Jangan
+     menggabungkan keduanya kalau isinya sama — donorName() sudah memakai
+     instansi sebagai cadangan, jadi bisa muncul dua kali. */
+  const namaPenerima = donorName(d);
+  const instansi = (d.instansi && d.instansi !== namaPenerima) ? ' — ' + esc(d.instansi) : '';
+
+  return '' +
+  '<table cellpadding="0" cellspacing="0" border="0" width="100%" ' +
+    'style="max-width:720px;margin:22px 0 0;border:2px solid #222;border-collapse:collapse;' +
+    'font-family:Arial,Helvetica,sans-serif;color:#111;background:#fff">' +
+    '<tr><td style="padding:16px 18px 6px">' +
+      '<table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>' +
+        '<td style="width:150px;vertical-align:middle">' +
+          '<img src="' + esc(logoAbs) + '" alt="Kartidaya" width="140" style="display:block;border:0;max-width:140px">' +
+        '</td>' +
+        '<td style="vertical-align:middle;text-align:center">' +
+          '<div style="font-family:Georgia,\'Times New Roman\',serif;font-size:21px;font-weight:bold;' +
+            'letter-spacing:.5px">KARTIDAYA SAHABAT INDONESIA</div>' +
+          '<div style="font-size:15px;font-weight:bold;margin-top:4px;letter-spacing:1px">' + esc(L.judul) + '</div>' +
+        '</td>' +
+      '</tr></table>' +
+    '</td></tr>' +
+    '<tr><td style="padding:6px 18px 18px">' +
+      '<table cellpadding="0" cellspacing="0" border="0" width="100%">' +
+        baris(L.dari, esc(namaPenerima) + instansi) +
+        baris(L.jumlah, '<b>' + esc(terbilang(k.jumlah, k.mataUang)) + '</b>') +
+        kosong +
+        baris(L.untuk, esc(k.program || 'Pelayanan Kartidaya Sahabat')) +
+        kosong +
+        '<tr><td colspan="3" style="padding:14px 0 0;text-align:right;font-size:13px">' +
+          esc(L.kota) + ', ' + esc(tanggalKwitansi(k.tanggal)) + '</td></tr>' +
+        '<tr><td colspan="3" style="padding:6px 0 0;text-align:right">' +
+          '<div style="font-family:Georgia,serif;font-size:19px;color:#2f6f9f;font-weight:bold">kartidaya</div>' +
+          '<div style="font-size:12px;font-weight:bold;margin-top:2px">Lidya Tambunan</div>' +
+          '<div style="font-size:11px;color:#444">Head of Finance, Accounting &amp; Tax</div>' +
+        '</td></tr>' +
+        '<tr><td style="width:150px;padding:10px 0 0;font-weight:bold;font-size:13px">' +
+          esc(L.terbilang) + '</td>' +
+          '<td style="width:14px;padding:10px 0 0;font-size:13px">:</td>' +
+          '<td style="padding:10px 0 0">' +
+            '<span style="display:inline-block;border-bottom:1px solid #333;padding:0 6px 3px;' +
+              'font-size:13px;font-weight:bold">' + esc(uangInfo(k.mataUang).simbol) + '</span>' +
+            '<span style="display:inline-block;border-bottom:1px solid #333;padding:0 10px 3px;' +
+              'font-size:13px;font-weight:bold;min-width:150px">' +
+              esc(angkaUang(k.jumlah, k.mataUang)) + '</span>' +
+          '</td></tr>' +
+        '<tr><td colspan="3" style="padding:8px 0 0;font-size:10.5px;color:#666">' +
+          'No. ' + esc(k.nomor) + (k.ada ? '' : ' — belum ada transaksi keuangan untuk donor ini') +
+        '</td></tr>' +
+      '</table>' +
+    '</td></tr>' +
+  '</table>';
+}
+
 /* Program dukungan contoh. Bisa ditambah/ubah/hapus dari halaman Keuangan. */
 const DEFAULT_PROGRAMS = [
   { id:'PRG-01', nama:'Beasiswa Anak Pelayan', aktif:true },
@@ -151,6 +300,13 @@ function fmtUang(n, kode){
   const desimal = m.kode === 'IDR' ? 0 : 2;
   const angka = v.toLocaleString(m.locale, { minimumFractionDigits:desimal, maximumFractionDigits:desimal });
   return m.kode === 'IDR' ? m.simbol + ' ' + angka : m.simbol + angka;
+}
+/* Angka saja tanpa simbol — dipakai kwitansi yang menaruh simbol terpisah. */
+function angkaUang(n, kode){
+  const m = uangInfo(kode);
+  const desimal = m.kode === 'IDR' ? 0 : 2;
+  return (Number(n) || 0).toLocaleString(m.locale,
+    { minimumFractionDigits:desimal, maximumFractionDigits:desimal });
 }
 /* Total per mata uang — tidak dijumlahkan lintas mata uang karena kursnya
    berbeda dan bisa berubah. Menerima record keuangan (dijumlahkan dari
@@ -814,7 +970,8 @@ function kv(k,v){
 }
 
 /* ---------- TULIS SURAT ---------- */
-let suratState = { tplId:'', subjek:'', isi:'', selected:{}, previewId:'', q:'', replyTo:'', kanal:'email' };
+let suratState = { tplId:'', subjek:'', isi:'', selected:{}, previewId:'', q:'', replyTo:'', kanal:'email',
+  kwitansi:false, kwitansiBahasa:'id', kwitansiFinId:'' };
 
 function viewSurat(){
   setTitle('Tulis Surat','Susun surat dengan template, kirim ke banyak penerima');
@@ -877,6 +1034,7 @@ function viewSurat(){
         }).join('') + '</div>' +
         '<textarea id="s-isi" style="min-height:230px" placeholder="Tulis isi surat di sini…">' + esc(suratState.isi) + '</textarea>' +
       '</div>' +
+      (kanal === 'email' ? blokKwitansi() : '') +
     '</div>' +
 
     '<div class="card">' +
@@ -936,6 +1094,7 @@ function previewHTML(d){
     '<p class="muted small">Belum ada donor untuk dipratinjau.</p>';
   const wa = suratState.kanal === 'whatsapp';
   const alamat = wa ? (donorWa(d) ? waPhonePretty(donorWa(d)) : 'belum ada nomor HP') : (d.email || 'belum ada email');
+  const pakaiKwitansi = !wa && suratState.kwitansi;
   return '<div class="card-head"><h2>3 · Pratinjau</h2>' +
       '<span class="chip plain">' + esc(donorName(d)) + '</span>' +
       '<span class="chip kanal-' + (wa ? 'whatsapp' : 'email') + '">' +
@@ -945,9 +1104,52 @@ function previewHTML(d){
     (wa
       ? '<div class="wa-preview"><div class="wa-bubble">' + esc(fillTemplate(suratState.isi, d)) + '</div></div>'
       : '<div class="letter">' + esc(fillTemplate(suratState.isi, d)) + '</div>') +
+    (pakaiKwitansi
+      ? '<p class="tiny muted" style="margin:14px 0 0">Kwitansi yang ikut terkirim di badan email:</p>' +
+        '<div class="kwitansi-preview">' + kwitansiHTML(d, suratState.kwitansiBahasa, suratState.kwitansiFinId) + '</div>'
+      : '') +
     '<div class="btn-row" style="margin-top:12px">' +
       '<button class="btn" data-action="print-one" data-id="' + esc(d.id) + '">⎙ Cetak</button>' +
     '</div>';
+}
+
+/* Kotak pilihan kwitansi di halaman Tulis. Hanya untuk kanal email — WhatsApp
+   tidak bisa menampilkan tabel HTML. */
+function blokKwitansi(){
+  const on = !!suratState.kwitansi;
+  const bhs = KWITANSI_BAHASA.map(function(b){
+    return '<button type="button" class="btn sm' + (suratState.kwitansiBahasa === b ? ' primary' : '') +
+      '" data-action="kw-bahasa" data-bahasa="' + b + '">' + esc(KWITANSI_NAMA_BAHASA[b]) + '</button>';
+  }).join('');
+  /* Daftar transaksi donor yang sedang dipratinjau, supaya bisa memilih
+     kwitansi mana yang dikirim kalau donornya punya beberapa transaksi. */
+  const d = findDonor(suratState.previewId) || findDonor(Object.keys(suratState.selected).filter(function(k){ return suratState.selected[k]; })[0]);
+  const finDonor = d ? state.finance.filter(function(f){ return f.donorId === d.id; })
+    .sort(function(a,b){ return String(b.tanggal).localeCompare(String(a.tanggal)); }) : [];
+  const finOpts = '<option value="">Transaksi terbaru</option>' + finDonor.map(function(f){
+    return '<option value="' + esc(f.id) + '"' + (suratState.kwitansiFinId === f.id ? ' selected' : '') + '>' +
+      esc(f.tanggal + ' · ' + fmtUang(totalTransaksi(f), f.mataUang)) + '</option>';
+  }).join('');
+
+  return '<div class="sep"></div>' +
+    '<div class="row" style="justify-content:space-between">' +
+      '<span class="small"><b>Lampirkan kwitansi</b> <span class="hint">— tampil di badan email</span></span>' +
+      '<button class="btn sm' + (on ? ' primary' : '') + '" data-action="kw-toggle">' + (on ? 'Aktif' : 'Mati') + '</button>' +
+    '</div>' +
+    (on
+      ? '<div class="field" style="margin-top:10px"><label>Bahasa kwitansi</label>' +
+          '<div class="row" style="gap:8px">' + bhs + '</div></div>' +
+        (d
+          ? '<div class="field"><label>Transaksi <span class="hint">— ' + esc(donorName(d)) + '</span></label>' +
+              '<select id="s-kw-fin">' + finOpts + '</select></div>' +
+            (finDonor.length ? '' :
+              '<div class="warnbox">Donor ini belum punya transaksi di halaman <b>Keuangan</b>. ' +
+              'Kwitansi tetap terkirim, tapi jumlahnya Rp 0. Catat dulu transaksinya di menu Keuangan.</div>')
+          : '<p class="tiny muted">Pilih penerima dulu untuk melihat transaksinya.</p>') +
+        '<p class="tiny muted">Kwitansi dikirim sebagai bagian dari email (HTML), bukan lampiran PDF — ' +
+          'jadi penerima langsung melihatnya tanpa perlu membuka berkas.</p>'
+      : '<p class="tiny muted" style="margin-top:6px">Kalau aktif, setiap penerima menerima kwitansi ' +
+        'dengan nama &amp; jumlah sesuai data Keuangan miliknya.</p>');
 }
 function bindSurat(){
   const tplSel = document.getElementById('s-tpl');
@@ -961,6 +1163,11 @@ function bindSurat(){
   if(subj) subj.addEventListener('input', function(){ suratState.subjek = this.value; });
   const isi = document.getElementById('s-isi');
   if(isi) isi.addEventListener('input', function(){ suratState.isi = this.value; refreshPreview(); });
+  const kwFin = document.getElementById('s-kw-fin');
+  if(kwFin) kwFin.addEventListener('change', function(){
+    suratState.kwitansiFinId = this.value;
+    refreshPreview();
+  });
   const q = document.getElementById('s-q');
   if(q) q.addEventListener('input', function(){
     suratState.q = this.value;
@@ -1843,6 +2050,15 @@ function deleteDonor(id){
   render();
 }
 
+/* Bungkus isi surat + kwitansi jadi satu HTML untuk badan email. Gaya ditulis
+   inline karena klien email membuang <style>. */
+function isiHTML(d, isiTeks, bahasa, finId){
+  const teks = esc(isiTeks).replace(/\n/g, '<br>');
+  return '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.65;' +
+      'color:#111;max-width:720px">' + teks + '</div>' +
+    kwitansiHTML(d, bahasa, finId);
+}
+
 async function kirimSurat(asDraft){
   const ids = Object.keys(suratState.selected).filter(function(k){ return suratState.selected[k]; });
   if(!ids.length){ toast('Pilih penerima dulu', true); return; }
@@ -1888,8 +2104,13 @@ async function kirimSurat(asDraft){
         gagal++;
       }else{
         try{
+          /* Kwitansi dikirim sebagai bagian HTML email, bukan lampiran PDF,
+             supaya penerima langsung melihatnya di badan surat. */
+          const html = suratState.kwitansi
+            ? isiHTML(d, isi, suratState.kwitansiBahasa, suratState.kwitansiFinId)
+            : '';
           const r = await Gmail.send({
-            from: Gmail.email || '', to: d.email, subject: subjek, body: isi
+            from: Gmail.email || '', to: d.email, subject: subjek, body: isi, html: html
           });
           gmailId = (r && r.id) || '';
           threadId = (r && r.threadId) || '';
@@ -2716,6 +2937,16 @@ document.addEventListener('click', function(e){
     }
     case 'kanal-pilih':
       suratState.kanal = act.getAttribute('data-kanal') === 'whatsapp' ? 'whatsapp' : 'email';
+      /* WhatsApp tidak bisa menampilkan tabel HTML, jadi kwitansi dimatikan. */
+      if(suratState.kanal === 'whatsapp') suratState.kwitansi = false;
+      render();
+      break;
+    case 'kw-toggle':
+      suratState.kwitansi = !suratState.kwitansi;
+      render();
+      break;
+    case 'kw-bahasa':
+      suratState.kwitansiBahasa = act.getAttribute('data-bahasa') === 'en' ? 'en' : 'id';
       render();
       break;
     case 'auto-sync-toggle':
