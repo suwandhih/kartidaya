@@ -214,7 +214,7 @@ function dataKwitansi(d, finId){
 function kwitansiHTML(d, bahasa, finId){
   const L = KWITANSI_LABEL[bahasa] || KWITANSI_LABEL.id;
   const k = dataKwitansi(d, finId);
-  const logo = state.settings.logoUrl || 'vendor/kartidaya-logo.svg';
+  const logo = state.settings.logoUrl || 'vendor/kartidaya-logo.png';
   const logoAbs = /^https?:/i.test(logo) ? logo : new URL(logo, location.href).href;
   const garis = 'border-bottom:1px solid #333;';
   const label = 'width:150px;vertical-align:top;padding:7px 0;font-weight:bold;font-size:13px;';
@@ -279,6 +279,80 @@ function kwitansiHTML(d, bahasa, finId){
       '</table>' +
     '</td></tr>' +
   '</table>';
+}
+
+/* ---------- MAJALAH ---------- */
+/* Halaman majalah disimpan sekali di Worker, lalu ditampilkan di badan email
+   lewat alamat publik. Jadi penerima langsung melihat halamannya tanpa perlu
+   membuka lampiran. */
+function majalahInfo(){
+  const m = state.settings.majalah;
+  if(!m || !m.id || !m.halaman) return null;
+  return m;
+}
+function workerBase(){
+  return String(WhatsApp.endpoint || state.settings.waEndpoint || '').replace(/\/+$/, '');
+}
+function majalahURL(n){
+  const m = majalahInfo();
+  const base = workerBase();
+  if(!m || !base) return '';
+  return base + '/majalah/' + m.id + '/' + n;
+}
+function majalahHTML(){
+  const m = majalahInfo();
+  if(!m) return '';
+  const pages = [];
+  for(let i = 1; i <= m.halaman; i++){
+    const src = majalahURL(i);
+    if(!src) break;
+    pages.push('<div style="margin:0 0 10px">' +
+      '<img src="' + esc(src) + '" alt="' + esc((m.judul || 'Majalah') + ' halaman ' + i) + '" ' +
+        'width="700" style="display:block;width:100%;max-width:700px;height:auto;border:0">' +
+      '</div>');
+  }
+  if(!pages.length) return '';
+  return '<div style="margin:22px 0 0;font-family:Arial,Helvetica,sans-serif;color:#111">' +
+      '<div style="font-size:15px;font-weight:bold;margin-bottom:10px">' +
+        esc(m.judul || 'Majalah Kartidaya') + '</div>' +
+      pages.join('') +
+    '</div>';
+}
+
+/* ---------- TANDA DIBACA ---------- */
+/* Gambar 1×1 yang dimuat klien email saat surat dibuka. Alamatnya mencatat
+   pembukaan itu di Worker, jadi aplikasi bisa menandai "sudah dibaca". */
+function pixelURL(id){
+  const base = workerBase();
+  if(!base || !id) return '';
+  return base + '/pixel/' + id;
+}
+function pixelHTML(id){
+  const src = pixelURL(id);
+  if(!src) return '';
+  return '<img src="' + esc(src) + '" width="1" height="1" alt="" ' +
+    'style="display:block;width:1px;height:1px;border:0;outline:none">';
+}
+/* Tanya Worker surat mana yang sudah dibuka penerima. */
+async function cekTandaDibaca(){
+  if(!WhatsApp.isConfigured()) return;
+  const pending = state.messages.filter(function(m){
+    return m.arah === 'keluar' && m.pixelId && !m.dibacaPenerima;
+  }).slice(0, 200);
+  if(!pending.length) return;
+  try{
+    const r = await WhatsApp.api('/pixel/status', {
+      method:'POST',
+      body:{ ids: pending.map(function(m){ return m.pixelId; }) }
+    });
+    const map = (r && r.dibaca) || {};
+    let n = 0;
+    pending.forEach(function(m){
+      const rec = map[m.pixelId];
+      if(rec && rec.pertama){ m.dibacaPenerima = rec.pertama; n++; }
+    });
+    if(n){ save('messages'); render(); }
+  }catch(e){ /* Worker belum siap — abaikan, coba lagi nanti */ }
 }
 
 /* Program dukungan contoh. Bisa ditambah/ubah/hapus dari halaman Keuangan. */
@@ -813,7 +887,8 @@ function viewKotak(arah){
       ? '<button class="btn" data-action="cocokkan">⇄ Cocokkan ulang</button>' +
         '<button class="btn primary" data-action="sync">⟳ Sinkron Gmail</button>' +
         '<button class="btn" data-action="wa-sync">⟳ Sinkron WhatsApp</button>'
-      : '<button class="btn primary" data-go="surat">✎ Tulis Surat</button>') +
+      : '<button class="btn" data-action="cek-dibaca">✓✓ Cek tanda dibaca</button>' +
+        '<button class="btn primary" data-go="surat">✎ Tulis Surat</button>') +
   '</div>' +
   '<p class="tiny muted" style="margin:-6px 0 12px">' + list.length + ' surat</p>' +
   (list.length ? '<div class="maillist">' + list.map(function(m){
@@ -829,6 +904,11 @@ function viewKotak(arah){
       '<div class="mail-foot">' +
         kanalChip(m) +
         '<span class="chip ' + statusChipClass(m.status) + '">' + esc(m.status) + '</span>' +
+        (!isMasuk && m.pixelId
+          ? (m.dibacaPenerima
+              ? '<span class="chip st-dibaca" title="Dibuka ' + esc(fmtDateTime(m.dibacaPenerima)) + '">✓✓ Dibaca</span>'
+              : '<span class="chip plain" title="Belum ada kabar dibuka">✓✓ Belum dibaca</span>')
+          : '') +
         (d ? '<span class="chip plain mono">' + esc(d.id) + '</span>'
            : '<span class="chip warn">belum dikenal</span>') +
       '</div>' +
@@ -971,7 +1051,7 @@ function kv(k,v){
 
 /* ---------- TULIS SURAT ---------- */
 let suratState = { tplId:'', subjek:'', isi:'', selected:{}, previewId:'', q:'', replyTo:'', kanal:'email',
-  kwitansi:false, kwitansiBahasa:'id', kwitansiFinId:'' };
+  kwitansi:false, kwitansiBahasa:'id', kwitansiFinId:'', majalah:false };
 
 function viewSurat(){
   setTitle('Tulis Surat','Susun surat dengan template, kirim ke banyak penerima');
@@ -1034,7 +1114,7 @@ function viewSurat(){
         }).join('') + '</div>' +
         '<textarea id="s-isi" style="min-height:230px" placeholder="Tulis isi surat di sini…">' + esc(suratState.isi) + '</textarea>' +
       '</div>' +
-      (kanal === 'email' ? blokKwitansi() : '') +
+      (kanal === 'email' ? blokKwitansi() + blokMajalah() : '') +
     '</div>' +
 
     '<div class="card">' +
@@ -1108,6 +1188,10 @@ function previewHTML(d){
       ? '<p class="tiny muted" style="margin:14px 0 0">Kwitansi yang ikut terkirim di badan email:</p>' +
         '<div class="kwitansi-preview">' + kwitansiHTML(d, suratState.kwitansiBahasa, suratState.kwitansiFinId) + '</div>'
       : '') +
+    (!wa && suratState.majalah && majalahInfo()
+      ? '<p class="tiny muted" style="margin:14px 0 0">Majalah yang ikut terkirim di badan email:</p>' +
+        '<div class="mj-preview">' + majalahHTML() + '</div>'
+      : '') +
     '<div class="btn-row" style="margin-top:12px">' +
       '<button class="btn" data-action="print-one" data-id="' + esc(d.id) + '">⎙ Cetak</button>' +
     '</div>';
@@ -1151,6 +1235,37 @@ function blokKwitansi(){
       : '<p class="tiny muted" style="margin-top:6px">Kalau aktif, setiap penerima menerima kwitansi ' +
         'dengan nama &amp; jumlah sesuai data Keuangan miliknya.</p>');
 }
+/* Kotak pilihan majalah di halaman Tulis. Halaman majalah disimpan sekali di
+   Worker, lalu dipakai ulang untuk semua penerima. */
+function blokMajalah(){
+  const m = majalahInfo();
+  const on = !!suratState.majalah;
+  const base = workerBase();
+  const siap = !!(m && base);
+
+  return '<div class="sep"></div>' +
+    '<div class="row" style="justify-content:space-between">' +
+      '<span class="small"><b>Lampirkan majalah</b> <span class="hint">— tampil di badan email</span></span>' +
+      '<button class="btn sm' + (on ? ' primary' : '') + '" data-action="mj-toggle"' +
+        (siap ? '' : ' disabled') + '>' + (on ? 'Aktif' : 'Mati') + '</button>' +
+    '</div>' +
+    (siap
+      ? '<p class="tiny muted" style="margin:6px 0 0">' + esc(m.judul || 'Majalah') + ' · ' +
+          m.halaman + ' halaman · disimpan sekali, dipakai untuk semua penerima.</p>' +
+        (on ? '<div class="mj-preview">' + majalahHTML() + '</div>' : '')
+      : '<div class="warnbox" style="margin-top:8px">Majalah belum disiapkan. ' +
+        (base
+          ? 'Unggah halaman majalah dulu lewat tombol di bawah.'
+          : 'Isi <b>Alamat Worker</b> di halaman <b>Setelan</b> dulu — majalah disimpan di sana ' +
+            'supaya bisa tampil di email.') +
+        '</div>') +
+    '<div class="btn-row" style="margin-top:10px">' +
+      '<button class="btn sm" data-action="mj-kelola">' +
+        (siap ? 'Kelola majalah' : 'Unggah majalah') + '</button>' +
+      (siap ? '<button class="btn sm ghost" data-action="mj-hapus">Hapus majalah</button>' : '') +
+    '</div>';
+}
+
 function bindSurat(){
   const tplSel = document.getElementById('s-tpl');
   if(tplSel) tplSel.addEventListener('change', function(){
@@ -1863,6 +1978,11 @@ function openMessage(msgId){
       kv(m.kanal === 'whatsapp' ? 'Dari (nomor)' : 'Dari', m.kanal === 'whatsapp' ? waPhonePretty(m.from) : m.from) +
       kv(m.kanal === 'whatsapp' ? 'Kepada (nomor)' : 'Kepada', m.kanal === 'whatsapp' ? waPhonePretty(m.to) : m.to) +
       kv('Subjek', m.subjek) +
+      (m.arah === 'keluar' && m.pixelId
+        ? kv('Dibaca penerima', m.dibacaPenerima
+            ? '✓✓ ' + fmtDateTime(m.dibacaPenerima)
+            : 'belum ada kabar (penerima mungkin memblokir gambar)')
+        : '') +
       kv('Lampiran', m.lampiran) + kv('Catatan', m.catatan) +
       (m.waError ? kv('Alasan gagal', m.waError + (m.waKode ? ' (kode ' + m.waKode + ')' : '')) : '') +
     '</div>' +
@@ -2030,6 +2150,107 @@ function simpanTplForm(id){
   render();
 }
 
+/* ---------- Kelola Majalah ---------- */
+/* Halaman majalah diunggah satu per satu ke Worker. Setelah tersimpan,
+   alamatnya dipakai lagi di setiap email — jadi tidak perlu unggah ulang. */
+function openMajalahForm(){
+  const m = majalahInfo();
+  const base = workerBase();
+  const body =
+    (base ? '' :
+      '<div class="warnbox">Isi <b>Alamat Worker</b> di halaman <b>Setelan</b> dulu. ' +
+      'Majalah disimpan di Worker supaya bisa tampil di email penerima.</div>') +
+    '<div class="field"><label>Judul majalah</label>' +
+      '<input type="text" id="mj-judul" placeholder="Majalah Kartidaya — Edisi …" value="' +
+        esc(m ? (m.judul || '') : '') + '"></div>' +
+    '<div class="field"><label>Halaman majalah <span class="hint">— pilih semua gambar sekaligus</span></label>' +
+      '<input type="file" id="mj-file" accept="image/jpeg,image/png,image/webp" multiple>' +
+      '<p class="tiny muted" style="margin:6px 0 0">Urutan halaman mengikuti urutan berkas yang dipilih. ' +
+        'Maksimal 40 halaman, tiap halaman maksimal 4 MB. Format JPG/PNG/WebP.</p></div>' +
+    (m
+      ? '<div class="warnbox">Sudah tersimpan: <b>' + esc(m.judul || 'Majalah') + '</b> — ' +
+          m.halaman + ' halaman. Mengunggah lagi akan <b>mengganti</b> seluruh halaman.</div>'
+      : '') +
+    '<div id="mj-progress" class="small muted"></div>';
+
+  const footer = '<button class="btn" data-close>Tutup</button>' +
+    '<button class="btn primary" data-action="mj-unggah"' + (base ? '' : ' disabled') + '>↑ Unggah</button>';
+
+  openModal({ title:'Kelola Majalah', body:body, footer:footer, wide:true });
+}
+
+/* Baca berkas jadi base64 tanpa awalan data:. */
+function fileKeBase64(file){
+  return new Promise(function(resolve, reject){
+    const fr = new FileReader();
+    fr.onload = function(){
+      const s = String(fr.result || '');
+      resolve(s.slice(s.indexOf(',') + 1));
+    };
+    fr.onerror = function(){ reject(new Error('Gagal membaca berkas ' + file.name)); };
+    fr.readAsDataURL(file);
+  });
+}
+
+async function unggahMajalah(){
+  const input = document.getElementById('mj-file');
+  const prog = document.getElementById('mj-progress');
+  const judulEl = document.getElementById('mj-judul');
+  const files = input && input.files ? Array.prototype.slice.call(input.files) : [];
+  if(!files.length){ toast('Pilih gambar halaman majalah dulu', true); return; }
+  if(files.length > 40){ toast('Maksimal 40 halaman', true); return; }
+  if(!WhatsApp.isConfigured()){ toast('Alamat Worker / kunci aplikasi belum diisi', true); return; }
+
+  const id = 'mj-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const judul = judulEl ? judulEl.value.trim() : '';
+  const tipeDari = function(f){
+    if(/\.png$/i.test(f.name)) return 'image/png';
+    if(/\.webp$/i.test(f.name)) return 'image/webp';
+    return 'image/jpeg';
+  };
+
+  for(let i = 0; i < files.length; i++){
+    const f = files[i];
+    if(f.size > 4 * 1024 * 1024){
+      toast('Halaman ' + (i + 1) + ' lebih dari 4 MB — perkecil dulu', true);
+      return;
+    }
+    if(prog) prog.textContent = 'Mengunggah halaman ' + (i + 1) + ' dari ' + files.length + '…';
+    try{
+      const data = await fileKeBase64(f);
+      await WhatsApp.api('/majalah', {
+        method:'POST',
+        body:{ id:id, halaman:i + 1, total:files.length, tipe:tipeDari(f), judul:judul, data:data }
+      });
+    }catch(e){
+      if(prog) prog.textContent = '';
+      toast('Gagal mengunggah halaman ' + (i + 1) + ': ' + (e.message || e), true);
+      return;
+    }
+  }
+
+  state.settings.majalah = { id:id, halaman:files.length, judul:judul || 'Majalah Kartidaya' };
+  save('settings');
+  if(prog) prog.textContent = '';
+  closeModal();
+  toast(files.length + ' halaman majalah tersimpan');
+  render();
+}
+
+async function hapusMajalah(){
+  const m = majalahInfo();
+  if(!m) return;
+  if(!confirm('Hapus majalah yang tersimpan?\nEmail berikutnya tidak lagi memuat majalah.')) return;
+  try{
+    if(WhatsApp.isConfigured()) await WhatsApp.api('/majalah/' + m.id, { method:'DELETE' });
+  }catch(e){ /* tetap hapus catatan lokal supaya tidak menggantung */ }
+  delete state.settings.majalah;
+  suratState.majalah = false;
+  save('settings');
+  toast('Majalah dihapus');
+  render();
+}
+
 /* ---------- 10. AKSI ---------- */
 function saveDonorFromForm(isNew, oldId){
   const f = readDonorForm();
@@ -2073,11 +2294,14 @@ function deleteDonor(id){
 
 /* Bungkus isi surat + kwitansi jadi satu HTML untuk badan email. Gaya ditulis
    inline karena klien email membuang <style>. */
-function isiHTML(d, isiTeks, bahasa, finId){
+function isiHTML(d, isiTeks, bahasa, finId, opts){
+  opts = opts || {};
   const teks = esc(isiTeks).replace(/\n/g, '<br>');
   return '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.65;' +
       'color:#111;max-width:720px">' + teks + '</div>' +
-    kwitansiHTML(d, bahasa, finId);
+    (opts.kwitansi === false ? '' : kwitansiHTML(d, bahasa, finId)) +
+    (opts.majalah ? majalahHTML() : '') +
+    (opts.pixelId ? pixelHTML(opts.pixelId) : '');
 }
 
 async function kirimSurat(asDraft){
@@ -2117,6 +2341,11 @@ async function kirimSurat(asDraft){
     let status = asDraft ? 'Draft' : 'Terkirim';
     let gmailId = '', threadId = '', waId = '';
     const tujuan = kanal === 'whatsapp' ? donorWa(d) : (d.email || '');
+    /* ID pixel dibuat per surat supaya pembukaan oleh satu penerima tidak
+       dianggap pembukaan oleh penerima lain. */
+    const pixelId = (kanal === 'email' && !asDraft && workerBase())
+      ? ('px-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10))
+      : '';
 
     if(useGmail){
       if(!d.email){
@@ -2125,10 +2354,15 @@ async function kirimSurat(asDraft){
         gagal++;
       }else{
         try{
-          /* Kwitansi dikirim sebagai bagian HTML email, bukan lampiran PDF,
-             supaya penerima langsung melihatnya di badan surat. */
-          const html = suratState.kwitansi
-            ? isiHTML(d, isi, suratState.kwitansiBahasa, suratState.kwitansiFinId)
+          /* Kwitansi & majalah dikirim sebagai bagian HTML email, bukan
+             lampiran, supaya penerima langsung melihatnya di badan surat. */
+          const pakaiHTML = suratState.kwitansi || suratState.majalah || pixelId;
+          const html = pakaiHTML
+            ? isiHTML(d, isi, suratState.kwitansiBahasa, suratState.kwitansiFinId, {
+                kwitansi: !!suratState.kwitansi,
+                majalah: !!suratState.majalah,
+                pixelId: pixelId
+              })
             : '';
           const r = await Gmail.send({
             from: Gmail.email || '', to: d.email, subject: subjek, body: isi, html: html
@@ -2167,7 +2401,8 @@ async function kirimSurat(asDraft){
       subjek:subjek, isi:isi, status:status, kanal:kanal,
       from: kanal === 'whatsapp' ? (WhatsApp.phone || '') : (Gmail.email || ''),
       to: tujuan,
-      gmailId:gmailId, threadId:threadId, waId:waId, dibaca:true
+      gmailId:gmailId, threadId:threadId, waId:waId, dibaca:true,
+      pixelId: pixelId, dibacaPenerima: ''
     });
 
     /* Surat masuk terakhir dari donor ini ditandai "Dibalas" begitu balasan
@@ -2971,6 +3206,19 @@ document.addEventListener('click', function(e){
       suratState.kwitansiBahasa = act.getAttribute('data-bahasa') === 'en' ? 'en' : 'id';
       render();
       break;
+    case 'mj-toggle':
+      suratState.majalah = !suratState.majalah;
+      render();
+      break;
+    case 'mj-kelola': openMajalahForm(); break;
+    case 'mj-hapus': hapusMajalah(); break;
+    case 'mj-pilih-file': {
+      const el = document.getElementById('mj-file');
+      if(el) el.click();
+      break;
+    }
+    case 'mj-unggah': unggahMajalah(); break;
+    case 'cek-dibaca': cekTandaDibaca(); break;
     case 'auto-sync-toggle':
       state.settings.autoSync = !state.settings.autoSync;
       save('settings');
@@ -3146,12 +3394,15 @@ jagaSesiGmail();
 /* Fungsi sinkronOtomatis() ada di bagian 11 bersama gmailSync(). */
 setInterval(sinkronOtomatis, 60 * 1000);
 setInterval(waSinkronOtomatis, 60 * 1000);
+/* Tanda dibaca ikut diperiksa berkala — tidak perlu menekan tombol. */
+setInterval(cekTandaDibaca, 3 * 60 * 1000);
 document.addEventListener('visibilitychange', function(){
-  if(!document.hidden){ sinkronOtomatis(); waSinkronOtomatis(); }
+  if(!document.hidden){ sinkronOtomatis(); waSinkronOtomatis(); cekTandaDibaca(); }
 });
 /* Beri jeda sedikit supaya token sempat dipulihkan lebih dulu. */
 setTimeout(sinkronOtomatis, 3000);
 setTimeout(waSinkronOtomatis, 4000);
+setTimeout(cekTandaDibaca, 6000);
 
 function cycleTheme(){
   const order = ['light','dark','auto'];

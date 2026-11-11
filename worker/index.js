@@ -15,8 +15,19 @@
      POST /wa/ack      → tandai pesan sudah diambil aplikasi
      POST /wa/status-pesan → kabar status pesan keluar (terkirim/gagal)
 
-   Semua endpoint kecuali /wa/webhook butuh header:
-     X-App-Key: <APP_KEY>
+   Endpoint majalah (halaman majalah tampil di badan email):
+     POST   /majalah          → unggah satu halaman
+     GET    /majalah/<id>     → info majalah
+     DELETE /majalah/<id>     → hapus majalah
+     GET    /majalah/<id>/<n> → gambar halaman ke-n (publik)
+
+   Endpoint tanda dibaca:
+     GET  /pixel/<id>         → gambar 1×1, sekaligus mencatat email dibuka
+     POST /pixel/status       → cek ID mana yang sudah dibuka
+
+   Semua endpoint butuh header X-App-Key, KECUALI:
+     /wa/webhook, /pixel/<id>, /majalah/<id>/<n>
+   — tiga itu dipanggil Meta dan klien email yang tidak punya kunci.
    ============================================================ */
 
 const GRAPH = 'https://graph.facebook.com/v21.0';
@@ -248,6 +259,53 @@ function parseStatuses(body) {
   return out;
 }
 
+/* ============================================================
+   MAJALAH — halaman majalah disimpan di KV lalu ditampilkan di
+   badan email lewat alamat publik.
+
+   Kenapa tidak dilampirkan sebagai berkas? Karena lampiran tidak
+   bisa tampil langsung di badan email. Dengan disimpan di sini,
+   email cukup memuat <img src="…/majalah/<id>/1"> dan penerima
+   langsung melihat halamannya tanpa membuka berkas apa pun.
+   ============================================================ */
+
+const MAJALAH_MAX_PAGES = 40;
+const MAJALAH_MAX_BYTE = 4 * 1024 * 1024;   /* per halaman */
+
+function majalahMetaKey(id){ return 'majalah-meta:' + id; }
+function majalahPageKey(id, n){ return 'majalah:' + id + ':' + n; }
+
+/* Ubah base64 (boleh berawalan data:…) menjadi byte siap simpan. */
+function b64ToBytes(b64){
+  const bersih = String(b64 || '').replace(/^data:[^,]*,/, '');
+  const bin = atob(bersih);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+/* ============================================================
+   TANDA DIBACA — pixel 1×1 yang dicatat saat email dibuka.
+
+   Klien email memuat gambar dari alamat publik, jadi satu
+   permintaan ke sini sudah cukup untuk tahu emailnya dibuka.
+   ============================================================ */
+
+const PIXEL_GIF = 'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+
+function pixelKey(id){ return 'pixel:' + id; }
+
+async function catatDibaca(env, id){
+  try{
+    const raw = await env.WA_INBOX.get(pixelKey(id));
+    const now = new Date().toISOString();
+    const rec = raw ? JSON.parse(raw) : { id: id, pertama: now, hit: 0 };
+    rec.hit = (rec.hit || 0) + 1;
+    rec.terakhir = now;
+    await env.WA_INBOX.put(pixelKey(id), JSON.stringify(rec));
+  }catch(e){ /* pencatatan gagal tidak boleh menggagalkan gambar */ }
+}
+
 /* ---------- router ---------- */
 
 export default {
@@ -301,6 +359,44 @@ export default {
 
         /* Meta butuh 200 cepat, kalau tidak akan dikirim ulang terus. */
         return new Response('OK', { status: 200 });
+      }
+
+      /* --- pixel tanda dibaca (tanpa X-App-Key) ---
+         Klien email memuat gambar ini dari alamat publik, jadi tidak mungkin
+         menyertakan kunci aplikasi. Yang dilindungi hanya pembacaan status. */
+      const px = path.match(/^\/pixel\/([A-Za-z0-9_-]{4,64})$/);
+      if (px && req.method === 'GET') {
+        await catatDibaca(env, px[1]);
+        const gif = Uint8Array.from(atob(PIXEL_GIF), function (c) { return c.charCodeAt(0); });
+        return new Response(gif, {
+          status: 200,
+          headers: {
+            'Content-Type': 'image/gif',
+            'Content-Length': String(gif.length),
+            'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+            'Pragma': 'no-cache'
+          }
+        });
+      }
+
+      /* --- halaman majalah (tanpa X-App-Key) ---
+         Sama seperti pixel: harus bisa diambil klien email tanpa kunci. */
+      const mj = path.match(/^\/majalah\/([A-Za-z0-9_-]{4,64})\/(\d{1,2})$/);
+      if (mj && req.method === 'GET') {
+        const metaRaw = await env.WA_INBOX.get(majalahMetaKey(mj[1]));
+        if (!metaRaw) return new Response('Not Found', { status: 404 });
+        const meta = JSON.parse(metaRaw);
+        const n = Number(mj[2]);
+        if (!(n >= 1 && n <= (meta.halaman || 0))) return new Response('Not Found', { status: 404 });
+        const buf = await env.WA_INBOX.get(majalahPageKey(mj[1], n), { type: 'arrayBuffer' });
+        if (!buf) return new Response('Not Found', { status: 404 });
+        return new Response(buf, {
+          status: 200,
+          headers: {
+            'Content-Type': meta.tipe || 'image/jpeg',
+            'Cache-Control': 'public, max-age=31536000, immutable'
+          }
+        });
       }
 
       /* --- sisanya butuh kunci aplikasi --- */
@@ -370,6 +466,84 @@ export default {
         const sisa = queue.filter(function (q) { return !buang[q.waId]; });
         await writeQueue(env, sisa);
         return withCors(json({ ok: true, removed: queue.length - sisa.length }), req);
+      }
+
+      /* ---------- majalah ---------- */
+
+      /* Unggah satu halaman majalah. Aplikasi mengirim satu permintaan per
+         halaman supaya unggahan besar tidak kehabisan waktu. */
+      if (path === '/majalah' && req.method === 'POST') {
+        const body = await req.json().catch(function () { return null; });
+        if (!body) return withCors(json({ ok: false, error: 'Body bukan JSON' }, 400), req);
+
+        const id = String(body.id || '').replace(/[^A-Za-z0-9_-]/g, '');
+        if (id.length < 4) return withCors(json({ ok: false, error: 'ID majalah tidak sah' }, 400), req);
+
+        const total = Number(body.total) || 0;
+        const n = Number(body.halaman) || 0;
+        if (!(total >= 1 && total <= MAJALAH_MAX_PAGES)) {
+          return withCors(json({ ok: false, error: 'Jumlah halaman harus 1–' + MAJALAH_MAX_PAGES }, 400), req);
+        }
+        if (!(n >= 1 && n <= total)) {
+          return withCors(json({ ok: false, error: 'Nomor halaman di luar rentang' }, 400), req);
+        }
+
+        let bytes;
+        try { bytes = b64ToBytes(body.data); }
+        catch (e) { return withCors(json({ ok: false, error: 'Data gambar tidak sah' }, 400), req); }
+        if (!bytes.length) return withCors(json({ ok: false, error: 'Gambar kosong' }, 400), req);
+        if (bytes.length > MAJALAH_MAX_BYTE) {
+          return withCors(json({ ok: false, error: 'Satu halaman maksimal 4 MB' }, 413), req);
+        }
+
+        const tipe = String(body.tipe || 'image/jpeg');
+        if (!/^image\/(jpeg|png|webp|gif)$/.test(tipe)) {
+          return withCors(json({ ok: false, error: 'Tipe gambar tidak didukung' }, 400), req);
+        }
+
+        await env.WA_INBOX.put(majalahPageKey(id, n), bytes);
+        await env.WA_INBOX.put(majalahMetaKey(id), JSON.stringify({
+          id: id, halaman: total, tipe: tipe,
+          judul: String(body.judul || '').slice(0, 200),
+          diperbarui: new Date().toISOString()
+        }));
+
+        return withCors(json({ ok: true, id: id, halaman: n, total: total }), req);
+      }
+
+      const mjMeta = path.match(/^\/majalah\/([A-Za-z0-9_-]{4,64})$/);
+      if (mjMeta && req.method === 'GET') {
+        const raw = await env.WA_INBOX.get(majalahMetaKey(mjMeta[1]));
+        if (!raw) return withCors(json({ ok: false, error: 'Majalah tidak ditemukan' }, 404), req);
+        return withCors(json(Object.assign({ ok: true }, JSON.parse(raw))), req);
+      }
+      if (mjMeta && req.method === 'DELETE') {
+        const raw = await env.WA_INBOX.get(majalahMetaKey(mjMeta[1]));
+        if (raw) {
+          const meta = JSON.parse(raw);
+          for (let i = 1; i <= (meta.halaman || 0); i++) {
+            await env.WA_INBOX.delete(majalahPageKey(mjMeta[1], i));
+          }
+          await env.WA_INBOX.delete(majalahMetaKey(mjMeta[1]));
+        }
+        return withCors(json({ ok: true }), req);
+      }
+
+      /* ---------- tanda dibaca ---------- */
+
+      /* Baca status "sudah dibuka" untuk sekumpulan ID pixel. */
+      if (path === '/pixel/status' && req.method === 'POST') {
+        const body = await req.json().catch(function () { return null; });
+        const ids = (body && body.ids) || [];
+        if (!Array.isArray(ids) || !ids.length) {
+          return withCors(json({ ok: true, dibaca: {} }), req);
+        }
+        const hasil = {};
+        for (const id of ids.slice(0, 200)) {
+          const raw = await env.WA_INBOX.get(pixelKey(String(id)));
+          if (raw) hasil[id] = JSON.parse(raw);
+        }
+        return withCors(json({ ok: true, dibaca: hasil }), req);
       }
 
       return withCors(json({ ok: false, error: 'Endpoint tidak dikenal: ' + path }, 404), req);

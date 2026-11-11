@@ -1071,21 +1071,47 @@ baik dipakai **bersama** pixel: pixel untuk perkiraan, tombol untuk kepastian.
 - Fitur ini **tidak bergantung** pada masalah `130497` WhatsApp; bisa
   dikerjakan lebih dulu sambil menunggu verifikasi bisnis Meta.
 
-### Fase 5 — tanda email dibaca
+### Fase 5 — tanda email dibaca — ✅ SELESAI (11 Nov 2026)
 
-**Status: DITUNDA (11 Nov 2026).** Prioritas hari ini pindah ke revisi data
-(bagian 17). Rencana teknis di atas tetap berlaku dan bisa dikerjakan kapan saja
-— tidak bergantung pada WhatsApp maupun nomor/email resmi.
+**Cara kerja (bahasa sederhana):** setiap email yang dikirim membawa satu
+gambar kecil tak terlihat (1×1 piksel). Saat penerima membuka email, gambar itu
+dimuat dari Worker — dan Worker mencatat "email ini sudah dibuka". Aplikasi
+lalu menampilkan tanda **✓✓ Dibaca** di Kotak Keluar.
 
-- [ ] `gmail.js`: dukung `multipart/alternative` (teks + HTML)
-- [ ] `worker/index.js`: `GET /tr/buka` (pixel) + `POST /tr/status`
-- [ ] `app.js`: sisipkan pixel saat kirim, `emailCekDibaca()`, chip **✓✓ Dibaca**
-- [ ] Tombol **Konfirmasi sudah menerima** di dalam email
-- [ ] `PANDUAN-GMAIL.md`: dokumentasi + tabel batasan
-- [ ] Uji: kirim ke Gmail sendiri → buka → status berubah jadi **Dibaca**
+- [x] `gmail.js`: dukung `multipart/alternative` (teks + HTML)
+- [x] `worker/index.js`: `GET /pixel/<id>` (pixel) + `POST /pixel/status`
+- [x] `app.js`: sisipkan pixel saat kirim, `cekTandaDibaca()`, chip **✓✓ Dibaca**
+- [ ] Tombol **Konfirmasi sudah menerima** di dalam email — belum, menunggu
+      keputusan Anda
+- [ ] `PANDUAN-GMAIL.md`: dokumentasi + tabel batasan — belum
+- [x] Uji: kirim → Worker melaporkan dibuka → chip berubah jadi **Dibaca**
 
-**Perkiraan waktu kerja:** ±1 jam (kode 30–45 menit, deploy Worker 2 menit,
-uji 5 menit). Tidak ada biaya tambahan; memakai Worker yang sudah ada.
+**Yang sudah jadi:**
+
+| Bagian | Hasil |
+|---|---|
+| Pixel per surat | ID unik `px-…` per penerima, jadi buka oleh A tidak dihitung buka oleh B ✅ |
+| Endpoint publik | `GET /pixel/<id>` → GIF 1×1, `Cache-Control: no-store` ✅ |
+| Cek status | `POST /pixel/status` (butuh kunci aplikasi) ✅ |
+| Chip di Kotak Keluar | **✓✓ Dibaca** (biru) / **✓✓ Belum dibaca** (abu) ✅ |
+| Detail surat | baris **Dibaca penerima** + waktu buka ✅ |
+| Pemeriksaan otomatis | tiap 3 menit, saat tab aktif kembali, dan 6 detik setelah aplikasi dibuka ✅ |
+| Tombol manual | **✓✓ Cek tanda dibaca** di Kotak Keluar ✅ |
+
+**Batasan yang perlu Anda tahu (penting, jangan kaget):**
+
+| Keadaan | Yang terlihat di aplikasi |
+|---|---|
+| Penerima membuka email, gambar dimuat | **✓✓ Dibaca** + waktu buka |
+| Penerima memakai Gmail/Outlook yang memblokir gambar | tetap **Belum dibaca** — bukan berarti email tidak dibaca |
+| Penerima membaca di mode teks saja | tetap **Belum dibaca** |
+| Email masuk folder spam | biasanya tetap **Belum dibaca** |
+
+Jadi tanda ini **petunjuk, bukan kepastian**. Kalau ingin kepastian, perlu
+tombol **Konfirmasi sudah menerima** di dalam email — itu belum dibuat.
+
+**Syarat:** **Alamat Worker** harus terisi di **Setelan**. Tanpa Worker, email
+tetap terkirim tapi tanpa tanda dibaca.
 
 ---
 
@@ -1179,7 +1205,7 @@ Setelah ketiganya beres → tambahkan **nomor WhatsApp Business sungguhan**
 | **WhatsApp** | ⏸ **DITUNDA** — menunggu nomor resmi kantor. Kode yang ada disimpan, tidak dihapus, tidak dikembangkan lebih jauh dulu. |
 | **Email** | ▶ **Tetap `fotohotono03@gmail.com`** untuk keperluan develop |
 | **Email resmi kantor** | ⏳ Menyusul. Saat tersedia: ganti Client ID + login ulang di Setelan. **Tidak perlu ubah kode.** |
-| **Fase 5 (email dibaca)** | ⏸ Ditunda, dikerjakan setelah revisi data selesai |
+| **Fase 5 (email dibaca)** | ✅ **SELESAI** 11 Nov 2026 — pixel di Worker + chip **✓✓ Dibaca** |
 
 ### 17.1 Kelola Template — tambah & edit — ✅ SELESAI (11 Nov 2026)
 
@@ -1300,24 +1326,43 @@ yang sudah ada. Yang ditambah hanya `suratState.kwitansi`,
 | Kwitansi USD | `$` + `250.00` + terbilang `dolar Amerika` ✅ |
 | Kwitansi mati saat kirim | `html` kosong, email tetap terkirim ✅ |
 
-### 17.3 Majalah di email — ±10 halaman
+### 17.3 Majalah di email — ±10 halaman — ✅ SELESAI (11 Nov 2026)
 
 **Yang diminta:** majalah juga tampil di dalam email, mirip kwitansi, sekitar
 10 halaman.
 
-**Rancangan:**
+**Keputusan Anda:** gambar majalah **disimpan sekali**, lalu dipakai berulang
+untuk semua penerima.
 
-| Aspek | Keputusan yang disarankan |
+**Cara kerja (bahasa sederhana):**
+
+1. Buka **Tulis Surat** → bagian **Lampirkan majalah** → **Unggah majalah**.
+2. Pilih semua gambar halaman sekaligus (JPG/PNG/WebP). Urutan halaman
+   mengikuti urutan berkas yang dipilih.
+3. Aplikasi mengunggah halaman satu per satu ke Worker, lalu menyimpan
+   catatannya di browser. Setelah itu majalah **tidak perlu diunggah lagi**.
+4. Nyalakan tombol **Aktif** → setiap email yang dikirim memuat semua halaman
+   majalah di badan surat, di bawah isi surat dan kwitansi.
+
+**Yang sudah jadi:**
+
+| Bagian | Hasil |
 |---|---|
-| Bentuk | **Gambar per halaman** (JPG/PNG) yang diunggah user, bukan PDF |
-| Alasan | PDF di email sering diblokir/diunduh, tidak tampil langsung. Gambar tampil langsung di badan email |
-| Penyimpanan | Gambar di-*host* di Cloudflare Worker (KV/R2) → email hanya memuat `<img src>` |
-| Batas | Maks 10 halaman, tiap gambar dikompres ≤ 200 KB agar tidak masuk folder spam |
-| Ukuran email | Total < 2 MB (batas aman Gmail) |
-| Alternatif | Kalau gambar terlalu besar: kirim **tautan** ke halaman majalah, bukan gambar penuh |
+| Unggah banyak halaman sekaligus | 1 permintaan per halaman, ada indikator kemajuan ✅ |
+| Batas | maks 40 halaman, tiap halaman maks 4 MB ✅ |
+| Format | JPG / PNG / WebP ✅ |
+| Penyimpanan | Cloudflare Worker (KV), alamat publik `/majalah/<id>/<n>` ✅ |
+| Tampil di email | `<img>` per halaman, lebar 700 px, gaya inline ✅ |
+| Pratinjau di aplikasi | panel pratinjau bisa digulir, tidak memanjangkan halaman ✅ |
+| Ganti / hapus | unggah ulang mengganti seluruh halaman; tombol **Hapus majalah** ✅ |
+| Tanpa Worker | tombol mati + penjelasan cara mengaktifkan ✅ |
 
-**Perlu keputusan Anda:** gambar majalah **diunggah setiap kali kirim**, atau
-**disimpan sekali** lalu dipakai berulang untuk semua penerima?
+**Catatan penting:** majalah butuh **Alamat Worker** terisi di **Setelan**.
+Tanpa itu halaman majalah tidak punya tempat penyimpanan dan tidak bisa tampil
+di email penerima.
+
+**Saran ukuran:** kompres tiap halaman ke ≤ 300 KB supaya email tidak masuk
+folder spam. Total 10 halaman ≈ 3 MB masih aman untuk Gmail.
 
 ### 17.4 Ekspor semua data ke Excel (`.xlsx`) — ✅ SELESAI (11 Nov 2026)
 
@@ -1496,9 +1541,18 @@ tanggal, total per program, tombol **+ Tambah**.
 | 1 | **17.1 Kelola Template** (tambah + edit) | ±30 menit | ✅ **selesai** |
 | 2 | **17.5 Master Program + Form Keuangan** | ±2 jam | ✅ **selesai** |
 | 3 | **17.4 Ekspor XLSX** (6 lembar) | ±1,5 jam | ✅ **selesai** |
-| 4 | **17.2 + 17.3 + Fase 5** (HTML email: kwitansi, majalah, tanda dibaca) | ±3 jam | Sama-sama mengubah `buildRawMessage()` — dikerjakan sekali jalan |
+| 4 | **17.2 + 17.3 + Fase 5** (HTML email: kwitansi, majalah, tanda dibaca) | ±3 jam | ✅ **selesai** |
 
-**Total perkiraan: ±7 jam kerja** (bisa dipecah beberapa sesi).
+**Total perkiraan: ±7 jam kerja** — **semua sudah selesai 11 Nov 2026.**
+
+**Sisa yang menunggu Anda:**
+
+| # | Pekerjaan | Perlu apa dari Anda |
+|---|---|---|
+| 1 | Uji majalah lewat email sungguhan | berkas gambar majalah (±10 halaman) |
+| 2 | Uji tanda dibaca lewat email sungguhan | cukup buka email yang dikirim, lalu lihat Kotak Keluar |
+| 3 | Deploy Worker versi baru | jalankan `npx wrangler deploy` di folder `worker/` |
+| 4 | Isi data Keuangan | transaksi donor supaya kwitansi tidak Rp 0 |
 
 ### 17.7 Berkas yang akan tersentuh
 
@@ -1507,7 +1561,7 @@ tanggal, total per program, tombol **+ Tambah**.
 | `app.js` | template CRUD, halaman Keuangan, master Program, ekspor XLSX, pratinjau kwitansi |
 | `app.css` | gaya tabel kwitansi, halaman Keuangan, pratinjau majalah |
 | `gmail.js` | `multipart/alternative` + lampiran HTML (kwitansi & majalah) |
-| `worker/index.js` | host gambar majalah + pixel tanda dibaca |
+| `worker/index.js` | host gambar majalah + pixel tanda dibaca ✅ |
 | `index.html` | menu **Keuangan**, `vendor/xlsx.full.min.js`, naikkan `?v=` |
 | `vendor/xlsx.full.min.js` | pustaka pembuat Excel (baru) |
 | `PANDUAN-GMAIL.md` | dokumentasi lampiran HTML |
@@ -1537,6 +1591,20 @@ tanggal, total per program, tombol **+ Tambah**.
 - [x] `buildRawMessage()` → `multipart/alternative`
 - [x] Data kwitansi per donor + token
 - [x] Pratinjau kwitansi di halaman Tulis
-- [ ] Unggah & host gambar majalah
-- [ ] Pixel tanda dibaca + chip **✓✓ Dibaca**
-- [ ] Uji kirim ke Gmail sendiri
+- [x] Unggah & host gambar majalah
+- [x] Pixel tanda dibaca + chip **✓✓ Dibaca**
+- [x] Uji kirim ke Gmail sendiri (kwitansi diterima ✅, majalah & tanda dibaca diuji lokal)
+- [ ] Uji majalah & tanda dibaca lewat email sungguhan — **menunggu berkas majalah dari Anda**
+
+### 17.9 Logo — ✅ SELESAI (11 Nov 2026)
+
+Logo asli dari Anda (JPEG) sudah dipasang:
+
+| Bagian | Hasil |
+|---|---|
+| Berkas | `vendor/kartidaya-logo.png` (560×261, latar transparan, 65 KB) |
+| Sumber | JPEG kiriman Anda, dipotong pinggirnya lalu diperkecil |
+| Tampil di | sidebar aplikasi (kiri atas) + kop kwitansi di email |
+| Ganti lagi | isi `state.settings.logoUrl` dengan alamat gambar lain |
+
+Logo lama `vendor/kartidaya-logo.svg` (placeholder huruf "K") sudah dihapus.

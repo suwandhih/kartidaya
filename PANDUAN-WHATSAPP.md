@@ -247,6 +247,43 @@ Status bisa diubah manual dari dropdown di dalam pesan.
 
 ---
 
+## 9b. Endpoint majalah & tanda dibaca
+
+Worker yang sama juga menyimpan **halaman majalah** dan mencatat **email sudah
+dibaca**. Tidak perlu Worker kedua.
+
+| Endpoint | Butuh kunci? | Untuk apa |
+|---|---|---|
+| `POST /majalah` | ya | unggah satu halaman majalah |
+| `GET /majalah/<id>` | ya | info majalah (jumlah halaman, judul) |
+| `DELETE /majalah/<id>` | ya | hapus majalah beserta halamannya |
+| `GET /majalah/<id>/<n>` | **tidak** | gambar halaman ke-n — dipanggil klien email |
+| `GET /pixel/<id>` | **tidak** | gambar 1×1 — dipanggil klien email, sekaligus mencatat dibuka |
+| `POST /pixel/status` | ya | cek ID mana yang sudah dibuka |
+
+Tiga endpoint bertanda **tidak** memang harus terbuka: klien email penerima
+tidak punya kunci aplikasi. Yang dilindungi hanya unggah/hapus/cek status.
+
+**Setelah memperbarui `worker/index.js`, deploy ulang:**
+
+```powershell
+cd worker
+npx wrangler deploy
+```
+
+Tanpa deploy ulang, fitur majalah dan tanda dibaca tidak akan jalan — Worker
+lama belum punya endpoint-nya.
+
+**Uji cepat setelah deploy:**
+
+| # | Yang diuji | Cara | Hasil yang diharapkan |
+|---|---|---|---|
+| 1 | Pixel hidup | Buka `https://<worker>/pixel/uji123` | Muncul gambar kosong kecil, bukan error |
+| 2 | Pixel tercatat | Setelan → Kotak Keluar → **✓✓ Cek tanda dibaca** | Chip berubah jadi **✓✓ Dibaca** |
+| 3 | Majalah | Tulis → **Unggah majalah** → pilih gambar | Muncul "N halaman majalah tersimpan" |
+
+---
+
 ## 10. Kalau ada masalah
 
 | Gejala | Penyebab | Perbaikan |

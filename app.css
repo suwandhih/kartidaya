@@ -98,13 +98,8 @@ button,input,select,textarea{font:inherit;color:inherit}
   display:flex;flex-direction:column;gap:6px;
   position:sticky;top:0;height:100vh;height:100dvh;
 }
-.brand{display:flex;align-items:center;gap:10px;padding:4px 8px 16px}
-.brand .mark{
-  width:32px;height:32px;flex:0 0 32px;border-radius:9px;
-  background:var(--accent);color:var(--accent-text);
-  display:grid;place-items:center;font-weight:700;font-size:15px;
-}
-.brand .nm{font-weight:650;letter-spacing:-.02em;line-height:1.15}
+.brand{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:4px 8px 16px}
+.brand .logo{display:block;width:100%;max-width:170px;height:auto}
 .brand .tg{font-size:11px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
 
 .navitem{
@@ -252,6 +247,18 @@ tbody tr:last-child td{border-bottom:0}
 @media (max-width:860px){
   .kwitansi-preview{padding:8px}
   .kwitansi-preview > table{font-size:11px}
+}
+
+/* Pratinjau majalah — halaman ditumpuk dan dibatasi tingginya supaya
+   halaman Tulis tidak jadi sangat panjang. */
+.mj-preview{
+  margin-top:10px;padding:12px;background:var(--surface-2);
+  border:1px solid var(--line);border-radius:var(--radius-sm);
+  max-height:520px;overflow-y:auto;
+}
+.mj-preview img{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:4px}
+@media (max-width:860px){
+  .mj-preview{padding:8px;max-height:360px}
 }
 
 /* ---------- PRATINJAU WHATSAPP ---------- */
