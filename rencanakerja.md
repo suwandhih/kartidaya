@@ -1674,3 +1674,46 @@ belum ada donor berawalan Z, huruf Z tidak ditampilkan — tidak menyesatkan.
 **Uji:** 15 pemeriksaan lulus (buka panel, lompat abjad, saring, pilih, simpan,
 ubah transaksi, klik di luar). Diuji juga di lebar 360 / 768 / 1280 px — tidak
 ada nama terpotong dan panel tidak keluar layar.
+
+### 17.12 Satu baris: program · mata uang · jumlah — ✅ SELESAI (11 Nov 2026)
+
+**Yang diminta:** di form Tambah Transaksi Keuangan, **Dukung untuk program**,
+**Mata uang**, dan **Jumlah** disusun dalam **satu baris**.
+
+**Keputusan Anda:** mata uang **per program** — satu transaksi boleh memuat
+program dengan mata uang berbeda.
+
+**Keadaan sebelum:** mata uang hanya satu untuk seluruh transaksi, dan
+letaknya di baris terpisah di atas daftar program.
+
+**Yang berubah:**
+
+| # | Bagian | Hasil |
+|---|---|---|
+| 1 | Susunan baris | `[program] [mata uang] [jumlah] [×]` dalam satu baris ✅ |
+| 2 | Dropdown **Mata uang** terpisah | dihapus — pindah ke tiap baris ✅ |
+| 3 | Baris baru | mewarisi mata uang baris terakhir, jadi tidak perlu pilih ulang ✅ |
+| 4 | Total | dihitung **per mata uang**: `Rp 500.000 + $250.00` ✅ |
+| 5 | Daftar transaksi | kolom Jumlah menampilkan satu baris per mata uang ✅ |
+| 6 | Ringkasan | kartu Total per mata uang dihitung dari baris program ✅ |
+| 7 | Filter mata uang | mencocokkan baris program, bukan label transaksi ✅ |
+| 8 | Kwitansi | satu baris **Uang sejumlah** & **Terbilang** per mata uang ✅ |
+| 9 | Ekspor Excel | kolom MATA UANG per baris program ✅ |
+| 10 | Data lama | tetap terbaca — baris tanpa mata uang memakai mata uang transaksi ✅ |
+
+**Contoh kwitansi campur mata uang:**
+
+```
+Telah terima dari : Linda Lau
+Uang sejumlah     : #Lima ratus ribu rupiah#
+Uang sejumlah     : #Dua ratus lima puluh dolar Amerika#
+Untuk             : Beasiswa Anak Pelayan, Pembangunan Gedung
+Terbilang (IDR)   : Rp 500.000
+Terbilang (USD)   : $ 250.00
+```
+
+**Catatan:** kalau semua baris memakai mata uang yang sama, kwitansi tetap
+tampil seperti sebelumnya — satu baris saja, tanpa label `(IDR)`.
+
+**Uji:** 20 pemeriksaan lulus — susunan baris, total campur mata uang, simpan,
+kwitansi 2 bahasa, data lama, ekspor Excel, dan filter.

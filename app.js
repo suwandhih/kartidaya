@@ -200,13 +200,19 @@ function nomorKwitansi(f, donorId){
 function dataKwitansi(d, finId){
   const f = kwitansiDonor(d.id, finId);
   const program = f ? (f.program || []).map(function(x){ return programNama(x.id); }).join(', ') : '';
+  /* Total dipisah per mata uang — kalau satu transaksi memuat beberapa mata
+     uang, kwitansi menampilkan semuanya, tidak dijumlahkan jadi satu angka. */
+  const perUang = f ? totalPerUangTransaksi(f) : {};
+  const kode = Object.keys(perUang).sort();
   return {
     ada: !!f,
     finId: f ? f.id : '',
     nomor: nomorKwitansi(f, d.id),
     tanggal: f ? f.tanggal : '',
-    jumlah: f ? totalTransaksi(f) : 0,
-    mataUang: f ? (f.mataUang || 'IDR') : 'IDR',
+    jumlah: kode.length ? perUang[kode[0]] : 0,
+    mataUang: kode.length ? kode[0] : 'IDR',
+    perUang: perUang,
+    kodeUang: kode,
     program: program,
     catatan: f ? (f.catatan || '') : ''
   };
@@ -234,6 +240,26 @@ function kwitansiHTML(d, bahasa, finId){
   const namaPenerima = donorName(d);
   const instansi = (d.instansi && d.instansi !== namaPenerima) ? ' — ' + esc(d.instansi) : '';
 
+  /* Baris "Uang sejumlah" & "Terbilang". Kalau transaksinya memuat lebih dari
+     satu mata uang, tampilkan satu baris per mata uang — tidak digabung,
+     karena kursnya berbeda. */
+  const kode = k.kodeUang.length ? k.kodeUang : ['IDR'];
+  const barisJumlah = kode.map(function(u){
+    return baris(L.jumlah, '<b>' + esc(terbilang(k.perUang[u] || 0, u)) + '</b>');
+  }).join('');
+  const barisTerbilang = kode.map(function(u){
+    return '<tr><td style="width:150px;padding:10px 0 0;font-weight:bold;font-size:13px">' +
+        esc(L.terbilang) + (kode.length > 1 ? ' (' + esc(u) + ')' : '') + '</td>' +
+      '<td style="width:14px;padding:10px 0 0;font-size:13px">:</td>' +
+      '<td style="padding:10px 0 0">' +
+        '<span style="display:inline-block;border-bottom:1px solid #333;padding:0 6px 3px;' +
+          'font-size:13px;font-weight:bold">' + esc(uangInfo(u).simbol) + '</span>' +
+        '<span style="display:inline-block;border-bottom:1px solid #333;padding:0 10px 3px;' +
+          'font-size:13px;font-weight:bold;min-width:150px">' +
+          esc(angkaUang(k.perUang[u] || 0, u)) + '</span>' +
+      '</td></tr>';
+  }).join('');
+
   return '' +
   '<table cellpadding="0" cellspacing="0" border="0" width="100%" ' +
     'style="max-width:720px;margin:22px 0 0;border:2px solid #222;border-collapse:collapse;' +
@@ -253,7 +279,7 @@ function kwitansiHTML(d, bahasa, finId){
     '<tr><td style="padding:6px 18px 18px">' +
       '<table cellpadding="0" cellspacing="0" border="0" width="100%">' +
         baris(L.dari, esc(namaPenerima) + instansi) +
-        baris(L.jumlah, '<b>' + esc(terbilang(k.jumlah, k.mataUang)) + '</b>') +
+        barisJumlah +
         kosong +
         baris(L.untuk, esc(k.program || 'Pelayanan Kartidaya Sahabat')) +
         kosong +
@@ -264,16 +290,7 @@ function kwitansiHTML(d, bahasa, finId){
           '<div style="font-size:12px;font-weight:bold;margin-top:2px">Lidya Tambunan</div>' +
           '<div style="font-size:11px;color:#444">Head of Finance, Accounting &amp; Tax</div>' +
         '</td></tr>' +
-        '<tr><td style="width:150px;padding:10px 0 0;font-weight:bold;font-size:13px">' +
-          esc(L.terbilang) + '</td>' +
-          '<td style="width:14px;padding:10px 0 0;font-size:13px">:</td>' +
-          '<td style="padding:10px 0 0">' +
-            '<span style="display:inline-block;border-bottom:1px solid #333;padding:0 6px 3px;' +
-              'font-size:13px;font-weight:bold">' + esc(uangInfo(k.mataUang).simbol) + '</span>' +
-            '<span style="display:inline-block;border-bottom:1px solid #333;padding:0 10px 3px;' +
-              'font-size:13px;font-weight:bold;min-width:150px">' +
-              esc(angkaUang(k.jumlah, k.mataUang)) + '</span>' +
-          '</td></tr>' +
+        barisTerbilang +
         '<tr><td colspan="3" style="padding:8px 0 0;font-size:10.5px;color:#666">' +
           'No. ' + esc(k.nomor) + (k.ada ? '' : ' — belum ada transaksi keuangan untuk donor ini') +
         '</td></tr>' +
@@ -399,9 +416,14 @@ function angkaUang(n, kode){
 function totalPerUang(list){
   const map = {};
   list.forEach(function(f){
-    const k = f.mataUang || 'IDR';
-    const jml = Array.isArray(f.program) ? totalTransaksi(f) : (Number(f.jumlah) || 0);
-    map[k] = (map[k] || 0) + jml;
+    if(Array.isArray(f.program)){
+      /* Tiap baris program boleh punya mata uang sendiri. */
+      const t = totalPerUangTransaksi(f);
+      Object.keys(t).forEach(function(k){ map[k] = (map[k] || 0) + t[k]; });
+    }else{
+      const k = f.mataUang || 'IDR';
+      map[k] = (map[k] || 0) + (Number(f.jumlah) || 0);
+    }
   });
   return map;
 }
@@ -412,13 +434,47 @@ function programNama(id){
   const p = programById(id);
   return p ? p.nama : id;
 }
+/* Mata uang satu baris program. Baris lama (sebelum ada pilihan per baris)
+   tidak punya `mataUang` sendiri, jadi jatuh ke mata uang transaksinya. */
+function mataUangBaris(x, f){
+  return (x && x.mataUang) || (f && f.mataUang) || 'IDR';
+}
 /* Nominal satu baris program di dalam satu transaksi. */
 function nominalProgram(f, programId){
   const baris = (f.program || []).filter(function(x){ return x.id === programId; })[0];
   return baris ? Number(baris.jumlah) || 0 : 0;
 }
+/* Total satu transaksi, dipisah per mata uang. */
+function totalPerUangTransaksi(f){
+  const map = {};
+  (f.program || []).forEach(function(x){
+    const k = mataUangBaris(x, f);
+    map[k] = (map[k] || 0) + (Number(x.jumlah) || 0);
+  });
+  return map;
+}
+/* Total satu transaksi kalau semua barisnya sejenis. Kalau campur, kembalikan
+   angka baris pertama saja — dipakai hanya untuk pengurutan/tampilan ringkas. */
 function totalTransaksi(f){
-  return (f.program || []).reduce(function(s,x){ return s + (Number(x.jumlah) || 0); }, 0);
+  const t = totalPerUangTransaksi(f);
+  const kode = Object.keys(t);
+  if(kode.length === 1) return t[kode[0]];
+  return kode.length ? t[kode[0]] : 0;
+}
+/* Mata uang utama transaksi: kalau semua baris sama, pakai itu; kalau campur,
+   pakai baris pertama. Dipakai untuk label ringkas di daftar. */
+function mataUangTransaksi(f){
+  const kode = Object.keys(totalPerUangTransaksi(f));
+  if(kode.length === 1) return kode[0];
+  return (f.program && f.program[0] && mataUangBaris(f.program[0], f)) || f.mataUang || 'IDR';
+}
+/* Tampilan total transaksi: satu angka kalau sejenis, beberapa baris kalau
+   mata uangnya campur. */
+function totalTransaksiHTML(f){
+  const t = totalPerUangTransaksi(f);
+  const kode = Object.keys(t).sort();
+  if(!kode.length) return esc(fmtUang(0, 'IDR'));
+  return kode.map(function(k){ return esc(fmtUang(t[k], k)); }).join('<br>');
 }
 
 /* ---------- 2. STATE ---------- */
@@ -1226,7 +1282,9 @@ function blokKwitansi(){
     .sort(function(a,b){ return String(b.tanggal).localeCompare(String(a.tanggal)); }) : [];
   const finOpts = '<option value="">Transaksi terbaru</option>' + finDonor.map(function(f){
     return '<option value="' + esc(f.id) + '"' + (suratState.kwitansiFinId === f.id ? ' selected' : '') + '>' +
-      esc(f.tanggal + ' · ' + fmtUang(totalTransaksi(f), f.mataUang)) + '</option>';
+      esc(f.tanggal + ' · ' + Object.keys(totalPerUangTransaksi(f)).sort().map(function(k){
+        return fmtUang(totalPerUangTransaksi(f)[k], k);
+      }).join(' + ')) + '</option>';
   }).join('');
 
   return '<div class="sep"></div>' +
@@ -1355,14 +1413,16 @@ function finList(){
   const q = finFilter.q.toLowerCase();
   return state.finance.filter(function(f){
     if(finFilter.program && !(f.program || []).some(function(x){ return x.id === finFilter.program; })) return false;
-    if(finFilter.uang && (f.mataUang || 'IDR') !== finFilter.uang) return false;
+    /* Filter mata uang mencocokkan baris program, bukan hanya label transaksi. */
+    if(finFilter.uang && !(f.program || []).some(function(x){ return mataUangBaris(x, f) === finFilter.uang; })) return false;
     if(finFilter.dari && String(f.tanggal || '') < finFilter.dari) return false;
     if(finFilter.sampai && String(f.tanggal || '') > finFilter.sampai) return false;
     if(!q) return true;
     const d = findDonor(f.donorId);
     const teks = [f.donorId, d ? donorName(d) : '', d ? d.kategori : '',
       (f.program || []).map(function(x){ return programNama(x.id); }).join(' '),
-      f.catatan, f.mataUang].join(' ').toLowerCase();
+      f.catatan, f.mataUang,
+      (f.program || []).map(function(x){ return mataUangBaris(x, f); }).join(' ')].join(' ').toLowerCase();
     return teks.indexOf(q) >= 0;
   }).sort(function(a,b){ return String(b.tanggal || '').localeCompare(String(a.tanggal || '')); });
 }
@@ -1379,7 +1439,8 @@ function viewKeuangan(){
       return (f.program || []).some(function(x){ return x.id === p.id; });
     });
     return { p:p, n:pakai.length, total:totalPerUang(pakai.map(function(f){
-      return { mataUang:f.mataUang, jumlah:nominalProgram(f, p.id) };
+      const baris = (f.program || []).filter(function(x){ return x.id === p.id; })[0];
+      return { mataUang:mataUangBaris(baris, f), jumlah:nominalProgram(f, p.id) };
     })) };
   }).filter(function(x){ return x.n > 0; });
 
@@ -1399,7 +1460,9 @@ function viewKeuangan(){
     (kodeUang.length
       ? '<div class="grid stats">' + kodeUang.map(function(k){
           return stat('Total ' + k, fmtUang(total[k], k),
-            list.filter(function(f){ return (f.mataUang||'IDR') === k; }).length + ' transaksi');
+            list.filter(function(f){
+              return (f.program || []).some(function(x){ return mataUangBaris(x, f) === k; });
+            }).length + ' transaksi');
         }).join('') + '</div>'
       : '<p class="small muted">Belum ada transaksi. Klik <b>+ Tambah</b> untuk mencatat donor masuk.</p>') +
     (perProgram.length
@@ -1435,7 +1498,7 @@ function viewKeuangan(){
             const d = findDonor(f.donorId);
             const prog = (f.program || []).map(function(x){
               return '<div>' + esc(programNama(x.id)) +
-                '<span class="mono muted"> · ' + esc(fmtUang(x.jumlah, f.mataUang)) + '</span></div>';
+                '<span class="mono muted"> · ' + esc(fmtUang(x.jumlah, mataUangBaris(x, f))) + '</span></div>';
             }).join('') || '<span class="muted">—</span>';
             return '<tr>' +
               '<td class="mono nowrap">' + esc(f.tanggal || '—') + '</td>' +
@@ -1443,8 +1506,7 @@ function viewKeuangan(){
                 '<div class="tiny muted mono">' + esc(f.donorId || '') + '</div></td>' +
               '<td class="small">' + esc(d ? (d.kategori || '—') : '—') + '</td>' +
               '<td class="small">' + prog + '</td>' +
-              '<td class="mono right nowrap"><b>' + esc(fmtUang(totalTransaksi(f), f.mataUang)) + '</b>' +
-                '<div class="tiny muted">' + esc(f.mataUang || 'IDR') + '</div></td>' +
+              '<td class="mono right nowrap"><b>' + totalTransaksiHTML(f) + '</b></td>' +
               '<td class="right nowrap">' +
                 '<button class="btn sm ghost" data-action="fin-ubah" data-id="' + esc(f.id) + '">Ubah</button>' +
                 '<button class="btn sm ghost" data-action="fin-hapus" data-id="' + esc(f.id) + '">Hapus</button>' +
@@ -1636,11 +1698,8 @@ function openFinForm(id){
   const f = id ? state.finance.filter(function(x){ return x.id === id; })[0] : null;
   if(id && !f){ toast('Transaksi tidak ditemukan', true); return; }
   const isNew = !f;
-  const uangOpts = KODE_UANG.map(function(k){
-    return '<option value="' + esc(k) + '"' + (f && f.mataUang === k ? ' selected' : '') + '>' +
-      esc(k + ' — ' + uangInfo(k).nama) + '</option>';
-  }).join('');
-  const barisProgram = (f && f.program && f.program.length ? f.program : [{ id:'', jumlah:'' }]);
+  const barisProgram = (f && f.program && f.program.length ? f.program : [{ id:'', jumlah:'', mataUang:'' }]);
+  const uangAwal = (f && f.mataUang) || 'IDR';
 
   const body =
     '<div class="form-grid">' +
@@ -1655,11 +1714,10 @@ function openFinForm(id){
       '<div class="field"><label>Kategori <span class="hint">— otomatis dari donor</span></label>' +
         '<input type="text" id="k-kategori" class="mono" readonly value=""></div>' +
     '</div>' +
-    '<div class="field"><label>Mata uang</label><select id="k-uang">' + uangOpts + '</select></div>' +
-    '<div class="field"><label>Dukung untuk program <span class="hint">— satu donor boleh beberapa program</span></label>' +
-      '<div id="k-program">' + barisProgram.map(function(x){ return barisProgramHTML(x); }).join('') + '</div>' +
+    '<div class="field"><label>Dukung untuk program <span class="hint">— satu donor boleh beberapa program, tiap baris punya mata uang sendiri</span></label>' +
+      '<div id="k-program">' + barisProgram.map(function(x){ return barisProgramHTML(x, uangAwal); }).join('') + '</div>' +
       '<button type="button" class="btn sm" data-action="fin-baris-tambah" style="margin-top:8px">+ Tambah program</button>' +
-      '<p class="tiny muted" style="margin:8px 0 0">Isi nominal <b>per program</b>. Total dihitung otomatis.</p>' +
+      '<p class="tiny muted" style="margin:8px 0 0">Isi nominal <b>per program</b>. Total dihitung otomatis per mata uang.</p>' +
       '<p class="small" style="margin:6px 0 0">Total: <b class="mono" id="k-total">—</b></p></div>' +
     '<div class="field"><label>Catatan</label>' +
       '<input type="text" id="k-catatan" value="' + esc(f ? (f.catatan || '') : '') + '" placeholder="opsional"></div>';
@@ -1685,13 +1743,20 @@ function openFinForm(id){
   });
 }
 
-function barisProgramHTML(x){
+function barisProgramHTML(x, mataUangTransaksi){
   const opts = '<option value="">— pilih program —</option>' + state.programs.map(function(p){
     return '<option value="' + esc(p.id) + '"' + (x && x.id === p.id ? ' selected' : '') + '>' +
       esc(p.nama) + (p.aktif === false ? ' (nonaktif)' : '') + '</option>';
   }).join('');
-  return '<div class="row fin-baris" style="gap:8px;margin-bottom:6px">' +
+  const uang = (x && x.mataUang) || mataUangTransaksi || 'IDR';
+  const uangOpts = KODE_UANG.map(function(k){
+    return '<option value="' + esc(k) + '"' + (uang === k ? ' selected' : '') + '>' + esc(k) + '</option>';
+  }).join('');
+  /* Satu baris: program · mata uang · jumlah. Mata uang per baris supaya satu
+     transaksi boleh memuat program dengan mata uang berbeda. */
+  return '<div class="row fin-baris" style="gap:8px;margin-bottom:6px;flex-wrap:nowrap">' +
     '<select class="grow k-prog">' + opts + '</select>' +
+    '<select class="k-uang-baris" style="width:96px" title="Mata uang baris ini">' + uangOpts + '</select>' +
     '<input type="number" class="k-jml mono" style="width:150px" min="0" step="any" placeholder="Jumlah" value="' +
       esc(x && x.jumlah !== undefined && x.jumlah !== '' ? x.jumlah : '') + '">' +
     '<button type="button" class="btn sm ghost" data-action="fin-baris-hapus" title="Hapus baris">×</button>' +
@@ -1699,25 +1764,30 @@ function barisProgramHTML(x){
 }
 
 function bindFinForm(root){
+  /* Total ditampilkan per mata uang — tidak digabung lintas mata uang. */
   const hitung = function(){
-    const uang = (document.getElementById('k-uang') || {}).value || 'IDR';
-    let total = 0;
+    const map = {};
     root.querySelectorAll('.fin-baris').forEach(function(b){
-      total += Number((b.querySelector('.k-jml') || {}).value) || 0;
+      const k = (b.querySelector('.k-uang-baris') || {}).value || 'IDR';
+      const jml = Number((b.querySelector('.k-jml') || {}).value) || 0;
+      map[k] = (map[k] || 0) + jml;
     });
+    const kode = Object.keys(map).sort();
     const el = document.getElementById('k-total');
-    if(el) el.textContent = fmtUang(total, uang);
+    if(el){
+      el.innerHTML = kode.length
+        ? kode.map(function(k){ return esc(fmtUang(map[k], k)); }).join(' + ')
+        : esc(fmtUang(0, 'IDR'));
+    }
   };
   root.querySelectorAll('.k-jml').forEach(function(i){ i.addEventListener('input', hitung); });
-  const u = document.getElementById('k-uang');
-  if(u) u.addEventListener('change', hitung);
+  root.querySelectorAll('.k-uang-baris').forEach(function(s){ s.addEventListener('change', hitung); });
   hitung();
 }
 
 function simpanFinForm(id){
   const donorId = (document.getElementById('k-donor-id') || {}).value || '';
   const tanggal = (document.getElementById('k-tanggal') || {}).value || '';
-  const mataUang = (document.getElementById('k-uang') || {}).value || 'IDR';
   const catatan = (document.getElementById('k-catatan') || {}).value || '';
   if(!donorId){ toast('Pilih donor dulu', true); return; }
   if(!tanggal){ toast('Tanggal donor belum diisi', true); return; }
@@ -1726,13 +1796,18 @@ function simpanFinForm(id){
   const root = document.getElementById('modal-root');
   root.querySelectorAll('.fin-baris').forEach(function(b){
     const pid = (b.querySelector('.k-prog') || {}).value || '';
+    const uang = (b.querySelector('.k-uang-baris') || {}).value || 'IDR';
     const jml = Number((b.querySelector('.k-jml') || {}).value) || 0;
-    if(pid) program.push({ id:pid, jumlah:jml });
+    if(pid) program.push({ id:pid, jumlah:jml, mataUang:uang });
   });
   if(!program.length){ toast('Pilih minimal satu program', true); return; }
   const dobel = program.map(function(x){ return x.id; }).filter(function(v,i,a){ return a.indexOf(v) !== i; });
   if(dobel.length){ toast('Program yang sama dipilih dua kali', true); return; }
   if(program.some(function(x){ return !x.jumlah; })){ toast('Jumlah tiap program belum diisi', true); return; }
+
+  /* `mataUang` di tingkat transaksi disimpan sebagai ringkasan (mata uang
+     baris pertama) supaya data lama & ekspor tetap punya satu nilai. */
+  const mataUang = program[0].mataUang || 'IDR';
 
   if(id){
     const f = state.finance.filter(function(x){ return x.id === id; })[0];
@@ -3096,7 +3171,7 @@ function exportXLSX(){
     (f.program || []).forEach(function(x){
       finBaris.push({
         tanggal:f.tanggal, donorId:f.donorId, programId:x.id,
-        jumlah:x.jumlah, mataUang:f.mataUang, catatan:f.catatan
+        jumlah:x.jumlah, mataUang:mataUangBaris(x, f), catatan:f.catatan
       });
     });
   });
@@ -3118,7 +3193,8 @@ function exportXLSX(){
       const t = totalPerUang(state.finance.filter(function(f){
         return (f.program || []).some(function(x){ return x.id === p.id; });
       }).map(function(f){
-        return { mataUang:f.mataUang, jumlah:nominalProgram(f, p.id) };
+        const baris = (f.program || []).filter(function(x){ return x.id === p.id; })[0];
+        return { mataUang:mataUangBaris(baris, f), jumlah:nominalProgram(f, p.id) };
       }));
       return Object.keys(t).sort().map(function(k){ return fmtUang(t[k], k); }).join(' + ');
     }]
@@ -3323,10 +3399,13 @@ document.addEventListener('click', function(e){
     case 'fin-baris-tambah': {
       const box = document.getElementById('k-program');
       if(box){
+        /* Baris baru mewarisi mata uang baris terakhir supaya tidak perlu
+           memilih ulang kalau memang sama. */
+        const terakhir = box.querySelector('.fin-baris:last-child .k-uang-baris');
+        const uang = terakhir ? terakhir.value : 'IDR';
         const tmp = document.createElement('div');
-        tmp.innerHTML = barisProgramHTML({ id:'', jumlah:'' });
-        const baris = tmp.firstChild;
-        box.appendChild(baris);
+        tmp.innerHTML = barisProgramHTML({ id:'', jumlah:'', mataUang:uang }, uang);
+        box.appendChild(tmp.firstChild);
         bindFinForm(document.getElementById('modal-root'));
       }
       break;
