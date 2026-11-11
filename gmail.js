@@ -31,8 +31,14 @@ function describeOAuthError(resp){
       'Tunggu ±1 menit lalu coba lagi.';
   }
   if(code === 'origin_mismatch'){
-    return 'Origin belum terdaftar (origin_mismatch). Salin origin dari halaman ' +
-      'Setelan ke Authorized JavaScript origins di Google Cloud Console.';
+    return 'Origin belum terdaftar (origin_mismatch).\n\n' +
+      'Origin yang sedang dipakai aplikasi:\n' + Gmail.origin() + '\n\n' +
+      'Buka Google Cloud Console → project pemilik Client ID ini → ' +
+      'Clients → klik Client ID → Authorized JavaScript origins → ' +
+      'Add URI → tempel origin di atas → Save.\n\n' +
+      'Catatan: origin harus SAMA PERSIS — termasuk http/https, nama host, ' +
+      'dan nomor port. http://localhost:8080 dan https://suwandhih.github.io ' +
+      'adalah dua origin berbeda, keduanya perlu didaftarkan kalau keduanya dipakai.';
   }
   if(code === 'invalid_client'){
     return 'Client ID tidak dikenali (invalid_client). Periksa kembali Client ID ' +

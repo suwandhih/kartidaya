@@ -1580,6 +1580,27 @@ function viewPengaturan(){
       'Ini penyebab <b>access_denied</b>. Klik <b>Pakai Client ID bawaan</b> di bawah.</div>' : '') +
     '<p class="tiny muted">Daftarkan origin ini di Google Cloud Console → Credentials → ' +
       'Authorized JavaScript origins:<br><b class="mono">' + esc(Gmail.origin()) + '</b></p>' +
+    '<div class="btn-row" style="margin:-6px 0 10px">' +
+      '<button class="btn sm" data-action="g-copy-origin">Salin origin</button>' +
+      '<a class="btn sm primary" target="_blank" rel="noopener" href="' +
+        'https://console.cloud.google.com/auth/clients?project=' +
+        esc(projectNumber(state.settings.gmailClientId)) + '">Buka Clients project ini ↗</a>' +
+    '</div>' +
+    '<div class="warnbox">' +
+      '<b>Kalau muncul “Error 400: origin_mismatch”</b><br>' +
+      'Origin <b class="mono">' + esc(Gmail.origin()) + '</b> belum terdaftar di project ' +
+      '<b class="mono">' + esc(projectNumber(state.settings.gmailClientId) || '—') + '</b>. ' +
+      'Buka <b>Clients</b> → klik Client ID → <b>Authorized JavaScript origins</b> → ' +
+      '<b>Add URI</b> → tempel origin di atas → <b>Save</b>. ' +
+      'Perubahan berlaku ±1 menit.' +
+      '<div class="btn-row" style="margin-top:10px">' +
+        '<button class="btn sm" data-action="g-copy-origin">Salin origin</button>' +
+      '</div>' +
+      '<p class="tiny" style="margin:8px 0 0">Origin harus <b>sama persis</b> — termasuk ' +
+      '<b class="mono">http</b>/<b class="mono">https</b>, nama host, dan nomor port. ' +
+      '<b class="mono">http://localhost:8080</b> dan <b class="mono">https://suwandhih.github.io</b> ' +
+      'adalah dua origin berbeda; daftarkan keduanya kalau keduanya dipakai.</p>' +
+    '</div>' +
     (projectNumber(state.settings.gmailClientId) ?
       '<div class="warnbox">' +
         '<b>Kalau muncul “Access blocked / Error 403: access_denied”</b><br>' +
@@ -2909,6 +2930,7 @@ document.addEventListener('click', function(e){
       break;
     case 'g-copy-cid': copyText(state.settings.gmailClientId); break;
     case 'g-copy-prefix': copyText(projectNumber(state.settings.gmailClientId)); break;
+    case 'g-copy-origin': copyText(Gmail.origin()); break;
     case 'g-disconnect': Gmail.disconnect(); toast('Gmail diputuskan'); render(); break;
     case 'sync': gmailSync(); break;
     case 'wa-sync': waSync(); break;
