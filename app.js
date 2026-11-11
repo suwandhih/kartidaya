@@ -1454,16 +1454,188 @@ function viewKeuangan(){
   '</div>';
 }
 
+/* ---------- PEMILIH DONOR (ketik nama, lompat abjad) ---------- */
+/* Kolom Donor di form Keuangan. Bisa diketik langsung — daftar menyaring
+   sambil mengetik, dan huruf pertama nama jadi penanda abjad supaya mata
+   cepat menemukan nama yang dituju. */
+
+/* Huruf pertama nama untuk pengelompokan abjad. Nama yang diawali angka atau
+   tanda baca masuk ke grup '#'. */
+function abjadDari(nama){
+  const c = String(nama || '').trim().charAt(0).toUpperCase();
+  return /[A-Z]/.test(c) ? c : '#';
+}
+
+/* Daftar donor diurutkan per abjad nama, lalu dikelompokkan. */
+function donorPerAbjad(q){
+  const kata = String(q || '').trim().toLowerCase();
+  const list = state.donors.filter(function(d){
+    if(!kata) return true;
+    return [d.id, d.pic, d.namaLengkap, d.instansi, donorName(d)]
+      .join(' ').toLowerCase().indexOf(kata) >= 0;
+  }).sort(function(a, b){
+    return donorName(a).localeCompare(donorName(b), 'id', { sensitivity:'base' });
+  });
+
+  const grup = [];
+  list.forEach(function(d){
+    const huruf = abjadDari(donorName(d));
+    const akhir = grup[grup.length - 1];
+    if(akhir && akhir.huruf === huruf) akhir.items.push(d);
+    else grup.push({ huruf: huruf, items: [d] });
+  });
+  return grup;
+}
+
+/* Baris daftar donor: ID di depan, nama di belakang — sama seperti yang
+   diminta: "ID -- nama". */
+function donorOpsiHTML(d, terpilih){
+  return '<button type="button" class="dp-item' + (terpilih ? ' on' : '') + '" ' +
+      'data-dp-pilih="' + esc(d.id) + '" role="option" aria-selected="' + (terpilih ? 'true' : 'false') + '">' +
+      '<span class="dp-id mono">' + esc(d.id) + '</span>' +
+      '<span class="dp-nama">' + esc(donorName(d)) + '</span>' +
+      (d.kategori ? '<span class="dp-kat">' + esc(d.kategori) + '</span>' : '') +
+    '</button>';
+}
+
+function donorPickerHTML(donorId){
+  const d = donorId ? findDonor(donorId) : null;
+  const grup = donorPerAbjad('');
+  const adaAbjad = grup.filter(function(g){ return g.huruf !== '#'; }).map(function(g){ return g.huruf; });
+
+  return '<div class="dp" id="dp">' +
+    '<div class="dp-kotak">' +
+      '<input type="text" id="dp-cari" class="dp-cari" autocomplete="off" ' +
+        'placeholder="Ketik nama atau ID donor…" value="' + esc(d ? donorName(d) : '') + '" ' +
+        'role="combobox" aria-expanded="false" aria-controls="dp-daftar">' +
+      '<button type="button" class="dp-buka" data-dp-buka title="Lihat semua donor">▾</button>' +
+    '</div>' +
+    '<input type="hidden" id="k-donor-id" value="' + esc(donorId || '') + '">' +
+    '<div class="dp-panel" id="dp-panel" hidden>' +
+      '<div class="dp-abjad" id="dp-abjad">' +
+        adaAbjad.map(function(h){
+          return '<button type="button" class="dp-huruf" data-dp-huruf="' + esc(h) + '">' + esc(h) + '</button>';
+        }).join('') +
+      '</div>' +
+      '<div class="dp-daftar" id="dp-daftar" role="listbox">' +
+        grup.map(function(g){
+          return '<div class="dp-grup" data-dp-grup="' + esc(g.huruf) + '">' +
+            '<div class="dp-judul">' + esc(g.huruf) + '</div>' +
+            g.items.map(function(x){ return donorOpsiHTML(x, donorId === x.id); }).join('') +
+          '</div>';
+        }).join('') +
+      '</div>' +
+      '<div class="dp-kosong" id="dp-kosong" hidden>Tidak ada donor yang cocok.</div>' +
+    '</div>' +
+  '</div>';
+}
+
+/* Pasang perilaku pemilih donor: menyaring, lompat abjad, pilih, tutup. */
+function bindDonorPicker(root){
+  const dp = root.querySelector('#dp');
+  if(!dp) return;
+  const cari = dp.querySelector('#dp-cari');
+  const panel = dp.querySelector('#dp-panel');
+  const daftar = dp.querySelector('#dp-daftar');
+  const kosong = dp.querySelector('#dp-kosong');
+  const hidden = dp.querySelector('#k-donor-id');
+  const abjadBar = dp.querySelector('#dp-abjad');
+
+  const buka = function(ya){
+    panel.hidden = !ya;
+    cari.setAttribute('aria-expanded', ya ? 'true' : 'false');
+    dp.classList.toggle('terbuka', ya);
+  };
+
+  /* Gambar ulang daftar sesuai kata kunci. */
+  const saring = function(kata){
+    const grup = donorPerAbjad(kata);
+    daftar.innerHTML = grup.map(function(g){
+      return '<div class="dp-grup" data-dp-grup="' + esc(g.huruf) + '">' +
+        '<div class="dp-judul">' + esc(g.huruf) + '</div>' +
+        g.items.map(function(x){ return donorOpsiHTML(x, hidden.value === x.id); }).join('') +
+      '</div>';
+    }).join('');
+    kosong.hidden = grup.length > 0;
+    /* Huruf yang tidak punya hasil disembunyikan supaya tidak menyesatkan. */
+    const ada = {};
+    grup.forEach(function(g){ ada[g.huruf] = true; });
+    abjadBar.querySelectorAll('[data-dp-huruf]').forEach(function(b){
+      b.classList.toggle('mati', !ada[b.getAttribute('data-dp-huruf')]);
+    });
+  };
+
+  /* Pilih donor: isi kotak, simpan ID, kabari form. */
+  const pilih = function(id){
+    const d = findDonor(id);
+    if(!d) return;
+    hidden.value = d.id;
+    cari.value = donorName(d);
+    daftar.querySelectorAll('.dp-item').forEach(function(b){
+      const on = b.getAttribute('data-dp-pilih') === d.id;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    buka(false);
+    dp.dispatchEvent(new CustomEvent('donor-pilih', { detail: d, bubbles: true }));
+  };
+
+  cari.addEventListener('focus', function(){ buka(true); });
+  /* Klik juga membuka panel — sebagian browser tidak mengirim event `focus`
+     saat halaman belum aktif, jadi klik dijadikan pemicu utama. */
+  cari.addEventListener('click', function(){ buka(true); });
+  cari.addEventListener('input', function(){
+    hidden.value = '';
+    buka(true);
+    saring(this.value);
+    /* Kalau tinggal satu hasil, langsung dipakai — hemat satu klik. */
+    const sisa = daftar.querySelectorAll('.dp-item');
+    if(sisa.length === 1) pilih(sisa[0].getAttribute('data-dp-pilih'));
+  });
+  cari.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){ buka(false); cari.blur(); return; }
+    if(e.key === 'Enter'){
+      e.preventDefault();
+      const pertama = daftar.querySelector('.dp-item');
+      if(pertama) pilih(pertama.getAttribute('data-dp-pilih'));
+    }
+  });
+
+  dp.querySelector('[data-dp-buka]').addEventListener('click', function(){
+    if(panel.hidden){ saring(''); cari.focus(); buka(true); }
+    else buka(false);
+  });
+
+  /* Klik huruf → lompat ke grup abjad itu. */
+  abjadBar.addEventListener('click', function(e){
+    const b = e.target.closest('[data-dp-huruf]');
+    if(!b || b.classList.contains('mati')) return;
+    const g = daftar.querySelector('[data-dp-grup="' + b.getAttribute('data-dp-huruf') + '"]');
+    if(g) g.scrollIntoView({ block:'start' });
+    abjadBar.querySelectorAll('.dp-huruf').forEach(function(x){ x.classList.remove('aktif'); });
+    b.classList.add('aktif');
+  });
+
+  daftar.addEventListener('click', function(e){
+    const b = e.target.closest('[data-dp-pilih]');
+    if(b) pilih(b.getAttribute('data-dp-pilih'));
+  });
+
+  /* Klik di luar menutup panel. */
+  const luar = function(e){ if(!dp.contains(e.target)) buka(false); };
+  document.addEventListener('mousedown', luar);
+  /* Modal ditutup → lepaskan pendengar supaya tidak menumpuk. */
+  dp.addEventListener('donor-pilih', function(){ /* penanda untuk uji */ });
+
+  return { tutup: function(){ document.removeEventListener('mousedown', luar); } };
+}
+
 /* Form transaksi. Nama & kategori donor hanya tampil (read-only) — diambil
    dari data donor supaya tidak ada dua sumber kebenaran. */
 function openFinForm(id){
   const f = id ? state.finance.filter(function(x){ return x.id === id; })[0] : null;
   if(id && !f){ toast('Transaksi tidak ditemukan', true); return; }
   const isNew = !f;
-  const donorOpts = '<option value="">— pilih donor —</option>' + state.donors.map(function(d){
-    return '<option value="' + esc(d.id) + '"' + (f && f.donorId === d.id ? ' selected' : '') + '>' +
-      esc(d.id + ' — ' + donorName(d)) + '</option>';
-  }).join('');
   const uangOpts = KODE_UANG.map(function(k){
     return '<option value="' + esc(k) + '"' + (f && f.mataUang === k ? ' selected' : '') + '>' +
       esc(k + ' — ' + uangInfo(k).nama) + '</option>';
@@ -1472,7 +1644,8 @@ function openFinForm(id){
 
   const body =
     '<div class="form-grid">' +
-      '<div class="field"><label>Donor</label><select id="k-donor">' + donorOpts + '</select></div>' +
+      '<div class="field"><label>Donor <span class="hint">— ketik nama, atau klik huruf untuk lompat</span></label>' +
+        donorPickerHTML(f ? f.donorId : '') + '</div>' +
       '<div class="field"><label>Tanggal donor</label>' +
         '<input type="date" id="k-tanggal" value="' + esc(f ? (f.tanggal || '') : new Date().toISOString().slice(0,10)) + '"></div>' +
     '</div>' +
@@ -1498,14 +1671,15 @@ function openFinForm(id){
     footer: '<button class="btn primary" data-action="fin-simpan" data-id="' + esc(id || '') + '">Simpan</button>' +
             '<button class="btn" data-close>Batal</button>',
     onOpen: function(root){
-      const sel = document.getElementById('k-donor');
-      const isiDonor = function(){
-        const d = findDonor(sel.value);
+      const isiDonor = function(d){
         document.getElementById('k-nama').value = d ? donorName(d) : '';
         document.getElementById('k-kategori').value = d ? (d.kategori || '') : '';
       };
-      sel.addEventListener('change', isiDonor);
-      isiDonor();
+      /* Pemilih donor mengabari lewat event supaya Nama & Kategori ikut
+         terisi begitu donor dipilih. */
+      root.addEventListener('donor-pilih', function(e){ isiDonor(e.detail); });
+      isiDonor(findDonor((document.getElementById('k-donor-id') || {}).value));
+      bindDonorPicker(root);
       bindFinForm(root);
     }
   });
@@ -1541,7 +1715,7 @@ function bindFinForm(root){
 }
 
 function simpanFinForm(id){
-  const donorId = (document.getElementById('k-donor') || {}).value || '';
+  const donorId = (document.getElementById('k-donor-id') || {}).value || '';
   const tanggal = (document.getElementById('k-tanggal') || {}).value || '';
   const mataUang = (document.getElementById('k-uang') || {}).value || 'IDR';
   const catatan = (document.getElementById('k-catatan') || {}).value || '';

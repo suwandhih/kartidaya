@@ -1641,3 +1641,36 @@ tidak ada perubahan di bagian ekspor.
 
 **Sisa yang menunggu Anda:** isi alamat untuk donor-donor yang dikirim manual.
 Saat ini **0 dari 18 donor** punya alamat.
+
+### 17.11 Pemilih donor di Keuangan — ✅ SELESAI (11 Nov 2026)
+
+**Yang diminta:** di form Keuangan, kolom **Donor** menampilkan `ID -- nama`,
+dan bisa **diketik nama** dengan **lompat per abjad** supaya pencarian cepat.
+
+**Keadaan sebelum:** kolom Donor hanya daftar turun (`<select>`) berisi 18 nama.
+Untuk mencari satu nama harus menggulir dan membaca satu per satu.
+
+**Yang dibuat:**
+
+| # | Bagian | Hasil |
+|---|---|---|
+| 1 | Kotak bisa diketik | daftar menyaring sambil mengetik (nama, ID, instansi) ✅ |
+| 2 | Baris huruf **A F G H J K L M P R S Y** | klik huruf → daftar melompat ke grup itu ✅ |
+| 3 | Huruf tanpa donor | tampil redup & tidak bisa diklik ✅ |
+| 4 | Baris donor | `ID` di depan, `nama` di belakang, kategori di kanan ✅ |
+| 5 | Nama dikelompokkan per abjad | ada judul huruf yang menempel saat digulir ✅ |
+| 6 | Satu hasil saja | langsung terpilih otomatis — hemat satu klik ✅ |
+| 7 | Tombol **▾** | buka/tutup daftar lengkap ✅ |
+| 8 | Klik di luar | panel menutup ✅ |
+| 9 | Nama & Kategori | tetap terisi otomatis begitu donor dipilih ✅ |
+
+**Cara pakai:** klik kotak Donor → ketik beberapa huruf nama (mis. `lin`) →
+nama langsung muncul dan terpilih. Atau klik huruf **L** untuk melompat ke
+semua nama berawalan L.
+
+**Catatan:** huruf yang muncul hanya yang benar-benar ada donornya. Jadi kalau
+belum ada donor berawalan Z, huruf Z tidak ditampilkan — tidak menyesatkan.
+
+**Uji:** 15 pemeriksaan lulus (buka panel, lompat abjad, saring, pilih, simpan,
+ubah transaksi, klik di luar). Diuji juga di lebar 360 / 768 / 1280 px — tidak
+ada nama terpotong dan panel tidak keluar layar.
