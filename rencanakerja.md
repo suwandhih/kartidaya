@@ -1554,6 +1554,7 @@ tanggal, total per program, tombol **+ Tambah**.
 | 2 | Uji tanda dibaca lewat email sungguhan | cukup buka email yang dikirim, lalu lihat Kotak Keluar |
 | 3 | ~~Deploy Worker versi baru~~ | ✅ **sudah di-deploy** 11 Nov 2026 — `kartidaya-wa.suwandhih.workers.dev` |
 | 4 | Isi data Keuangan | transaksi donor supaya kwitansi tidak Rp 0 |
+| 5 | Isi **Alamat Lengkap** donor | untuk donor yang dikirim manual (POS/kurir) — sekarang 0 dari 18 terisi |
 
 ### 17.7 Berkas yang akan tersentuh
 
@@ -1609,3 +1610,34 @@ Logo asli dari Anda (JPEG) sudah dipasang:
 | Ganti lagi | isi `state.settings.logoUrl` dengan alamat gambar lain |
 
 Logo lama `vendor/kartidaya-logo.svg` (placeholder huruf "K") sudah dihapus.
+
+### 17.10 Alamat lengkap donor — ✅ SELESAI (11 Nov 2026)
+
+**Yang diminta:** kolom **Alamat Lengkap** di data donor, karena sebagian donor
+masih dikirimi surat **secara manual** (POS / kurir).
+
+**Keadaan sebelum:** kolom `alamat` sebenarnya sudah ada di form donor, tapi
+hanya **satu baris pendek**, tidak muncul di daftar donor, dan tidak bisa
+dipakai di dalam surat. Jadi praktis tidak terpakai.
+
+**Yang diperbaiki:**
+
+| # | Perubahan | Hasil |
+|---|---|---|
+| 1 | Kotak alamat jadi **multi-baris** (textarea) | bisa tulis jalan, kelurahan, kota, kode pos terpisah baris ✅ |
+| 2 | Lebar penuh di form | tidak lagi terpotong setengah kolom ✅ |
+| 3 | Token **`{/ALAMAT}`** di surat | alamat bisa disisipkan ke isi surat, baris barunya tetap utuh ✅ |
+| 4 | Tampil di **kartu donor** | ikon ⌂ + alamat, jadi langsung terlihat tanpa membuka ✅ |
+| 5 | Tampil di **buku donor** | baris **Alamat Lengkap** ✅ |
+| 6 | **Pencarian donor** mencakup alamat | cari "cilandak" langsung ketemu ✅ |
+| 7 | Tombol **⎙ Cetak Alamat** di buku donor | cetak label alamat siap tempel di amplop ✅ |
+
+**Tombol Cetak Alamat** hanya muncul kalau donornya sudah punya alamat. Hasil
+cetaknya: kotak bergaris berisi **Kepada → nama → instansi → alamat lengkap →
+nomor HP → ID-DONOR**. Ukuran kertas A4, margin 14 mm.
+
+**Catatan:** kolom alamat sudah ikut ter-ekspor ke Excel dan CSV sejak awal —
+tidak ada perubahan di bagian ekspor.
+
+**Sisa yang menunggu Anda:** isi alamat untuk donor-donor yang dikirim manual.
+Saat ini **0 dari 18 donor** punya alamat.

@@ -116,6 +116,7 @@ const TOKENS = [
   ['{/KATEGORI}','Kategori donor'],
   ['{/EMAIL}','Email penerima'],
   ['{/HP}','No HP'],
+  ['{/ALAMAT}','Alamat lengkap'],
   ['{/TANGGAL}','Tanggal hari ini']
 ];
 
@@ -604,6 +605,7 @@ function fillTemplate(text, d){
     '/KATEGORI': d.kategori || '',
     '/EMAIL': d.email || '',
     '/HP': d.hp1 || '',
+    '/ALAMAT': d.alamat || '',
     '/TANGGAL': todayID()
   };
   return String(text || '').replace(/\{\/([A-Z_]+)\}/g, function(m, k){
@@ -937,7 +939,7 @@ function viewDonor(){
   let list = state.donors.filter(function(d){
     if(donorFilter.kategori && d.kategori !== donorFilter.kategori) return false;
     if(!q) return true;
-    return [d.id,d.pic,d.namaLengkap,d.instansi,d.email,d.hp1,d.hp2,d.kategori]
+    return [d.id,d.pic,d.namaLengkap,d.instansi,d.email,d.hp1,d.hp2,d.kategori,d.alamat]
       .join(' ').toLowerCase().indexOf(q) >= 0;
   });
   const sorters = {
@@ -957,7 +959,7 @@ function viewDonor(){
 
   return '' +
   '<div class="toolbar">' +
-    '<input type="search" class="grow" id="f-q" placeholder="Cari nama, instansi, email, ID…" value="' + esc(donorFilter.q) + '">' +
+    '<input type="search" class="grow" id="f-q" placeholder="Cari nama, instansi, email, alamat, ID…" value="' + esc(donorFilter.q) + '">' +
     '<select id="f-kat" style="max-width:190px">' + katOpts + '</select>' +
     '<select id="f-sort" style="max-width:160px">' +
       '<option value="id"' + (donorFilter.sort==='id'?' selected':'') + '>Urut ID</option>' +
@@ -992,6 +994,7 @@ function donorCard(d){
     '<div class="meta">' +
       (d.email ? '<span>✉ ' + esc(d.email) + '</span>' : '<span class="chip warn">tanpa email</span>') +
       (d.hp1 ? '<span>☎ ' + esc(d.hp1) + (d.hp2 ? ' / ' + esc(d.hp2) : '') + '</span>' : '') +
+      (d.alamat ? '<span>⌂ ' + esc(String(d.alamat).replace(/\s+/g, ' ').slice(0, 70)) + '</span>' : '') +
     '</div>' +
     (last ? '<div class="last">' + esc(String(last.subjek || '').slice(0,60)) + ' · ' + relTime(last.tanggal) + '</div>' : '') +
     '<div class="foot">' +
@@ -1015,6 +1018,7 @@ function viewBuku(donorId){
     '<button class="btn sm" data-action="donor-ubah" data-id="' + esc(d.id) + '">Ubah Data</button>' +
     '<button class="btn sm primary" data-action="balas" data-id="' + esc(d.id) + '">✎ Tulis ke Donor</button>' +
     '<button class="btn sm" data-action="catat-masuk" data-id="' + esc(d.id) + '">↓ Catat Surat Masuk</button>' +
+    (d.alamat ? '<button class="btn sm" data-action="cetak-alamat" data-id="' + esc(d.id) + '">⎙ Cetak Alamat</button>' : '') +
   '</div>' +
 
   '<div class="card">' +
@@ -1028,7 +1032,7 @@ function viewBuku(donorId){
       kv('PIC', d.pic) + kv('Nama Lengkap', d.namaLengkap) + kv('Instansi', d.instansi) +
       kv('Email', d.email) + kv('HP 1', d.hp1) + kv('HP 2', d.hp2) +
       kv('Pengiriman', d.pengiriman) + kv('Asal Gereja', d.asalGereja) +
-      kv('Alamat', d.alamat) + kv('Catatan', d.catatan) +
+      kv('Alamat Lengkap', d.alamat) + kv('Catatan', d.catatan) +
     '</div>' +
   '</div>' +
 
@@ -1928,7 +1932,9 @@ function openDonorForm(id){
     '<div class="field"><label>Date Start</label><input type="date" id="d-dateStart" value="' + esc(d.dateStart) + '"></div>' +
     '<div class="field"><label>Tgl Lahir</label><input type="date" id="d-tglLahir" value="' + esc(d.tglLahir) + '"></div>' +
     '<div class="field"><label>Asal Gereja</label><input type="text" id="d-asalGereja" value="' + esc(d.asalGereja) + '"></div>' +
-    '<div class="field"><label>Alamat Lengkap</label><input type="text" id="d-alamat" value="' + esc(d.alamat) + '"></div>' +
+    '<div class="field span2"><label>Alamat Lengkap <span class="hint">— untuk kiriman manual (POS/kurir)</span></label>' +
+      '<textarea id="d-alamat" style="min-height:70px" placeholder="Jalan, nomor, RT/RW&#10;Kelurahan, Kecamatan&#10;Kota, Kode Pos">' +
+        esc(d.alamat) + '</textarea></div>' +
     '<div class="field span2"><label>Catatan</label><textarea id="d-catatan" style="min-height:70px">' + esc(d.catatan) + '</textarea></div>' +
   '</div><p class="tiny muted">Minimal salah satu dari <b>PIC</b> atau <b>Instansi</b> harus terisi.</p>';
 
@@ -2447,6 +2453,38 @@ function printLetter(d){
     'line-height:1.8;color:#111;white-space:pre-wrap;font-size:15px}' +
     'h1{font-size:16px;font-weight:600;border-bottom:1px solid #ccc;padding-bottom:8px;margin-bottom:24px}' +
     '</style></head><body><h1>' + esc(subjek) + '</h1>' + esc(isi) + '</body></html>');
+  w.document.close();
+  w.focus();
+  setTimeout(function(){ w.print(); }, 300);
+}
+
+/* Cetak label alamat untuk kiriman manual (POS / kurir). Ukuran & tata letak
+   dibuat sederhana supaya bisa ditempel di amplop atau diserahkan ke kurir. */
+function printAlamat(d){
+  if(!d) return;
+  if(!d.alamat){ toast('Donor ini belum punya alamat lengkap', true); return; }
+  const w = window.open('', '_blank');
+  if(!w){ toast('Popup diblokir browser', true); return; }
+  const baris = String(d.alamat).split(/\r?\n/).map(function(s){ return esc(s); }).join('<br>');
+  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Alamat — ' +
+    esc(donorName(d)) + '</title><style>' +
+    '@page{margin:14mm}' +
+    'body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:0}' +
+    '.label{border:2px solid #222;border-radius:6px;padding:18px 20px;max-width:520px}' +
+    '.kepada{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#666;margin-bottom:6px}' +
+    '.nama{font-size:20px;font-weight:bold;line-height:1.3}' +
+    '.inst{font-size:14px;color:#333;margin-top:2px}' +
+    '.alamat{font-size:15px;line-height:1.7;margin-top:12px;white-space:normal}' +
+    '.id{font-size:11px;color:#666;margin-top:14px;font-family:monospace}' +
+    '.hp{font-size:13px;margin-top:8px}' +
+    '</style></head><body><div class="label">' +
+      '<div class="kepada">Kepada</div>' +
+      '<div class="nama">' + esc(donorLabel(d)) + '</div>' +
+      (d.instansi && d.instansi !== donorName(d) ? '<div class="inst">' + esc(d.instansi) + '</div>' : '') +
+      '<div class="alamat">' + baris + '</div>' +
+      (d.hp1 ? '<div class="hp">☎ ' + esc(d.hp1) + (d.hp2 ? ' / ' + esc(d.hp2) : '') + '</div>' : '') +
+      '<div class="id">' + esc(d.id) + '</div>' +
+    '</div></body></html>');
   w.document.close();
   w.focus();
   setTimeout(function(){ w.print(); }, 300);
@@ -3100,6 +3138,7 @@ document.addEventListener('click', function(e){
       break;
     }
     case 'print-one': { const d = findDonor(id); if(d) printLetter(d); break; }
+    case 'cetak-alamat': { const d = findDonor(id); if(d) printAlamat(d); break; }
     case 'fin-baru': openFinForm(''); break;
     case 'fin-ubah': openFinForm(id); break;
     case 'fin-hapus': hapusFin(id); break;
