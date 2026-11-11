@@ -1019,7 +1019,7 @@ nomor itu.
 
 ---
 
-## 15. Rencana besok — tanda "email sudah dibaca"
+## 15. Rencana — tanda "email sudah dibaca" (DITUNDA, lihat bagian 17)
 
 **Permintaan pengguna (5 Nov 2026, 22:24):** *"apakah bisa email yg dikirim
 ketika client / member klik email memberi info balik ke kartidaya email tsb di
@@ -1073,12 +1073,19 @@ baik dipakai **bersama** pixel: pixel untuk perkiraan, tombol untuk kepastian.
 
 ### Fase 5 — tanda email dibaca
 
+**Status: DITUNDA (11 Nov 2026).** Prioritas hari ini pindah ke revisi data
+(bagian 17). Rencana teknis di atas tetap berlaku dan bisa dikerjakan kapan saja
+— tidak bergantung pada WhatsApp maupun nomor/email resmi.
+
 - [ ] `gmail.js`: dukung `multipart/alternative` (teks + HTML)
 - [ ] `worker/index.js`: `GET /tr/buka` (pixel) + `POST /tr/status`
 - [ ] `app.js`: sisipkan pixel saat kirim, `emailCekDibaca()`, chip **✓✓ Dibaca**
 - [ ] Tombol **Konfirmasi sudah menerima** di dalam email
 - [ ] `PANDUAN-GMAIL.md`: dokumentasi + tabel batasan
 - [ ] Uji: kirim ke Gmail sendiri → buka → status berubah jadi **Dibaca**
+
+**Perkiraan waktu kerja:** ±1 jam (kode 30–45 menit, deploy Worker 2 menit,
+uji 5 menit). Tidak ada biaya tambahan; memakai Worker yang sudah ada.
 
 ---
 
@@ -1158,3 +1165,226 @@ Setelah ketiganya beres → tambahkan **nomor WhatsApp Business sungguhan**
 | `app.css` | gaya chip **✓✓ Dibaca** |
 | `PANDUAN-GMAIL.md` | dokumentasi fitur baru |
 | `index.html` | naikkan versi cache-busting |
+
+---
+
+## 17. Revisi & penambahan — 11 November 2026
+
+*Dicatat: 11 November 2026, 15:55 WIB. Ini daftar kerja aktif hari ini.*
+
+### 17.0 Keputusan yang sudah ditetapkan
+
+| Item | Keputusan |
+|---|---|
+| **WhatsApp** | ⏸ **DITUNDA** — menunggu nomor resmi kantor. Kode yang ada disimpan, tidak dihapus, tidak dikembangkan lebih jauh dulu. |
+| **Email** | ▶ **Tetap `fotohotono03@gmail.com`** untuk keperluan develop |
+| **Email resmi kantor** | ⏳ Menyusul. Saat tersedia: ganti Client ID + login ulang di Setelan. **Tidak perlu ubah kode.** |
+| **Fase 5 (email dibaca)** | ⏸ Ditunda, dikerjakan setelah revisi data selesai |
+
+### 17.1 Kelola Template — tambah & edit — ✅ SELESAI (11 Nov 2026)
+
+**Masalah sekarang:** tombol **Kelola template** hanya bisa *Pakai* dan *Hapus*.
+Tidak ada cara menambah template kosong atau mengubah template yang sudah ada.
+Satu-satunya jalan adalah **Simpan sebagai template** dari halaman Tulis, dan
+itupun tidak bisa diedit setelahnya.
+
+**Yang diminta:** tombol **[+ Tambah]** di dalam *Kelola template*, plus **Edit**.
+
+| # | Perubahan | Berkas |
+|---|---|---|
+| 1 | Tombol **+ Tambah** di modal Kelola Template → form nama + subjek + isi | `app.js` |
+| 2 | Tombol **Ubah** di setiap baris template → form yang sama, terisi data lama | `app.js` |
+| 3 | Simpan ke `state.templates` (`kartidaya.v2.templates`) | `app.js` |
+| 4 | Tombol token tetap tersedia di form template | `app.js` |
+
+**Bentuk data template** (sudah ada, tidak berubah):
+
+```js
+{ id:'tpl-…', nama:'…', subjek:'…', isi:'…' }
+```
+
+**Hasil (`app.js?v=16`):**
+
+- [x] Tombol **+ Tambah** di kaki modal Kelola Template
+- [x] Tombol **Ubah** di setiap baris template
+- [x] Form nama + subjek + isi, dengan baris token yang menyisipkan di posisi kursor
+- [x] Validasi: nama wajib, isi wajib
+- [x] **Simpan sebagai template** di halaman Tulis sekarang membuka form yang
+      sudah terisi (bisa dirapikan dulu), bukan `prompt` nama saja
+- [x] Tombol **Batal** kembali ke daftar template
+
+**Verifikasi di browser:**
+
+| Uji | Hasil |
+|---|---|
+| Buka Kelola template | 3 template tampil, tiap baris ada Pakai / Ubah / Hapus ✅ |
+| Klik **+ Tambah** | form "Tambah Template" terbuka, field kosong ✅ |
+| Isi nama + subjek + isi → Simpan | template ke-4 masuk daftar & `localStorage` ✅ |
+| Klik **Ubah** | form terisi data lama (`Template Uji`, `Halo {/PIC}`) ✅ |
+| Ubah nama → Simpan | nama berubah, jumlah tetap 4 (tidak dobel) ✅ |
+| Klik token `{/PIC}` di form | tersisip di posisi kursor → `Halo {/PIC}`, kursor di akhir ✅ |
+| Simpan tanpa nama | ditolak dengan pesan ✅ |
+| **Batal** | kembali ke daftar template ✅ |
+| **Simpan sebagai template** di halaman Tulis | form terbuka dengan nama `Template 4`, subjek & isi dari halaman Tulis ✅ |
+| Hapus template uji | kembali 3 template, `localStorage` ikut 3 ✅ |
+| Data donor | tetap 18, tidak tersentuh ✅ |
+
+### 17.2 Lampiran kwitansi di email — per penerima berbeda
+
+**Yang diminta:** setiap email bisa membawa **kwitansi** yang isinya berbeda per
+penerima. Di dalam email tampil **isi surat + kwitansi**, dan kwitansi memuat
+**nama** serta **jumlah** yang otomatis mengikuti donor yang dituju.
+
+**Rancangan:**
+
+| Bagian | Isi |
+|---|---|
+| Data kwitansi | Disimpan per donor: `kwitansi: { nomor, tanggal, jumlah, keterangan }` |
+| Tampilan di email | Bagian HTML di bawah isi surat — tabel bergaya kwitansi (kop, nomor, nama donor, jumlah, terbilang, tanda tangan) |
+| Sinkronisasi | `{/NAMA}`, `{/ID}`, `{/KATEGORI}` sudah ada; tambah `{/KWITANSI_NOMOR}`, `{/KWITANSI_TANGGAL}`, `{/KWITANSI_JUMLAH}`, `{/KWITANSI_TERBILANG}` |
+| Pratinjau | Halaman **Tulis** menampilkan pratinjau kwitansi di bawah isi surat |
+| Teknis | Butuh `multipart/alternative` (HTML) — **satu paket dengan Fase 5** |
+
+**Catatan:** karena butuh HTML, pekerjaan ini **menggabung** dengan Fase 5
+(email dibaca). Keduanya sama-sama mengubah `buildRawMessage()` di `gmail.js`.
+Lebih hemat dikerjakan sekali jalan.
+
+### 17.3 Majalah di email — ±10 halaman
+
+**Yang diminta:** majalah juga tampil di dalam email, mirip kwitansi, sekitar
+10 halaman.
+
+**Rancangan:**
+
+| Aspek | Keputusan yang disarankan |
+|---|---|
+| Bentuk | **Gambar per halaman** (JPG/PNG) yang diunggah user, bukan PDF |
+| Alasan | PDF di email sering diblokir/diunduh, tidak tampil langsung. Gambar tampil langsung di badan email |
+| Penyimpanan | Gambar di-*host* di Cloudflare Worker (KV/R2) → email hanya memuat `<img src>` |
+| Batas | Maks 10 halaman, tiap gambar dikompres ≤ 200 KB agar tidak masuk folder spam |
+| Ukuran email | Total < 2 MB (batas aman Gmail) |
+| Alternatif | Kalau gambar terlalu besar: kirim **tautan** ke halaman majalah, bukan gambar penuh |
+
+**Perlu keputusan Anda:** gambar majalah **diunggah setiap kali kirim**, atau
+**disimpan sekali** lalu dipakai berulang untuk semua penerima?
+
+### 17.4 Ekspor semua data ke Excel (`.xlsx`)
+
+**Sekarang:** hanya ada **Ekspor CSV Donor** ([app.js:1772](C:/data/Kartidaya/app.js:1772)).
+Belum ada `.xlsx`, dan belum mencakup surat/kategori/template.
+
+**Yang diminta:** semua data bisa diekspor ke **file Excel (.xlsx)**.
+
+| # | Lembar (sheet) di file Excel | Isi |
+|---|---|---|
+| 1 | `Donor` | semua field donor |
+| 2 | `Surat` | semua surat keluar & masuk (kanal, arah, status, tanggal, subjek, isi) |
+| 3 | `Kategori` | daftar kategori |
+| 4 | `Template` | daftar template surat |
+| 5 | `Keuangan` | data finance (bagian 17.5) |
+| 6 | `Program` | master program dukungan (bagian 17.5) |
+
+**Teknis:** perlu pustaka pembuat `.xlsx` di browser. Dua pilihan:
+
+| Pilihan | Ukuran | Catatan |
+|---|---|---|
+| **SheetJS (`xlsx.full.min.js`)** | ±900 KB | Paling umum, bisa baca & tulis. Perlu di-*host* lokal (tidak boleh CDN, aplikasi harus jalan offline) |
+| **Tulis XLSX sendiri** | 0 KB | `.xlsx` sebenarnya zip berisi XML. Bisa dibuat tanpa pustaka, tapi kodenya ±200 baris dan rawan salah |
+
+**Saran:** pakai SheetJS yang disimpan di repo (`vendor/xlsx.full.min.js`).
+Sekali unduh, aplikasi tetap jalan offline.
+
+### 17.5 Form baru — Keuangan (Finance)
+
+**Yang diminta:** form input untuk bagian finance.
+
+| Field | Sumber | Keterangan |
+|---|---|---|
+| **Nama** | 🔒 otomatis dari donor | read-only, ikut donor yang dipilih |
+| **Kategori** | 🔒 otomatis dari donor | read-only, ikut donor yang dipilih |
+| **Jumlah donor** | ✎ finance | nominal uang |
+| **Tanggal donor** | ✎ finance | tanggal transaksi |
+| **Dukung untuk program** | ✎ finance | **pilih banyak** (multi-select) dari master program |
+
+**Catatan penting:** satu donor **bisa mendukung beberapa program** dalam satu
+transaksi. Jadi bentuk datanya:
+
+```js
+{
+  id:'fin-…',
+  donorId:'F00004R',
+  jumlah: 1500000,
+  tanggal:'2026-11-11',
+  program: ['PROG-01','PROG-03'],   // array, bukan satu nilai
+  catatan:''
+}
+```
+
+**Master program** (baru, bisa dikelola user):
+
+```js
+{ id:'PROG-01', nama:'Beasiswa Anak Pelayan', aktif:true }
+```
+
+**Halaman baru:** menu **Keuangan** — daftar transaksi, filter donor/program/
+tanggal, total per program, tombol **+ Tambah**.
+
+**Pertanyaan yang perlu dijawab:**
+
+1. Apakah **satu transaksi** bisa mencakup beberapa program sekaligus, atau
+   satu transaksi = satu program (jadi input terpisah per program)?
+2. Apakah **jumlah** dibagi rata ke program yang dipilih, atau ada nominal
+   per program?
+3. Apakah perlu **mata uang** selain Rupiah (mis. USD untuk *Funder - Foreign*)?
+
+### 17.6 Urutan pengerjaan yang disarankan
+
+| Urutan | Pekerjaan | Perkiraan | Alasan urutan |
+|---|---|---|---|
+| 1 | **17.1 Kelola Template** (tambah + edit) | ±30 menit | Paling kecil, langsung terasa, tidak bergantung apa pun |
+| 2 | **17.5 Master Program + Form Keuangan** | ±2 jam | Fondasi data; dibutuhkan oleh ekspor Excel |
+| 3 | **17.4 Ekspor XLSX** (6 lembar) | ±1,5 jam | Butuh data keuangan sudah ada |
+| 4 | **17.2 + 17.3 + Fase 5** (HTML email: kwitansi, majalah, tanda dibaca) | ±3 jam | Sama-sama mengubah `buildRawMessage()` — dikerjakan sekali jalan |
+
+**Total perkiraan: ±7 jam kerja** (bisa dipecah beberapa sesi).
+
+### 17.7 Berkas yang akan tersentuh
+
+| Berkas | Untuk apa |
+|---|---|
+| `app.js` | template CRUD, halaman Keuangan, master Program, ekspor XLSX, pratinjau kwitansi |
+| `app.css` | gaya tabel kwitansi, halaman Keuangan, pratinjau majalah |
+| `gmail.js` | `multipart/alternative` + lampiran HTML (kwitansi & majalah) |
+| `worker/index.js` | host gambar majalah + pixel tanda dibaca |
+| `index.html` | menu **Keuangan**, `vendor/xlsx.full.min.js`, naikkan `?v=` |
+| `vendor/xlsx.full.min.js` | pustaka pembuat Excel (baru) |
+| `PANDUAN-GMAIL.md` | dokumentasi lampiran HTML |
+
+### 17.8 Checklist
+
+**17.1 Template**
+- [x] Tombol **+ Tambah** di Kelola Template
+- [x] Tombol **Ubah** per template
+- [x] Form nama + subjek + isi + token
+- [x] Uji: tambah, ubah, hapus, pakai
+
+**17.5 Keuangan**
+- [ ] Master program (tambah/ubah/hapus)
+- [ ] Halaman **Keuangan** + menu navigasi
+- [ ] Form transaksi: donor → nama & kategori otomatis
+- [ ] Multi-pilih program
+- [ ] Daftar + filter + total
+- [ ] Uji: input, ubah, hapus, filter
+
+**17.4 Ekspor**
+- [ ] `vendor/xlsx.full.min.js` masuk repo
+- [ ] Ekspor 6 lembar
+- [ ] Uji: buka hasil di Excel/LibreOffice
+
+**17.2 / 17.3 / Fase 5**
+- [ ] `buildRawMessage()` → `multipart/alternative`
+- [ ] Data kwitansi per donor + token
+- [ ] Pratinjau kwitansi di halaman Tulis
+- [ ] Unggah & host gambar majalah
+- [ ] Pixel tanda dibaca + chip **✓✓ Dibaca**
+- [ ] Uji kirim ke Gmail sendiri

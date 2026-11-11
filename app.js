@@ -833,7 +833,7 @@ function viewSurat(){
       '<div class="btn-row">' +
         '<button class="btn primary" id="kirim-btn" data-action="kirim"' + (nSel ? '' : ' disabled') + '>➤ Kirim (' + nSel + ')</button>' +
         '<button class="btn" id="draft-btn" data-action="simpan-draft"' + (nSel ? '' : ' disabled') + '>Simpan Draft</button>' +
-        '<button class="btn ghost" data-action="tpl-simpan">Simpan sebagai template</button>' +
+        '<button class="btn ghost" data-action="tpl-simpan-baru">Simpan sebagai template</button>' +
       '</div>' +
     '</div>' +
 
@@ -1296,14 +1296,82 @@ function openCatatMasuk(donorId){
 
 /* ---------- Kelola Template ---------- */
 function openTplKelola(){
-  const body = '<div class="stack">' + state.templates.map(function(t){
-    return '<div class="card" style="padding:12px">' +
-      '<div class="row"><b style="flex:1">' + esc(t.nama) + '</b>' +
-        '<button class="btn sm ghost" data-action="tpl-pakai" data-id="' + esc(t.id) + '">Pakai</button>' +
-        '<button class="btn sm ghost" data-action="tpl-hapus" data-id="' + esc(t.id) + '">Hapus</button></div>' +
-      '<div class="tiny muted mono" style="margin-top:4px">' + esc(t.subjek) + '</div></div>';
-  }).join('') + '</div>';
-  openModal({ title:'Template Surat', body:body, footer:'<button class="btn" data-close>Tutup</button>' });
+  const body = (state.templates.length
+    ? '<div class="stack">' + state.templates.map(function(t){
+        return '<div class="card" style="padding:12px">' +
+          '<div class="row"><b style="flex:1">' + esc(t.nama) + '</b>' +
+            '<button class="btn sm ghost" data-action="tpl-pakai" data-id="' + esc(t.id) + '">Pakai</button>' +
+            '<button class="btn sm ghost" data-action="tpl-ubah" data-id="' + esc(t.id) + '">Ubah</button>' +
+            '<button class="btn sm ghost" data-action="tpl-hapus" data-id="' + esc(t.id) + '">Hapus</button></div>' +
+          '<div class="tiny muted mono" style="margin-top:4px">' + esc(t.subjek) + '</div></div>';
+      }).join('') + '</div>'
+    : '<div class="empty"><span class="big">✎</span>Belum ada template.<br>' +
+      'Klik <b>+ Tambah</b> untuk membuat template pertama.</div>');
+  openModal({
+    title:'Template Surat',
+    body:body,
+    footer:'<button class="btn primary" data-action="tpl-baru">+ Tambah</button>' +
+           '<button class="btn" data-close>Tutup</button>'
+  });
+}
+
+/* Form tambah/ubah template. `id` kosong berarti template baru. */
+function openTplForm(id){
+  const t = id ? state.templates.filter(function(x){ return x.id === id; })[0] : null;
+  if(id && !t){ toast('Template tidak ditemukan', true); return; }
+  const isNew = !t;
+  const body =
+    '<div class="field"><label>Nama template</label>' +
+      '<input type="text" id="t-nama" value="' + esc(isNew ? '' : t.nama) + '" placeholder="Contoh: Ucapan Terima Kasih"></div>' +
+    '<div class="field"><label>Subjek</label>' +
+      '<input type="text" id="t-subjek" value="' + esc(isNew ? '' : t.subjek) + '" placeholder="Subjek surat…"></div>' +
+    '<div class="field"><label>Isi Surat <span class="hint">— klik token untuk menyisipkan</span></label>' +
+      '<div class="tokenbar">' + TOKENS.map(function(x){
+        return '<button type="button" class="token" data-token="' + esc(x[0]) + '" title="' + esc(x[1]) + '">' + esc(x[0]) + '</button>';
+      }).join('') + '</div>' +
+      '<textarea id="t-isi" style="min-height:220px" placeholder="Tulis isi template di sini…">' + esc(isNew ? '' : t.isi) + '</textarea></div>';
+  openModal({
+    title: isNew ? 'Tambah Template' : 'Ubah Template',
+    body: body,
+    wide: true,
+    footer: '<button class="btn primary" data-action="tpl-form-simpan" data-id="' + esc(id || '') + '">Simpan</button>' +
+            '<button class="btn" data-action="tpl-kelola">Batal</button>',
+    onOpen: function(root){
+      /* Token disisipkan di posisi kursor, sama seperti di halaman Tulis. */
+      root.querySelectorAll('.token').forEach(function(b){
+        b.addEventListener('click', function(){
+          const ta = document.getElementById('t-isi');
+          if(!ta) return;
+          const tok = b.getAttribute('data-token');
+          const s = ta.selectionStart, e = ta.selectionEnd;
+          ta.value = ta.value.slice(0, s) + tok + ta.value.slice(e);
+          ta.focus();
+          ta.selectionStart = ta.selectionEnd = s + tok.length;
+        });
+      });
+    }
+  });
+}
+
+function simpanTplForm(id){
+  const nama = (document.getElementById('t-nama') || {}).value || '';
+  const subjek = (document.getElementById('t-subjek') || {}).value || '';
+  const isi = (document.getElementById('t-isi') || {}).value || '';
+  if(!nama.trim()){ toast('Nama template belum diisi', true); return; }
+  if(!isi.trim()){ toast('Isi template masih kosong', true); return; }
+
+  if(id){
+    const t = state.templates.filter(function(x){ return x.id === id; })[0];
+    if(!t){ toast('Template tidak ditemukan', true); return; }
+    t.nama = nama.trim(); t.subjek = subjek; t.isi = isi;
+    toast('Template "' + t.nama + '" diperbarui');
+  }else{
+    state.templates.push({ id:uid('tpl'), nama:nama.trim(), subjek:subjek, isi:isi });
+    toast('Template "' + nama.trim() + '" ditambahkan');
+  }
+  save('templates');
+  openTplKelola();
+  render();
 }
 
 /* ---------- 10. AKSI ---------- */
@@ -1939,6 +2007,9 @@ document.addEventListener('click', function(e){
       suratState.selected = {}; suratState.previewId = '';
       refreshRecipients(); refreshPreview(); break;
     case 'tpl-kelola': openTplKelola(); break;
+    case 'tpl-baru': openTplForm(''); break;
+    case 'tpl-ubah': openTplForm(id); break;
+    case 'tpl-form-simpan': simpanTplForm(id); break;
     case 'tpl-pakai':
       suratState.tplId = id; suratState.subjek = ''; suratState.isi = '';
       closeModal(); render(); toast('Template dipakai');
@@ -1954,6 +2025,18 @@ document.addEventListener('click', function(e){
       if(!nama) break;
       state.templates.push({ id:uid('tpl'), nama:nama, subjek:suratState.subjek, isi:suratState.isi });
       save('templates'); toast('Template disimpan'); render();
+      break;
+    }
+    case 'tpl-simpan-baru': {
+      /* Simpan isi surat yang sedang ditulis sebagai template baru, lalu buka
+         form supaya nama/subjek bisa dirapikan sebelum disimpan. */
+      openTplForm('');
+      const nEl = document.getElementById('t-nama');
+      const sEl = document.getElementById('t-subjek');
+      const iEl = document.getElementById('t-isi');
+      if(nEl) nEl.value = 'Template ' + (state.templates.length + 1);
+      if(sEl) sEl.value = suratState.subjek;
+      if(iEl) iEl.value = suratState.isi;
       break;
     }
     case 'print-one': { const d = findDonor(id); if(d) printLetter(d); break; }
