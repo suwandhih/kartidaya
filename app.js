@@ -10,7 +10,9 @@ const LS = {
   categories:'kartidaya.v2.categories',
   templates:'kartidaya.v2.templates',
   messages:'kartidaya.v2.messages',
-  settings:'kartidaya.v2.settings'
+  settings:'kartidaya.v2.settings',
+  programs:'kartidaya.v2.programs',
+  finance:'kartidaya.v2.finance'
 };
 
 /* OAuth Client ID project `kartidaya-513714` (nomor 531116872278).
@@ -117,8 +119,69 @@ const TOKENS = [
   ['{/TANGGAL}','Tanggal hari ini']
 ];
 
+/* ---------- KEUANGAN ---------- */
+/* Mata uang yang didukung. `locale` dipakai untuk format ribuan, `kode` untuk
+   tampilan singkat di tabel. */
+const MATA_UANG = [
+  { kode:'IDR', nama:'Rupiah',        locale:'id-ID', simbol:'Rp' },
+  { kode:'USD', nama:'Dolar AS',      locale:'en-US', simbol:'$'  },
+  { kode:'SGD', nama:'Dolar Singapura', locale:'en-SG', simbol:'S$' },
+  { kode:'EUR', nama:'Euro',          locale:'de-DE', simbol:'€'  },
+  { kode:'AUD', nama:'Dolar Australia', locale:'en-AU', simbol:'A$' },
+  { kode:'MYR', nama:'Ringgit',       locale:'ms-MY', simbol:'RM' }
+];
+const KODE_UANG = MATA_UANG.map(function(m){ return m.kode; });
+
+/* Program dukungan contoh. Bisa ditambah/ubah/hapus dari halaman Keuangan. */
+const DEFAULT_PROGRAMS = [
+  { id:'PRG-01', nama:'Beasiswa Anak Pelayan', aktif:true },
+  { id:'PRG-02', nama:'Pembangunan Gedung',    aktif:true },
+  { id:'PRG-03', nama:'Operasional Pelayanan', aktif:true },
+  { id:'PRG-04', nama:'Bantuan Bencana',       aktif:true },
+  { id:'PRG-05', nama:'Pelatihan & Seminar',   aktif:true }
+];
+
+function uangInfo(kode){
+  return MATA_UANG.filter(function(m){ return m.kode === kode; })[0] || MATA_UANG[0];
+}
+/* Format angka jadi "Rp 1.500.000" / "$1,500.00". */
+function fmtUang(n, kode){
+  const m = uangInfo(kode);
+  const v = Number(n) || 0;
+  const desimal = m.kode === 'IDR' ? 0 : 2;
+  const angka = v.toLocaleString(m.locale, { minimumFractionDigits:desimal, maximumFractionDigits:desimal });
+  return m.kode === 'IDR' ? m.simbol + ' ' + angka : m.simbol + angka;
+}
+/* Total per mata uang — tidak dijumlahkan lintas mata uang karena kursnya
+   berbeda dan bisa berubah. Menerima record keuangan (dijumlahkan dari
+   programnya) maupun objek ringkas { mataUang, jumlah }. */
+function totalPerUang(list){
+  const map = {};
+  list.forEach(function(f){
+    const k = f.mataUang || 'IDR';
+    const jml = Array.isArray(f.program) ? totalTransaksi(f) : (Number(f.jumlah) || 0);
+    map[k] = (map[k] || 0) + jml;
+  });
+  return map;
+}
+function programById(id){
+  return state.programs.filter(function(p){ return p.id === id; })[0] || null;
+}
+function programNama(id){
+  const p = programById(id);
+  return p ? p.nama : id;
+}
+/* Nominal satu baris program di dalam satu transaksi. */
+function nominalProgram(f, programId){
+  const baris = (f.program || []).filter(function(x){ return x.id === programId; })[0];
+  return baris ? Number(baris.jumlah) || 0 : 0;
+}
+function totalTransaksi(f){
+  return (f.program || []).reduce(function(s,x){ return s + (Number(x.jumlah) || 0); }, 0);
+}
+
 /* ---------- 2. STATE ---------- */
-let state = { donors:[], categories:[], templates:[], messages:[], settings:{} };
+let state = { donors:[], categories:[], templates:[], messages:[], settings:{}, programs:[], finance:[] };
 
 function readLS(key, fallback){
   try{
@@ -138,6 +201,8 @@ function save(what){
   if(!what || what === 'templates')  writeLS(LS.templates, state.templates);
   if(!what || what === 'messages')   writeLS(LS.messages, state.messages);
   if(!what || what === 'settings')   writeLS(LS.settings, state.settings);
+  if(!what || what === 'programs')   writeLS(LS.programs, state.programs);
+  if(!what || what === 'finance')    writeLS(LS.finance, state.finance);
 }
 function loadState(){
   const firstRun = localStorage.getItem(LS.donors) === null;
@@ -146,6 +211,8 @@ function loadState(){
   state.templates  = readLS(LS.templates, null) || DEFAULT_TEMPLATES.slice();
   state.messages   = readLS(LS.messages, null) || [];
   state.settings   = readLS(LS.settings, null) || {};
+  state.programs   = readLS(LS.programs, null) || DEFAULT_PROGRAMS.slice();
+  state.finance    = readLS(LS.finance, null) || [];
   if(!state.settings.theme) state.settings.theme = 'light';
   if(!state.settings.gmailClientId) state.settings.gmailClientId = DEFAULT_CLIENT_ID;
   /* Client ID lama milik project yang tidak bisa diakses akun ini — sumber
@@ -345,7 +412,8 @@ const PAGES = [
   { id:'keluar',     label:'Keluar',     ico:'↑' },
   { id:'donor',      label:'Donor',      ico:'☰' },
   { id:'surat',      label:'Tulis',      ico:'✎' },
-  { id:'kategori',   label:'Kategori',   ico:'◫' },
+  { id:'keuangan',   label:'Keuangan',   ico:'◫' },
+  { id:'kategori',   label:'Kategori',   ico:'▤' },
   { id:'pengaturan', label:'Setelan',    ico:'⚙' }
 ];
 let currentPage = 'beranda';
@@ -370,6 +438,7 @@ function renderNav(){
   }).join('');
   document.getElementById('nav-desktop').innerHTML = html;
 
+  /* Kategori & Setelan tetap di sidebar; sisanya jadi tab bawah. */
   const tabs = PAGES.filter(function(p){ return p.id !== 'kategori' && p.id !== 'pengaturan'; });
   document.getElementById('nav-mobile').innerHTML = tabs.map(function(p){
     const active = p.id === currentPage ? ' active' : '';
@@ -394,6 +463,7 @@ function render(){
   else if(currentPage === 'donor')      v.innerHTML = viewDonor();
   else if(currentPage === 'buku')       v.innerHTML = viewBuku(pageParams.id);
   else if(currentPage === 'surat')      v.innerHTML = viewSurat();
+  else if(currentPage === 'keuangan')   v.innerHTML = viewKeuangan();
   else if(currentPage === 'kategori')   v.innerHTML = viewKategori();
   else if(currentPage === 'pengaturan') v.innerHTML = viewPengaturan();
   else v.innerHTML = '<div class="empty">Halaman tidak ditemukan</div>';
@@ -401,6 +471,28 @@ function render(){
 }
 function afterRender(){
   if(currentPage === 'surat') bindSurat();
+  if(currentPage === 'keuangan') bindKeuangan();
+}
+/* Filter halaman Keuangan — dipasang ulang setiap halaman digambar. */
+function bindKeuangan(){
+  const q = document.getElementById('f-q');
+  if(q) q.addEventListener('input', function(){ finFilter.q = this.value; refreshKeuangan(); });
+  const pr = document.getElementById('f-program');
+  if(pr) pr.addEventListener('change', function(){ finFilter.program = this.value; refreshKeuangan(); });
+  const u = document.getElementById('f-uang');
+  if(u) u.addEventListener('change', function(){ finFilter.uang = this.value; refreshKeuangan(); });
+  const d1 = document.getElementById('f-dari');
+  if(d1) d1.addEventListener('change', function(){ finFilter.dari = this.value; refreshKeuangan(); });
+  const d2 = document.getElementById('f-sampai');
+  if(d2) d2.addEventListener('change', function(){ finFilter.sampai = this.value; refreshKeuangan(); });
+}
+/* Gambar ulang hanya daftar & ringkasan, lalu pasang ulang pendengar filter —
+   kalau seluruh halaman digambar ulang, fokus di kotak cari akan hilang. */
+function refreshKeuangan(){
+  const v = document.getElementById('view');
+  if(!v || currentPage !== 'keuangan') return;
+  v.innerHTML = viewKeuangan();
+  bindKeuangan();
 }
 
 /* ---------- BERANDA ---------- */
@@ -918,6 +1010,337 @@ function viewKategori(){
     }).join('') + '</tbody></table></div>' +
     '<p class="tiny muted" style="margin-top:10px">Menghapus kategori tidak menghapus donor — donornya menjadi “tanpa kategori”.</p>' +
   '</div>';
+}
+
+/* ---------- KEUANGAN ---------- */
+let finFilter = { q:'', program:'', uang:'', dari:'', sampai:'' };
+
+function finList(){
+  const q = finFilter.q.toLowerCase();
+  return state.finance.filter(function(f){
+    if(finFilter.program && !(f.program || []).some(function(x){ return x.id === finFilter.program; })) return false;
+    if(finFilter.uang && (f.mataUang || 'IDR') !== finFilter.uang) return false;
+    if(finFilter.dari && String(f.tanggal || '') < finFilter.dari) return false;
+    if(finFilter.sampai && String(f.tanggal || '') > finFilter.sampai) return false;
+    if(!q) return true;
+    const d = findDonor(f.donorId);
+    const teks = [f.donorId, d ? donorName(d) : '', d ? d.kategori : '',
+      (f.program || []).map(function(x){ return programNama(x.id); }).join(' '),
+      f.catatan, f.mataUang].join(' ').toLowerCase();
+    return teks.indexOf(q) >= 0;
+  }).sort(function(a,b){ return String(b.tanggal || '').localeCompare(String(a.tanggal || '')); });
+}
+
+function viewKeuangan(){
+  setTitle('Keuangan','Catatan donor masuk per program');
+  const list = finList();
+  const total = totalPerUang(list);
+  const kodeUang = Object.keys(total).sort();
+
+  /* Total per program, dipisah per mata uang supaya tidak salah jumlah. */
+  const perProgram = state.programs.map(function(p){
+    const pakai = list.filter(function(f){
+      return (f.program || []).some(function(x){ return x.id === p.id; });
+    });
+    return { p:p, n:pakai.length, total:totalPerUang(pakai.map(function(f){
+      return { mataUang:f.mataUang, jumlah:nominalProgram(f, p.id) };
+    })) };
+  }).filter(function(x){ return x.n > 0; });
+
+  const progOpts = '<option value="">Semua program</option>' + state.programs.map(function(p){
+    return '<option value="' + esc(p.id) + '"' + (finFilter.program === p.id ? ' selected' : '') + '>' +
+      esc(p.nama) + '</option>';
+  }).join('');
+  const uangOpts = '<option value="">Semua mata uang</option>' + KODE_UANG.map(function(k){
+    return '<option value="' + esc(k) + '"' + (finFilter.uang === k ? ' selected' : '') + '>' + esc(k) + '</option>';
+  }).join('');
+
+  return '' +
+  '<div class="card">' +
+    '<div class="card-head"><h2>Ringkasan</h2>' +
+      '<button class="btn sm primary" data-action="fin-baru">+ Tambah</button>' +
+      '<button class="btn sm ghost" data-action="prg-kelola">Kelola program</button></div>' +
+    (kodeUang.length
+      ? '<div class="grid stats">' + kodeUang.map(function(k){
+          return stat('Total ' + k, fmtUang(total[k], k),
+            list.filter(function(f){ return (f.mataUang||'IDR') === k; }).length + ' transaksi');
+        }).join('') + '</div>'
+      : '<p class="small muted">Belum ada transaksi. Klik <b>+ Tambah</b> untuk mencatat donor masuk.</p>') +
+    (perProgram.length
+      ? '<div class="sep"></div><div class="table-wrap"><table><thead><tr>' +
+          '<th>Program</th><th class="right">Transaksi</th><th class="right">Total</th></tr></thead><tbody>' +
+          perProgram.map(function(x){
+            return '<tr><td><b>' + esc(x.p.nama) + '</b></td><td class="mono right">' + x.n + '</td>' +
+              '<td class="mono right">' + Object.keys(x.total).sort().map(function(k){
+                return esc(fmtUang(x.total[k], k));
+              }).join('<br>') + '</td></tr>';
+          }).join('') + '</tbody></table></div>'
+      : '') +
+  '</div>' +
+
+  '<div class="card">' +
+    '<div class="card-head"><h2>Transaksi</h2>' +
+      '<span class="chip plain">' + list.length + ' baris</span></div>' +
+    '<div class="toolbar" style="margin-bottom:10px">' +
+      '<input type="search" class="grow" id="f-q" placeholder="Cari donor / program / catatan…" value="' + esc(finFilter.q) + '">' +
+      '<select id="f-program">' + progOpts + '</select>' +
+      '<select id="f-uang">' + uangOpts + '</select>' +
+    '</div>' +
+    '<div class="toolbar" style="margin-bottom:10px">' +
+      '<label class="tiny muted">Dari <input type="date" id="f-dari" value="' + esc(finFilter.dari) + '"></label>' +
+      '<label class="tiny muted">Sampai <input type="date" id="f-sampai" value="' + esc(finFilter.sampai) + '"></label>' +
+      '<button class="btn sm ghost" data-action="fin-reset">Bersihkan filter</button>' +
+    '</div>' +
+    (list.length
+      ? '<div class="table-wrap"><table><thead><tr>' +
+          '<th>Tanggal</th><th>Donor</th><th>Kategori</th><th>Program</th>' +
+          '<th class="right">Jumlah</th><th></th></tr></thead><tbody>' +
+          list.map(function(f){
+            const d = findDonor(f.donorId);
+            const prog = (f.program || []).map(function(x){
+              return '<div>' + esc(programNama(x.id)) +
+                '<span class="mono muted"> · ' + esc(fmtUang(x.jumlah, f.mataUang)) + '</span></div>';
+            }).join('') || '<span class="muted">—</span>';
+            return '<tr>' +
+              '<td class="mono nowrap">' + esc(f.tanggal || '—') + '</td>' +
+              '<td><b>' + esc(d ? donorName(d) : (f.donorId || '—')) + '</b>' +
+                '<div class="tiny muted mono">' + esc(f.donorId || '') + '</div></td>' +
+              '<td class="small">' + esc(d ? (d.kategori || '—') : '—') + '</td>' +
+              '<td class="small">' + prog + '</td>' +
+              '<td class="mono right nowrap"><b>' + esc(fmtUang(totalTransaksi(f), f.mataUang)) + '</b>' +
+                '<div class="tiny muted">' + esc(f.mataUang || 'IDR') + '</div></td>' +
+              '<td class="right nowrap">' +
+                '<button class="btn sm ghost" data-action="fin-ubah" data-id="' + esc(f.id) + '">Ubah</button>' +
+                '<button class="btn sm ghost" data-action="fin-hapus" data-id="' + esc(f.id) + '">Hapus</button>' +
+              '</td></tr>';
+          }).join('') + '</tbody></table></div>'
+      : '<div class="empty"><span class="big">◫</span>Belum ada transaksi yang cocok.</div>') +
+  '</div>';
+}
+
+/* Form transaksi. Nama & kategori donor hanya tampil (read-only) — diambil
+   dari data donor supaya tidak ada dua sumber kebenaran. */
+function openFinForm(id){
+  const f = id ? state.finance.filter(function(x){ return x.id === id; })[0] : null;
+  if(id && !f){ toast('Transaksi tidak ditemukan', true); return; }
+  const isNew = !f;
+  const donorOpts = '<option value="">— pilih donor —</option>' + state.donors.map(function(d){
+    return '<option value="' + esc(d.id) + '"' + (f && f.donorId === d.id ? ' selected' : '') + '>' +
+      esc(d.id + ' — ' + donorName(d)) + '</option>';
+  }).join('');
+  const uangOpts = KODE_UANG.map(function(k){
+    return '<option value="' + esc(k) + '"' + (f && f.mataUang === k ? ' selected' : '') + '>' +
+      esc(k + ' — ' + uangInfo(k).nama) + '</option>';
+  }).join('');
+  const barisProgram = (f && f.program && f.program.length ? f.program : [{ id:'', jumlah:'' }]);
+
+  const body =
+    '<div class="form-grid">' +
+      '<div class="field"><label>Donor</label><select id="k-donor">' + donorOpts + '</select></div>' +
+      '<div class="field"><label>Tanggal donor</label>' +
+        '<input type="date" id="k-tanggal" value="' + esc(f ? (f.tanggal || '') : new Date().toISOString().slice(0,10)) + '"></div>' +
+    '</div>' +
+    '<div class="form-grid">' +
+      '<div class="field"><label>Nama <span class="hint">— otomatis dari donor</span></label>' +
+        '<input type="text" id="k-nama" class="mono" readonly value=""></div>' +
+      '<div class="field"><label>Kategori <span class="hint">— otomatis dari donor</span></label>' +
+        '<input type="text" id="k-kategori" class="mono" readonly value=""></div>' +
+    '</div>' +
+    '<div class="field"><label>Mata uang</label><select id="k-uang">' + uangOpts + '</select></div>' +
+    '<div class="field"><label>Dukung untuk program <span class="hint">— satu donor boleh beberapa program</span></label>' +
+      '<div id="k-program">' + barisProgram.map(function(x){ return barisProgramHTML(x); }).join('') + '</div>' +
+      '<button type="button" class="btn sm" data-action="fin-baris-tambah" style="margin-top:8px">+ Tambah program</button>' +
+      '<p class="tiny muted" style="margin:8px 0 0">Isi nominal <b>per program</b>. Total dihitung otomatis.</p>' +
+      '<p class="small" style="margin:6px 0 0">Total: <b class="mono" id="k-total">—</b></p></div>' +
+    '<div class="field"><label>Catatan</label>' +
+      '<input type="text" id="k-catatan" value="' + esc(f ? (f.catatan || '') : '') + '" placeholder="opsional"></div>';
+
+  openModal({
+    title: isNew ? 'Tambah Transaksi Keuangan' : 'Ubah Transaksi Keuangan',
+    body: body,
+    wide: true,
+    footer: '<button class="btn primary" data-action="fin-simpan" data-id="' + esc(id || '') + '">Simpan</button>' +
+            '<button class="btn" data-close>Batal</button>',
+    onOpen: function(root){
+      const sel = document.getElementById('k-donor');
+      const isiDonor = function(){
+        const d = findDonor(sel.value);
+        document.getElementById('k-nama').value = d ? donorName(d) : '';
+        document.getElementById('k-kategori').value = d ? (d.kategori || '') : '';
+      };
+      sel.addEventListener('change', isiDonor);
+      isiDonor();
+      bindFinForm(root);
+    }
+  });
+}
+
+function barisProgramHTML(x){
+  const opts = '<option value="">— pilih program —</option>' + state.programs.map(function(p){
+    return '<option value="' + esc(p.id) + '"' + (x && x.id === p.id ? ' selected' : '') + '>' +
+      esc(p.nama) + (p.aktif === false ? ' (nonaktif)' : '') + '</option>';
+  }).join('');
+  return '<div class="row fin-baris" style="gap:8px;margin-bottom:6px">' +
+    '<select class="grow k-prog">' + opts + '</select>' +
+    '<input type="number" class="k-jml mono" style="width:150px" min="0" step="any" placeholder="Jumlah" value="' +
+      esc(x && x.jumlah !== undefined && x.jumlah !== '' ? x.jumlah : '') + '">' +
+    '<button type="button" class="btn sm ghost" data-action="fin-baris-hapus" title="Hapus baris">×</button>' +
+  '</div>';
+}
+
+function bindFinForm(root){
+  const hitung = function(){
+    const uang = (document.getElementById('k-uang') || {}).value || 'IDR';
+    let total = 0;
+    root.querySelectorAll('.fin-baris').forEach(function(b){
+      total += Number((b.querySelector('.k-jml') || {}).value) || 0;
+    });
+    const el = document.getElementById('k-total');
+    if(el) el.textContent = fmtUang(total, uang);
+  };
+  root.querySelectorAll('.k-jml').forEach(function(i){ i.addEventListener('input', hitung); });
+  const u = document.getElementById('k-uang');
+  if(u) u.addEventListener('change', hitung);
+  hitung();
+}
+
+function simpanFinForm(id){
+  const donorId = (document.getElementById('k-donor') || {}).value || '';
+  const tanggal = (document.getElementById('k-tanggal') || {}).value || '';
+  const mataUang = (document.getElementById('k-uang') || {}).value || 'IDR';
+  const catatan = (document.getElementById('k-catatan') || {}).value || '';
+  if(!donorId){ toast('Pilih donor dulu', true); return; }
+  if(!tanggal){ toast('Tanggal donor belum diisi', true); return; }
+
+  const program = [];
+  const root = document.getElementById('modal-root');
+  root.querySelectorAll('.fin-baris').forEach(function(b){
+    const pid = (b.querySelector('.k-prog') || {}).value || '';
+    const jml = Number((b.querySelector('.k-jml') || {}).value) || 0;
+    if(pid) program.push({ id:pid, jumlah:jml });
+  });
+  if(!program.length){ toast('Pilih minimal satu program', true); return; }
+  const dobel = program.map(function(x){ return x.id; }).filter(function(v,i,a){ return a.indexOf(v) !== i; });
+  if(dobel.length){ toast('Program yang sama dipilih dua kali', true); return; }
+  if(program.some(function(x){ return !x.jumlah; })){ toast('Jumlah tiap program belum diisi', true); return; }
+
+  if(id){
+    const f = state.finance.filter(function(x){ return x.id === id; })[0];
+    if(!f){ toast('Transaksi tidak ditemukan', true); return; }
+    f.donorId = donorId; f.tanggal = tanggal; f.mataUang = mataUang;
+    f.program = program; f.catatan = catatan;
+    toast('Transaksi diperbarui');
+  }else{
+    state.finance.push({
+      id:uid('fin'), donorId:donorId, tanggal:tanggal, mataUang:mataUang,
+      program:program, catatan:catatan, createdAt:new Date().toISOString()
+    });
+    toast('Transaksi ditambahkan');
+  }
+  save('finance');
+  closeModal();
+  render();
+}
+
+function hapusFin(id){
+  const f = state.finance.filter(function(x){ return x.id === id; })[0];
+  if(!f) return;
+  const d = findDonor(f.donorId);
+  if(!confirm('Hapus transaksi ' + (d ? donorName(d) : f.donorId) + ' tanggal ' + f.tanggal + '?')) return;
+  state.finance = state.finance.filter(function(x){ return x.id !== id; });
+  save('finance');
+  toast('Transaksi dihapus');
+  render();
+}
+
+/* ---------- Master Program ---------- */
+function openPrgKelola(){
+  const body = (state.programs.length
+    ? '<div class="stack">' + state.programs.map(function(p){
+        const n = state.finance.filter(function(f){
+          return (f.program || []).some(function(x){ return x.id === p.id; });
+        }).length;
+        return '<div class="card" style="padding:12px">' +
+          '<div class="row"><b style="flex:1">' + esc(p.nama) + '</b>' +
+            '<span class="chip plain mono">' + esc(p.id) + '</span>' +
+            '<button class="btn sm ghost" data-action="prg-ubah" data-id="' + esc(p.id) + '">Ubah</button>' +
+            '<button class="btn sm ghost" data-action="prg-hapus" data-id="' + esc(p.id) + '">Hapus</button></div>' +
+          '<div class="tiny muted" style="margin-top:4px">' + n + ' transaksi' +
+            (p.aktif === false ? ' · <b>nonaktif</b>' : '') + '</div></div>';
+      }).join('') + '</div>'
+    : '<div class="empty"><span class="big">◫</span>Belum ada program.</div>');
+  openModal({
+    title:'Program Dukungan',
+    body:body,
+    footer:'<button class="btn primary" data-action="prg-baru">+ Tambah</button>' +
+           '<button class="btn" data-close>Tutup</button>'
+  });
+}
+
+function openPrgForm(id){
+  const p = id ? programById(id) : null;
+  if(id && !p){ toast('Program tidak ditemukan', true); return; }
+  const isNew = !p;
+  const body =
+    '<div class="field"><label>Nama program</label>' +
+      '<input type="text" id="p-nama" value="' + esc(isNew ? '' : p.nama) + '" placeholder="Contoh: Beasiswa Anak Pelayan"></div>' +
+    '<div class="field"><label>Status</label>' +
+      '<select id="p-aktif">' +
+        '<option value="1"' + (!isNew && p.aktif === false ? '' : ' selected') + '>Aktif — bisa dipilih di transaksi</option>' +
+        '<option value="0"' + (!isNew && p.aktif === false ? ' selected' : '') + '>Nonaktif — tidak muncul di pilihan baru</option>' +
+      '</select></div>';
+  openModal({
+    title: isNew ? 'Tambah Program' : 'Ubah Program',
+    body: body,
+    footer: '<button class="btn primary" data-action="prg-form-simpan" data-id="' + esc(id || '') + '">Simpan</button>' +
+            '<button class="btn" data-action="prg-kelola">Batal</button>'
+  });
+}
+
+function simpanPrgForm(id){
+  const nama = ((document.getElementById('p-nama') || {}).value || '').trim();
+  const aktif = ((document.getElementById('p-aktif') || {}).value || '1') === '1';
+  if(!nama){ toast('Nama program belum diisi', true); return; }
+  const kembar = state.programs.filter(function(p){
+    return p.nama.toLowerCase() === nama.toLowerCase() && p.id !== id;
+  });
+  if(kembar.length){ toast('Program dengan nama itu sudah ada', true); return; }
+
+  if(id){
+    const p = programById(id);
+    if(!p){ toast('Program tidak ditemukan', true); return; }
+    p.nama = nama; p.aktif = aktif;
+    toast('Program "' + nama + '" diperbarui');
+  }else{
+    /* Nomor urut berikutnya dari id yang sudah ada, supaya tidak bentrok. */
+    let n = 1;
+    const dipakai = {};
+    state.programs.forEach(function(p){ dipakai[p.id] = true; });
+    while(dipakai['PRG-' + String(n).padStart(2,'0')]) n++;
+    state.programs.push({ id:'PRG-' + String(n).padStart(2,'0'), nama:nama, aktif:aktif });
+    toast('Program "' + nama + '" ditambahkan');
+  }
+  save('programs');
+  openPrgKelola();
+  render();
+}
+
+function hapusPrg(id){
+  const p = programById(id);
+  if(!p) return;
+  const n = state.finance.filter(function(f){
+    return (f.program || []).some(function(x){ return x.id === id; });
+  }).length;
+  if(n){
+    toast('Program ini dipakai di ' + n + ' transaksi — nonaktifkan saja', true);
+    return;
+  }
+  if(!confirm('Hapus program "' + p.nama + '"?')) return;
+  state.programs = state.programs.filter(function(x){ return x.id !== id; });
+  save('programs');
+  toast('Program dihapus');
+  openPrgKelola();
+  render();
 }
 
 /* ---------- PENGATURAN ---------- */
@@ -1872,6 +2295,8 @@ function importJSON(file){
       if(Array.isArray(data.templates))  state.templates = data.templates;
       if(Array.isArray(data.messages))   state.messages = data.messages;
       else if(Array.isArray(data.logs))  state.messages = data.logs;
+      if(Array.isArray(data.programs))   state.programs = data.programs;
+      if(Array.isArray(data.finance))    state.finance = data.finance;
       save();
       toast('Data berhasil diimpor');
       render();
@@ -2040,6 +2465,41 @@ document.addEventListener('click', function(e){
       break;
     }
     case 'print-one': { const d = findDonor(id); if(d) printLetter(d); break; }
+    case 'fin-baru': openFinForm(''); break;
+    case 'fin-ubah': openFinForm(id); break;
+    case 'fin-hapus': hapusFin(id); break;
+    case 'fin-simpan': simpanFinForm(id); break;
+    case 'fin-reset':
+      finFilter = { q:'', program:'', uang:'', dari:'', sampai:'' };
+      render(); break;
+    case 'fin-baris-tambah': {
+      const box = document.getElementById('k-program');
+      if(box){
+        const tmp = document.createElement('div');
+        tmp.innerHTML = barisProgramHTML({ id:'', jumlah:'' });
+        const baris = tmp.firstChild;
+        box.appendChild(baris);
+        bindFinForm(document.getElementById('modal-root'));
+      }
+      break;
+    }
+    case 'fin-baris-hapus': {
+      const baris = act.closest('.fin-baris');
+      const box = document.getElementById('k-program');
+      /* Sisakan minimal satu baris supaya form tidak pernah kosong. */
+      if(baris && box && box.querySelectorAll('.fin-baris').length > 1){
+        baris.remove();
+        bindFinForm(document.getElementById('modal-root'));
+      }else{
+        toast('Minimal satu baris program', true);
+      }
+      break;
+    }
+    case 'prg-kelola': openPrgKelola(); break;
+    case 'prg-baru': openPrgForm(''); break;
+    case 'prg-ubah': openPrgForm(id); break;
+    case 'prg-form-simpan': simpanPrgForm(id); break;
+    case 'prg-hapus': hapusPrg(id); break;
     case 'kat-baru': {
       const nama = prompt('Nama kategori baru:');
       if(!nama) break;

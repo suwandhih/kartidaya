@@ -1294,7 +1294,7 @@ Belum ada `.xlsx`, dan belum mencakup surat/kategori/template.
 **Saran:** pakai SheetJS yang disimpan di repo (`vendor/xlsx.full.min.js`).
 Sekali unduh, aplikasi tetap jalan offline.
 
-### 17.5 Form baru — Keuangan (Finance)
+### 17.5 Form baru — Keuangan (Finance) — ✅ SELESAI (11 Nov 2026)
 
 **Yang diminta:** form input untuk bagian finance.
 
@@ -1337,12 +1337,78 @@ tanggal, total per program, tombol **+ Tambah**.
    per program?
 3. Apakah perlu **mata uang** selain Rupiah (mis. USD untuk *Funder - Foreign*)?
 
+**Jawaban pengguna (11 Nov 2026):**
+
+| # | Pertanyaan | Jawaban |
+|---|---|---|
+| 1 | Satu transaksi & beberapa program | **Nominal per program** — tiap program punya jumlah sendiri |
+| 2 | Mata uang | **Multi mata uang** — IDR, USD, SGD, EUR, AUD, MYR |
+| 3 | Master program | **Buatkan contoh** — user isi/ubah sendiri nanti |
+
+**Hasil (`app.js?v=17`):**
+
+- [x] Halaman **Keuangan** + menu navigasi (sidebar & tab bawah)
+- [x] Form transaksi: pilih donor → **Nama** & **Kategori** terisi otomatis (read-only)
+- [x] **Nominal per program** — baris program bisa ditambah/dihapus, total dihitung langsung
+- [x] **Multi mata uang** — 6 pilihan; total dipisah per mata uang (tidak dijumlahkan lintas kurs)
+- [x] **Master program** — 5 contoh, bisa tambah/ubah/hapus, ada status aktif/nonaktif
+- [x] Filter: cari, program, mata uang, rentang tanggal, tombol bersihkan
+- [x] Ringkasan: total per mata uang + total per program
+- [x] Validasi: donor wajib, minimal 1 program, program tidak boleh dobel, jumlah wajib
+- [x] Program yang sudah dipakai transaksi **tidak bisa dihapus** (disarankan nonaktifkan)
+- [x] Ekspor/impor JSON ikut menyertakan `programs` & `finance`
+
+**Bentuk data final:**
+
+```js
+// transaksi
+{ id:'fin-…', donorId:'F00004R', tanggal:'2026-11-11', mataUang:'IDR',
+  program:[ { id:'PRG-01', jumlah:750000 }, { id:'PRG-02', jumlah:1000000 } ],
+  catatan:'', createdAt:'…' }
+
+// program
+{ id:'PRG-01', nama:'Beasiswa Anak Pelayan', aktif:true }
+```
+
+**Kunci localStorage baru:** `kartidaya.v2.programs`, `kartidaya.v2.finance`
+
+**Verifikasi di browser:**
+
+| Uji | Hasil |
+|---|---|
+| Menu **Keuangan** muncul di sidebar & tab bawah | ✅ |
+| Form: pilih donor → Nama `Ferry Kangsadjaja`, Kategori `Member Support` | ✅ |
+| Nama & Kategori read-only | ✅ |
+| Tambah baris program → 2 baris, total `Rp 1.500.000` | ✅ |
+| Simpan → tersimpan di `localStorage`, tabel tampil 2 program | ✅ |
+| Ringkasan total IDR | `Rp 1.500.000` ✅ |
+| Total per program | Beasiswa `Rp 500.000`, Pembangunan `Rp 1.000.000` ✅ |
+| Transaksi USD | `$250.00`, ringkasan terpisah `TOTAL USD` ✅ |
+| Filter program `PRG-01` | 1 baris ✅ |
+| Filter mata uang `USD` | 1 baris ✅ |
+| Cari `gky` | 1 baris ✅ |
+| Cari `zzz` | 0 baris ✅ |
+| Bersihkan filter | kembali 2 baris ✅ |
+| Ubah transaksi → form terisi 2 baris, total `Rp 1.500.000` | ✅ |
+| Ubah jumlah → total `Rp 1.750.000`, tersimpan | ✅ |
+| Simpan tanpa donor | ditolak ✅ |
+| Simpan tanpa program | ditolak ✅ |
+| Program sama dua kali | ditolak ✅ |
+| Jumlah program kosong | ditolak ✅ |
+| Tambah program `PRG-06` | ✅ |
+| Nama program kembar | ditolak ✅ |
+| Ubah program jadi nonaktif | ✅ |
+| Hapus program yang belum dipakai | ✅ |
+| Hapus program yang sudah dipakai | ditolak dengan saran nonaktifkan ✅ |
+| Tab bawah di 320px | 6 tab, tidak ada overflow horizontal ✅ |
+| Semua halaman lain | tetap normal ✅ |
+
 ### 17.6 Urutan pengerjaan yang disarankan
 
 | Urutan | Pekerjaan | Perkiraan | Alasan urutan |
 |---|---|---|---|
-| 1 | **17.1 Kelola Template** (tambah + edit) | ±30 menit | Paling kecil, langsung terasa, tidak bergantung apa pun |
-| 2 | **17.5 Master Program + Form Keuangan** | ±2 jam | Fondasi data; dibutuhkan oleh ekspor Excel |
+| 1 | **17.1 Kelola Template** (tambah + edit) | ±30 menit | ✅ **selesai** |
+| 2 | **17.5 Master Program + Form Keuangan** | ±2 jam | ✅ **selesai** |
 | 3 | **17.4 Ekspor XLSX** (6 lembar) | ±1,5 jam | Butuh data keuangan sudah ada |
 | 4 | **17.2 + 17.3 + Fase 5** (HTML email: kwitansi, majalah, tanda dibaca) | ±3 jam | Sama-sama mengubah `buildRawMessage()` — dikerjakan sekali jalan |
 
@@ -1369,12 +1435,12 @@ tanggal, total per program, tombol **+ Tambah**.
 - [x] Uji: tambah, ubah, hapus, pakai
 
 **17.5 Keuangan**
-- [ ] Master program (tambah/ubah/hapus)
-- [ ] Halaman **Keuangan** + menu navigasi
-- [ ] Form transaksi: donor → nama & kategori otomatis
-- [ ] Multi-pilih program
-- [ ] Daftar + filter + total
-- [ ] Uji: input, ubah, hapus, filter
+- [x] Master program (tambah/ubah/hapus)
+- [x] Halaman **Keuangan** + menu navigasi
+- [x] Form transaksi: donor → nama & kategori otomatis
+- [x] Multi-pilih program
+- [x] Daftar + filter + total
+- [x] Uji: input, ubah, hapus, filter
 
 **17.4 Ekspor**
 - [ ] `vendor/xlsx.full.min.js` masuk repo
