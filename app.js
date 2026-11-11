@@ -299,7 +299,8 @@ function majalahURL(n){
   if(!m || !base) return '';
   return base + '/majalah/' + m.id + '/' + n;
 }
-function majalahHTML(){
+function majalahHTML(opts){
+  opts = opts || {};
   const m = majalahInfo();
   if(!m) return '';
   const pages = [];
@@ -312,9 +313,18 @@ function majalahHTML(){
       '</div>');
   }
   if(!pages.length) return '';
+  /* Sebagian klien email memblokir gambar. Tautan ini memberi jalan lain
+     supaya penerima tetap bisa membaca majalahnya. */
+  const tautan = opts.tautan
+    ? '<div style="font-size:12px;color:#555;margin:0 0 12px">' +
+        'Gambar tidak tampil? Buka halaman pertama di ' +
+        '<a href="' + esc(majalahURL(1)) + '" style="color:#2f6f9f">' + esc(majalahURL(1)) + '</a>' +
+      '</div>'
+    : '';
   return '<div style="margin:22px 0 0;font-family:Arial,Helvetica,sans-serif;color:#111">' +
       '<div style="font-size:15px;font-weight:bold;margin-bottom:10px">' +
         esc(m.judul || 'Majalah Kartidaya') + '</div>' +
+      tautan +
       pages.join('') +
     '</div>';
 }
@@ -2300,7 +2310,7 @@ function isiHTML(d, isiTeks, bahasa, finId, opts){
   return '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.65;' +
       'color:#111;max-width:720px">' + teks + '</div>' +
     (opts.kwitansi === false ? '' : kwitansiHTML(d, bahasa, finId)) +
-    (opts.majalah ? majalahHTML() : '') +
+    (opts.majalah ? majalahHTML({ tautan: true }) : '') +
     (opts.pixelId ? pixelHTML(opts.pixelId) : '');
 }
 

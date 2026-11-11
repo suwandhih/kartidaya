@@ -1356,6 +1356,7 @@ untuk semua penerima.
 | Pratinjau di aplikasi | panel pratinjau bisa digulir, tidak memanjangkan halaman ✅ |
 | Ganti / hapus | unggah ulang mengganti seluruh halaman; tombol **Hapus majalah** ✅ |
 | Tanpa Worker | tombol mati + penjelasan cara mengaktifkan ✅ |
+| Gambar diblokir penerima | ada tautan cadangan "Gambar tidak tampil? Buka halaman pertama di …" ✅ |
 
 **Catatan penting:** majalah butuh **Alamat Worker** terisi di **Setelan**.
 Tanpa itu halaman majalah tidak punya tempat penyimpanan dan tidak bisa tampil
@@ -1551,7 +1552,7 @@ tanggal, total per program, tombol **+ Tambah**.
 |---|---|---|
 | 1 | Uji majalah lewat email sungguhan | berkas gambar majalah (±10 halaman) |
 | 2 | Uji tanda dibaca lewat email sungguhan | cukup buka email yang dikirim, lalu lihat Kotak Keluar |
-| 3 | Deploy Worker versi baru | jalankan `npx wrangler deploy` di folder `worker/` |
+| 3 | ~~Deploy Worker versi baru~~ | ✅ **sudah di-deploy** 11 Nov 2026 — `kartidaya-wa.suwandhih.workers.dev` |
 | 4 | Isi data Keuangan | transaksi donor supaya kwitansi tidak Rp 0 |
 
 ### 17.7 Berkas yang akan tersentuh
