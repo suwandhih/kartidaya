@@ -478,6 +478,20 @@ tbody tr:last-child td{border-bottom:0}
   border:1px solid var(--warn);border-radius:var(--radius-sm);
   padding:11px 13px;font-size:13px;margin-bottom:14px;overflow-wrap:anywhere;
 }
+/* Kotak "tidak ada masalah" di layar Periksa sebelum kirim. */
+.okbox{
+  background:var(--accent-soft);color:var(--accent);
+  border:1px solid var(--accent);border-radius:var(--radius-sm);
+  padding:11px 13px;font-size:13px;margin-bottom:14px;font-weight:600;
+}
+
+/* ---------- PRATINJAU LAMPIRAN (kwitansi & majalah) ---------- */
+.lampiran-blok{margin-bottom:18px}
+.lampiran-head{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  margin-bottom:8px;font-size:13.5px;
+}
+
 #toast{
   position:fixed;left:50%;transform:translateX(-50%);
   bottom:22px;z-index:200;

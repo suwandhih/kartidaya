@@ -1717,3 +1717,53 @@ tampil seperti sebelumnya — satu baris saja, tanpa label `(IDR)`.
 
 **Uji:** 20 pemeriksaan lulus — susunan baris, total campur mata uang, simpan,
 kwitansi 2 bahasa, data lama, ekspor Excel, dan filter.
+
+### 17.13 Pratinjau sebelum & sesudah kirim — ✅ SELESAI (11 Nov 2026)
+
+**Yang diminta:** user finance perlu bisa **memastikan dulu** sebelum kirim —
+kwitansi dan surat ditampilkan **di layar** untuk diperiksa, bukan langsung
+dicetak. Termasuk bisa tahu **apa yang sudah terkirim** ke donor mana.
+
+**Dua bagian yang dibuat:**
+
+**A. Periksa sebelum kirim** — tombol **🔍 Periksa sebelum kirim** di halaman
+Tulis Surat (bagian Pratinjau). Menampilkan:
+
+| Bagian | Isi |
+|---|---|
+| Peringatan | hal yang bisa membuat kiriman salah/gagal |
+| Daftar penerima | ID, nama, email/nomor, **jumlah kwitansi** masing-masing |
+| Isi surat | subjek + isi persis seperti yang diterima penerima pertama |
+| Kwitansi | tampil penuh di layar, sesuai bahasa yang dipilih |
+| Majalah | semua halaman, kalau majalah diaktifkan |
+
+Yang diperiksa otomatis dan ditampilkan sebagai peringatan:
+
+| Keadaan | Peringatan |
+|---|---|
+| Penerima belum punya email/nomor | "N penerima belum punya alamat email — akan ditandai Gagal" |
+| Penerima belum punya transaksi keuangan | "N penerima belum punya transaksi — kwitansinya Rp 0" |
+| Belum ada data keuangan sama sekali | "Catat dulu di halaman Keuangan" |
+| Gmail/WhatsApp belum terhubung | "surat hanya akan dicatat, tidak benar-benar dikirim" |
+| Tidak ada masalah | kotak hijau "✓ Tidak ada hal yang perlu diperhatikan" |
+
+Tombol **➤ Kirim sekarang** langsung mengirim dari layar periksa, jadi tidak
+perlu kembali ke halaman Tulis.
+
+**B. Pratinjau di buku surat** — saat surat keluar dibuka, di bawah isi surat
+muncul bagian **Lampiran di badan email**:
+
+| Keadaan | Yang ditampilkan |
+|---|---|
+| Surat baru (punya salinan) | kwitansi **persis seperti yang terkirim** + chip "salinan tersimpan" |
+| Surat lama (belum ada salinan) | kwitansi dibuat ulang dari data keuangan sekarang + peringatan kuning |
+| Surat memuat majalah | semua halaman majalah yang ikut terkirim |
+
+**Kenapa salinan disimpan:** kalau nanti data keuangan diubah, isi kwitansi
+yang **sudah terkirim** tetap bisa diperiksa persis seperti yang diterima
+donor. Tanpa salinan, kwitansi lama akan ikut berubah dan tidak bisa lagi
+dijadikan bukti.
+
+**Uji:** 26 pemeriksaan lulus — tombol periksa, daftar penerima, peringatan
+otomatis, kwitansi di layar periksa, salinan tersimpan saat kirim, pratinjau
+di buku surat, dan surat lama yang dibuat ulang.

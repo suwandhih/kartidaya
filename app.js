@@ -1263,8 +1263,112 @@ function previewHTML(d){
         '<div class="mj-preview">' + majalahHTML() + '</div>'
       : '') +
     '<div class="btn-row" style="margin-top:12px">' +
+      '<button class="btn primary" data-action="periksa-kirim">🔍 Periksa sebelum kirim</button>' +
       '<button class="btn" data-action="print-one" data-id="' + esc(d.id) + '">⎙ Cetak</button>' +
     '</div>';
+}
+
+/* Periksa sebelum kirim: tampilkan surat + kwitansi + majalah persis seperti
+   yang akan diterima donor, plus daftar penerima dan hal yang perlu
+   diperhatikan. Tujuannya supaya tidak salah kirim. */
+function openPeriksaKirim(){
+  const ids = Object.keys(suratState.selected).filter(function(k){ return suratState.selected[k]; });
+  if(!ids.length){ toast('Pilih penerima dulu', true); return; }
+  if(!suratState.isi.trim()){ toast('Isi surat masih kosong', true); return; }
+
+  const kanal = suratState.kanal === 'whatsapp' ? 'whatsapp' : 'email';
+  const wa = kanal === 'whatsapp';
+  const pakaiKwitansi = !wa && suratState.kwitansi;
+  const pakaiMajalah = !wa && suratState.majalah && majalahInfo();
+
+  /* Penerima yang belum punya alamat akan gagal terkirim — ditandai di sini
+     supaya bisa dibetulkan sebelum menekan Kirim. */
+  const tanpaAlamat = ids.filter(function(id){
+    const d = findDonor(id);
+    return d && !(wa ? donorWa(d) : d.email);
+  });
+  const tanpaKwitansi = pakaiKwitansi ? ids.filter(function(id){
+    return !state.finance.some(function(f){ return f.donorId === id; });
+  }) : [];
+
+  const perhatian = [];
+  if(tanpaAlamat.length) perhatian.push('<b>' + tanpaAlamat.length + ' penerima</b> belum punya ' +
+    (wa ? 'nomor HP' : 'alamat email') + ' — pengirimannya akan ditandai <b>Gagal</b>.');
+  if(tanpaKwitansi.length) perhatian.push('<b>' + tanpaKwitansi.length + ' penerima</b> belum punya ' +
+    'transaksi di halaman Keuangan — kwitansinya berjumlah <b>Rp 0</b>.');
+  if(pakaiKwitansi && !state.finance.length) perhatian.push('Belum ada data keuangan sama sekali. ' +
+    'Catat dulu di halaman <b>Keuangan</b> supaya kwitansi berisi jumlah yang benar.');
+  if(!wa && !Gmail.isConnected()) perhatian.push('Gmail belum terhubung — surat hanya akan ' +
+    '<b>dicatat</b> sebagai Terkirim, tidak benar-benar dikirim.');
+  if(wa && !(WhatsApp.isConfigured() && WhatsApp.status() === 'connected')) perhatian.push('WhatsApp belum ' +
+    'tersambung — pesan hanya akan <b>dicatat</b>, tidak benar-benar dikirim.');
+
+  /* Contoh yang ditampilkan: penerima pertama yang dipilih. */
+  const contoh = findDonor(ids[0]);
+  const subjek = contoh ? fillTemplate(suratState.subjek, contoh) : suratState.subjek;
+  const isi = contoh ? fillTemplate(suratState.isi, contoh) : suratState.isi;
+
+  const daftarPenerima = ids.map(function(id){
+    const d = findDonor(id);
+    if(!d) return '';
+    const alamat = wa ? (donorWa(d) ? waPhonePretty(donorWa(d)) : '') : (d.email || '');
+    const fin = state.finance.filter(function(f){ return f.donorId === id; });
+    const total = fin.length ? Object.keys(totalPerUang(fin)).sort().map(function(k){
+      return fmtUang(totalPerUang(fin)[k], k);
+    }).join(' + ') : '';
+    return '<tr>' +
+      '<td class="mono nowrap">' + esc(d.id) + '</td>' +
+      '<td><b>' + esc(donorName(d)) + '</b></td>' +
+      '<td class="small mono">' + (alamat ? esc(alamat) : '<span class="chip warn">belum ada</span>') + '</td>' +
+      (pakaiKwitansi
+        ? '<td class="small mono right nowrap">' + (total ? esc(total) : '<span class="chip warn">Rp 0</span>') + '</td>'
+        : '') +
+    '</tr>';
+  }).join('');
+
+  const body =
+    (perhatian.length
+      ? '<div class="warnbox"><b>Perlu diperhatikan</b><ul style="margin:8px 0 0;padding-left:20px">' +
+          perhatian.map(function(x){ return '<li>' + x + '</li>'; }).join('') + '</ul></div>'
+      : '<div class="okbox">✓ Tidak ada hal yang perlu diperhatikan. Siap dikirim.</div>') +
+
+    '<div class="sep"></div>' +
+    '<p class="small" style="margin:0 0 8px"><b>Penerima (' + ids.length + ')</b> ' +
+      '<span class="hint">— contoh di bawah memakai penerima pertama</span></p>' +
+    '<div class="table-wrap"><table><thead><tr>' +
+      '<th>ID</th><th>Nama</th><th>' + (wa ? 'Nomor' : 'Email') + '</th>' +
+      (pakaiKwitansi ? '<th class="right">Jumlah kwitansi</th>' : '') +
+    '</tr></thead><tbody>' + daftarPenerima + '</tbody></table></div>' +
+
+    '<div class="sep"></div>' +
+    '<p class="small" style="margin:0 0 8px"><b>Isi surat yang akan diterima</b></p>' +
+    '<div class="kv">' +
+      kv('Subjek', subjek) +
+      kv('Kepada', contoh ? donorLabel(contoh) + ' · ' + (wa ? waPhonePretty(donorWa(contoh)) : contoh.email) : '—') +
+    '</div>' +
+    (wa
+      ? '<div class="wa-preview"><div class="wa-bubble">' + esc(isi) + '</div></div>'
+      : '<div class="letter">' + esc(isi) + '</div>') +
+
+    (pakaiKwitansi && contoh
+      ? '<div class="sep"></div>' +
+        '<p class="small" style="margin:0 0 8px"><b>Kwitansi yang akan diterima</b> ' +
+          '<span class="hint">— ' + esc(KWITANSI_NAMA_BAHASA[suratState.kwitansiBahasa] || 'Indonesia') + '</span></p>' +
+        '<div class="kwitansi-preview">' +
+          kwitansiHTML(contoh, suratState.kwitansiBahasa, suratState.kwitansiFinId) + '</div>'
+      : '') +
+
+    (pakaiMajalah
+      ? '<div class="sep"></div>' +
+        '<p class="small" style="margin:0 0 8px"><b>Majalah yang akan diterima</b> ' +
+          '<span class="hint">— ' + majalahInfo().halaman + ' halaman</span></p>' +
+        '<div class="mj-preview">' + majalahHTML() + '</div>'
+      : '');
+
+  const footer = '<button class="btn" data-close>Kembali periksa</button>' +
+    '<button class="btn primary" data-action="kirim-dari-periksa">➤ Kirim sekarang (' + ids.length + ')</button>';
+
+  openModal({ title:'Periksa sebelum kirim', body:body, footer:footer, wide:true });
 }
 
 /* Kotak pilihan kwitansi di halaman Tulis. Hanya untuk kanal email — WhatsApp
@@ -2254,7 +2358,8 @@ function openMessage(msgId){
     '<div class="sep"></div>' +
     (m.kanal === 'whatsapp'
       ? '<div class="wa-preview"><div class="wa-bubble">' + esc(m.isi) + '</div></div>'
-      : '<div class="letter">' + esc(m.isi) + '</div>');
+      : '<div class="letter">' + esc(m.isi) + '</div>') +
+    pratinjauLampiran(m, d);
 
   const footer = '<button class="btn danger" data-action="msg-hapus" data-id="' + esc(m.id) + '">Hapus</button>' +
     '<button class="btn" data-close>Tutup</button>' +
@@ -2264,6 +2369,54 @@ function openMessage(msgId){
 
   openModal({ title: m.subjek || '(tanpa subjek)', body:body, footer:footer, wide:true });
   renderNav();
+}
+
+/* Pratinjau lampiran surat keluar: kwitansi & majalah seperti yang dilihat
+   penerima. Dipakai supaya bisa diperiksa sebelum maupun sesudah kirim.
+   Kwitansi diambil dari salinan yang disimpan saat surat dikirim; kalau surat
+   lama belum punya salinan, dibuat ulang dari data keuangan sekarang. */
+function pratinjauLampiran(m, d){
+  if(!m || m.arah !== 'keluar' || m.kanal === 'whatsapp') return '';
+  const bagian = [];
+
+  if(m.kwitansiHTML){
+    bagian.push('<div class="lampiran-blok">' +
+      '<div class="lampiran-head"><b>Kwitansi yang terkirim</b>' +
+        '<span class="chip plain">' + esc(KWITANSI_NAMA_BAHASA[m.kwitansiBahasa] || 'Indonesia') + '</span>' +
+        '<span class="chip plain">salinan tersimpan</span></div>' +
+      '<div class="kwitansi-preview">' + m.kwitansiHTML + '</div></div>');
+  }else if(d && state.finance.some(function(f){ return f.donorId === d.id; })){
+    bagian.push('<div class="lampiran-blok">' +
+      '<div class="lampiran-head"><b>Kwitansi</b>' +
+        '<span class="chip warn">dibuat ulang dari data keuangan sekarang</span></div>' +
+      '<div class="kwitansi-preview">' + kwitansiHTML(d, 'id', '') + '</div>' +
+      '<p class="tiny muted" style="margin:8px 0 0">Surat ini dikirim sebelum salinan kwitansi ' +
+        'disimpan, jadi isinya bisa berbeda kalau data keuangan sudah diubah.</p></div>');
+  }
+
+  if(m.majalah && m.majalah.halaman){
+    const simpan = state.settings.majalah;
+    const pakai = (simpan && simpan.id === m.majalah.id) ? simpan : m.majalah;
+    const halaman = [];
+    for(let i = 1; i <= pakai.halaman; i++){
+      const src = workerBase() ? workerBase() + '/majalah/' + pakai.id + '/' + i : '';
+      if(!src) break;
+      halaman.push('<img src="' + esc(src) + '" alt="Halaman ' + i + '" loading="lazy">');
+    }
+    bagian.push('<div class="lampiran-blok">' +
+      '<div class="lampiran-head"><b>Majalah yang terkirim</b>' +
+        '<span class="chip plain">' + pakai.halaman + ' halaman</span></div>' +
+      (halaman.length
+        ? '<div class="mj-preview">' + halaman.join('') + '</div>'
+        : '<p class="tiny muted">Gambar majalah tidak bisa ditampilkan — alamat Worker belum diisi.</p>') +
+      '</div>');
+  }
+
+  if(!bagian.length) return '';
+  return '<div class="sep"></div>' +
+    '<p class="small" style="margin:0 0 4px"><b>Lampiran di badan email</b> ' +
+      '<span class="hint">— inilah yang dilihat penerima</span></p>' +
+    bagian.join('');
 }
 
 /* ---------- Tautkan surat tak dikenal ke donor ---------- */
@@ -2605,6 +2758,7 @@ async function kirimSurat(asDraft){
     const isi = fillTemplate(suratState.isi, d);
     let status = asDraft ? 'Draft' : 'Terkirim';
     let gmailId = '', threadId = '', waId = '';
+    let kwitansiSalinan = '', kwitansiBahasaSalinan = '';
     const tujuan = kanal === 'whatsapp' ? donorWa(d) : (d.email || '');
     /* ID pixel dibuat per surat supaya pembukaan oleh satu penerima tidak
        dianggap pembukaan oleh penerima lain. */
@@ -2629,6 +2783,13 @@ async function kirimSurat(asDraft){
                 pixelId: pixelId
               })
             : '';
+          /* Salinan kwitansi disimpan apa adanya. Kalau nanti data keuangan
+             diubah, isi surat yang sudah terkirim tetap bisa diperiksa persis
+             seperti yang diterima donor. */
+          if(suratState.kwitansi){
+            kwitansiSalinan = kwitansiHTML(d, suratState.kwitansiBahasa, suratState.kwitansiFinId);
+            kwitansiBahasaSalinan = suratState.kwitansiBahasa;
+          }
           const r = await Gmail.send({
             from: Gmail.email || '', to: d.email, subject: subjek, body: isi, html: html
           });
@@ -2667,7 +2828,9 @@ async function kirimSurat(asDraft){
       from: kanal === 'whatsapp' ? (WhatsApp.phone || '') : (Gmail.email || ''),
       to: tujuan,
       gmailId:gmailId, threadId:threadId, waId:waId, dibaca:true,
-      pixelId: pixelId, dibacaPenerima: ''
+      pixelId: pixelId, dibacaPenerima: '',
+      kwitansiHTML: kwitansiSalinan, kwitansiBahasa: kwitansiBahasaSalinan,
+      majalah: (kanal === 'email' && suratState.majalah) ? majalahInfo() : null
     });
 
     /* Surat masuk terakhir dari donor ini ditandai "Dibalas" begitu balasan
@@ -3387,6 +3550,8 @@ document.addEventListener('click', function(e){
       if(iEl) iEl.value = suratState.isi;
       break;
     }
+    case 'periksa-kirim': openPeriksaKirim(); break;
+    case 'kirim-dari-periksa': closeModal(); kirimSurat(false); break;
     case 'print-one': { const d = findDonor(id); if(d) printLetter(d); break; }
     case 'cetak-alamat': { const d = findDonor(id); if(d) printAlamat(d); break; }
     case 'fin-baru': openFinForm(''); break;
