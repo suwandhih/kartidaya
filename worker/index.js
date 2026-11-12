@@ -580,6 +580,12 @@ export default {
           }
         });
       }
+      /* Alamat pixel yang bentuknya tidak sah dijawab 404 — bukan 401 —
+         supaya tidak tertukar dengan "kunci aplikasi salah". Hanya untuk GET:
+         POST /pixel/status ditangani di bagian berkunci di bawah. */
+      if (req.method === 'GET' && path.indexOf('/pixel/') === 0) {
+        return new Response('Not Found', { status: 404 });
+      }
 
       /* --- konfirmasi penerimaan (tanpa X-App-Key) ---
          Penerima menekan tombol di email; halaman ini mencatatnya.

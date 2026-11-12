@@ -739,18 +739,24 @@ function terimaURL(id, info){
 /* Tombol "Konfirmasi sudah menerima" di badan email. Tanda dibaca (pixel)
    hanya petunjuk — kalau penerima memakai Gmail yang memblokir gambar, kita
    tidak tahu apa-apa. Tombol ini memberi kepastian. */
-function terimaHTML(id, info){
+function terimaHTML(id, info, opts){
+  opts = opts || {};
   const u = terimaURL(id, info);
   if(!u) return '';
+  const gayaTombol = 'display:inline-block;background:#2f6f9f;color:#fff;' +
+    'text-decoration:none;font-size:14px;font-weight:bold;padding:11px 22px;border-radius:6px';
+  /* Di layar periksa tombolnya sengaja tidak bisa ditekan — kalau bisa, satu
+     klik tidak sengaja akan tercatat sebagai konfirmasi penerima. */
+  const tombol = opts.pratinjau
+    ? '<span style="' + gayaTombol + '">✓ Konfirmasi sudah menerima</span>'
+    : '<a href="' + esc(u) + '" style="' + gayaTombol + '">✓ Konfirmasi sudah menerima</a>';
   return '<div style="margin:22px 0 0;padding:16px 18px;border:1px solid #d8d8d0;' +
       'border-radius:8px;background:#fafaf6;font-family:Arial,Helvetica,sans-serif;max-width:720px">' +
       '<div style="font-size:13.5px;color:#333;margin:0 0 12px">' +
         'Sudah menerima surat dan kwitansi ini? Tekan tombol di bawah supaya kami tahu ' +
         'kiriman ini sampai dengan benar.' +
       '</div>' +
-      '<a href="' + esc(u) + '" style="display:inline-block;background:#2f6f9f;color:#fff;' +
-        'text-decoration:none;font-size:14px;font-weight:bold;padding:11px 22px;border-radius:6px">' +
-        '✓ Konfirmasi sudah menerima</a>' +
+      tombol +
       '<div style="font-size:11px;color:#888;margin:10px 0 0">' +
         'Satu tekanan saja — tidak perlu menulis apa pun.' +
       '</div>' +
@@ -1786,15 +1792,26 @@ function temaIframe(){
 }
 
 /* HTML email apa adanya — memakai fungsi yang sama dengan pengirim. */
-function htmlEmailUntuk(d, pixelId){
+function htmlEmailUntuk(d, pixelId, pratinjau){
   const isi = fillTemplate(suratState.isi, d);
   const pakaiKwitansi = suratState.kwitansi;
   const pakaiMajalah = suratState.majalah && majalahInfo();
-  if(!pakaiKwitansi && !pakaiMajalah && !pixelId) return '';
+  if(!pakaiKwitansi && !pakaiMajalah && !pixelId && !pratinjau) return '';
   return isiHTML(d, isi, suratState.kwitansiBahasa, suratState.kwitansiFinId, {
     kwitansi: !!pakaiKwitansi,
     majalah: !!pakaiMajalah,
-    pixelId: pixelId || ''
+    pixelId: pixelId || '',
+    /* Di pratinjau tombol konfirmasi ditampilkan tapi tidak bisa ditekan —
+       kalau bisa, satu klik tidak sengaja akan tercatat sebagai konfirmasi. */
+    terimaId: pratinjau ? 'pratinjau' : '',
+    terimaPratinjau: !!pratinjau,
+    terimaInfo: {
+      judul: 'Kartidaya Sahabat Indonesia',
+      kwitansi: pakaiKwitansi ? dataKwitansi(d, suratState.kwitansiFinId).kode : '',
+      jumlah: pakaiKwitansi ? totalTransaksiRingkas(d, suratState.kwitansiFinId) : '',
+      donor: donorName(d),
+      dikirim: waktuKirim()
+    }
   });
 }
 
@@ -1821,7 +1838,7 @@ function gambarPratinjauEmail(d){
   const t = temaIframe();
   const subjek = fillTemplate(suratState.subjek, d);
   const isi = fillTemplate(suratState.isi, d);
-  const html = htmlEmailUntuk(d);
+  const html = htmlEmailUntuk(d, '', true);
   const pengirim = Gmail.email || 'kartidaya@contoh.org';
   const namaPengirim = 'Kartidaya Sahabat Indonesia';
   const waktu = new Date().toLocaleString('id-ID',
@@ -2020,6 +2037,23 @@ function openPeriksaKirim(){
         '<p class="small" style="margin:0 0 8px"><b>Majalah yang akan diterima</b> ' +
           '<span class="hint">— ' + majalahInfo().halaman + ' halaman</span></p>' +
         '<div class="mj-preview">' + majalahHTML() + '</div>'
+      : '') +
+
+    /* Tombol konfirmasi ikut diperlihatkan supaya user tahu donor akan
+       menerima tombol ini, dan bisa memastikan sendiri tampilannya. */
+    (!wa && workerBase()
+      ? '<div class="sep"></div>' +
+        '<p class="small" style="margin:0 0 8px"><b>Tombol konfirmasi di email donor</b> ' +
+          '<span class="hint">— donor menekannya kalau surat sudah sampai</span></p>' +
+        '<div class="kwitansi-preview">' +
+          terimaHTML('pratinjau', {
+            judul: 'Kartidaya Sahabat Indonesia',
+            kwitansi: pakaiKwitansi && contoh ? dataKwitansi(contoh, suratState.kwitansiFinId).kode : '',
+            jumlah: pakaiKwitansi && contoh ? totalTransaksiRingkas(contoh, suratState.kwitansiFinId) : '',
+            donor: contoh ? donorName(contoh) : '',
+            dikirim: waktuKirim()
+          }, { pratinjau: true }) +
+        '</div>'
       : '');
 
   const footer = '<button class="btn" data-close>Kembali periksa</button>' +
@@ -3718,7 +3752,7 @@ function isiHTML(d, isiTeks, bahasa, finId, opts){
     (opts.kwitansi === false ? '' : kwitansiHTML(d, bahasa, finId,
       { kodeKiriman: opts.kodeKiriman, waktuKirim: opts.waktuKirim })) +
     (opts.majalah ? majalahHTML({ tautan: true }) : '') +
-    (opts.terimaId ? terimaHTML(opts.terimaId, opts.terimaInfo) : '') +
+    (opts.terimaId ? terimaHTML(opts.terimaId, opts.terimaInfo, { pratinjau: opts.terimaPratinjau }) : '') +
     (opts.pixelId ? pixelHTML(opts.pixelId) : '');
 }
 

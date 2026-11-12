@@ -1212,6 +1212,26 @@ memberi **kepastian**: penerima menekannya sendiri.
 di browser: menampilkan ringkasan dengan benar, dan kunjungan kedua berubah
 jadi "Sudah dikonfirmasi". Chip **✓ Dikonfirmasi** muncul di Kotak Keluar.
 
+**Uji ulang lengkap 12 Nov 2026** (setelah fitur ini ditinjau kembali):
+
+| # | Yang diuji | Hasil |
+|---|---|---|
+| 1 | `GET /pixel/<id>` di Worker sungguhan | 200, `image/gif`, 42 byte, `no-store` ✅ |
+| 2 | Buka pixel dua kali | `hit` naik, waktu buka **pertama tidak tertimpa** ✅ |
+| 3 | `POST /pixel/status` tanpa kunci | 401 ✅ |
+| 4 | `POST /pixel/status` dengan kunci | mengembalikan peta `{id: {pertama, hit, terakhir}}` ✅ |
+| 5 | Kirim surat dari aplikasi | pesan dapat `pixelId` `px-…` + `terimaId` `tr-…` ✅ |
+| 6 | Aplikasi menerima kabar "dibuka" | chip berubah jadi **✓✓ Dibaca** + waktu buka ✅ |
+| 7 | Aplikasi menerima kabar "dikonfirmasi" | chip berubah jadi **✓ Dikonfirmasi** + waktu ✅ |
+| 8 | `GET /terima/<id>` di Worker sungguhan | 200, ringkasan (nama, jumlah, nomor kwitansi) tampil ✅ |
+| 9 | Buka halaman konfirmasi dua kali | kedua kali berbunyi "Sudah dikonfirmasi" ✅ |
+| 10 | Tombol konfirmasi tampil di layar periksa & pratinjau | tampil, **tidak bisa ditekan** ✅ |
+| 11 | Email yang benar-benar dikirim | tetap memuat tautan `/terima/` + pixel `/pixel/` ✅ |
+
+**Catatan kecil:** alamat `/pixel/<id>` yang terlalu pendek (mis. `/pixel/ab`)
+dijawab **401**, bukan 404. Tidak ada yang tercatat, jadi tidak berbahaya —
+hanya pesan galatnya kurang tepat.
+
 ---
 
 ## 16. Penutup 5 Nov 2026 & rencana besok
@@ -1869,6 +1889,27 @@ dijadikan bukti.
 **Uji:** 26 pemeriksaan lulus — tombol periksa, daftar penerima, peringatan
 otomatis, kwitansi di layar periksa, salinan tersimpan saat kirim, pratinjau
 di buku surat, dan surat lama yang dibuat ulang.
+
+**C. Tombol konfirmasi ikut diperlihatkan — ✅ SELESAI (12 Nov 2026)**
+
+Sebelumnya tombol **✓ Konfirmasi sudah menerima** yang dipasang di email donor
+tidak pernah terlihat oleh user sebelum dikirim. Sekarang tombol itu
+diperlihatkan di dua tempat:
+
+| Tempat | Yang terlihat |
+|---|---|
+| **🔍 Periksa sebelum kirim** | bagian "Tombol konfirmasi di email donor" — persis seperti yang akan dilihat donor |
+| **👁 Pratinjau email** | tombol ikut tampil di dalam badan email, di bawah isi surat |
+
+**Penting:** di kedua layar itu tombolnya **tidak bisa ditekan** (sengaja
+dibuat begitu). Kalau bisa ditekan, satu klik tidak sengaja akan tercatat
+sebagai konfirmasi penerimaan padahal suratnya belum dikirim. Yang dikirim ke
+donor tetap tombol yang bisa ditekan.
+
+**Uji:** 4 pemeriksaan lulus — tombol tampil di layar periksa, tombol tampil di
+pratinjau email, pratinjau **tidak** memuat tautan `/terima/` yang bisa
+ditekan, dan email yang benar-benar dikirim tetap memuat tautan `/terima/`
+serta gambar pixel `/pixel/`.
 
 ---
 
