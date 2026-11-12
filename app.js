@@ -629,33 +629,48 @@ function majalahURL(n){
   if(!m || !base) return '';
   return base + '/majalah/' + m.id + '/' + n;
 }
+/* Alamat halaman pembaca — satu halaman per layar, tinggal digeser. */
+function majalahBacaURL(){
+  const m = majalahInfo();
+  const base = workerBase();
+  if(!m || !base) return '';
+  return base + '/baca/' + m.id;
+}
+/* Majalah di badan email: hanya SAMPUL + tombol "Baca majalah".
+   Kenapa bukan semua halaman? Mengirim 10 gambar sekaligus membuat email
+   berat dan sering dianggap spam. Dengan cara ini email tetap ringan, dan
+   penerima membuka halamannya di halaman pembaca yang tampil rapi di HP. */
 function majalahHTML(opts){
   opts = opts || {};
   const m = majalahInfo();
   if(!m) return '';
-  const pages = [];
-  for(let i = 1; i <= m.halaman; i++){
-    const src = majalahURL(i);
-    if(!src) break;
-    pages.push('<div style="margin:0 0 10px">' +
-      '<img src="' + esc(src) + '" alt="' + esc((m.judul || 'Majalah') + ' halaman ' + i) + '" ' +
-        'width="700" style="display:block;width:100%;max-width:700px;height:auto;border:0">' +
-      '</div>');
-  }
-  if(!pages.length) return '';
-  /* Sebagian klien email memblokir gambar. Tautan ini memberi jalan lain
-     supaya penerima tetap bisa membaca majalahnya. */
-  const tautan = opts.tautan
-    ? '<div style="font-size:12px;color:#555;margin:0 0 12px">' +
-        'Gambar tidak tampil? Buka halaman pertama di ' +
-        '<a href="' + esc(majalahURL(1)) + '" style="color:#2f6f9f">' + esc(majalahURL(1)) + '</a>' +
+  const sampul = majalahURL(1);
+  const baca = majalahBacaURL();
+  if(!sampul) return '';
+  const tombol = baca
+    ? '<div style="margin:14px 0 0">' +
+        '<a href="' + esc(baca) + '" style="display:inline-block;background:#2f6f9f;color:#fff;' +
+          'text-decoration:none;font-size:14px;font-weight:bold;padding:11px 22px;border-radius:6px">' +
+          'Baca majalah (' + m.halaman + ' halaman) →</a>' +
+      '</div>' +
+      '<div style="font-size:11.5px;color:#666;margin:8px 0 0">' +
+        'Terbuka di layar HP — satu halaman per layar, tinggal digeser ke bawah.' +
       '</div>'
     : '';
   return '<div style="margin:22px 0 0;font-family:Arial,Helvetica,sans-serif;color:#111">' +
       '<div style="font-size:15px;font-weight:bold;margin-bottom:10px">' +
         esc(m.judul || 'Majalah Kartidaya') + '</div>' +
-      tautan +
-      pages.join('') +
+      '<div style="margin:0 0 4px">' +
+        '<img src="' + esc(sampul) + '" alt="' + esc(m.judul || 'Majalah Kartidaya') + '" ' +
+          'width="700" style="display:block;width:100%;max-width:700px;height:auto;border:0">' +
+      '</div>' +
+      tombol +
+      (opts.tautan && baca
+        ? '<div style="font-size:11.5px;color:#666;margin:10px 0 0">' +
+            'Tombol tidak bisa diklik? Salin tautan ini ke browser:<br>' +
+            '<a href="' + esc(baca) + '" style="color:#2f6f9f;word-break:break-all">' + esc(baca) + '</a>' +
+          '</div>'
+        : '') +
     '</div>';
 }
 
@@ -1944,17 +1959,19 @@ function blokMajalah(){
     '</div>' +
     (siap
       ? '<p class="tiny muted" style="margin:6px 0 0">' + esc(m.judul || 'Majalah') + ' · ' +
-          m.halaman + ' halaman · disimpan sekali, dipakai untuk semua penerima.</p>' +
+          m.halaman + ' halaman · disimpan sekali, dipakai untuk semua penerima.' +
+          (m.diunggah ? ' · diunggah ' + esc(fmtDate(m.diunggah)) : '') + '</p>' +
         (on ? '<div class="mj-preview">' + majalahHTML() + '</div>' : '')
       : '<div class="warnbox" style="margin-top:8px">Majalah belum disiapkan. ' +
         (base
-          ? 'Unggah halaman majalah dulu lewat tombol di bawah.'
+          ? 'Unggah berkas PDF majalah dulu lewat tombol di bawah — halamannya diubah jadi gambar otomatis.'
           : 'Isi <b>Alamat Worker</b> di halaman <b>Setelan</b> dulu — majalah disimpan di sana ' +
             'supaya bisa tampil di email.') +
         '</div>') +
     '<div class="btn-row" style="margin-top:10px">' +
       '<button class="btn sm" data-action="mj-kelola">' +
         (siap ? 'Kelola majalah' : 'Unggah majalah') + '</button>' +
+      (siap ? '<button class="btn sm" data-action="mj-baca">👁 Buka halaman pembaca</button>' : '') +
       (siap ? '<button class="btn sm ghost" data-action="mj-hapus">Hapus majalah</button>' : '') +
     '</div>';
 }
@@ -3215,10 +3232,24 @@ function openMajalahForm(){
     '<div class="field"><label>Judul majalah</label>' +
       '<input type="text" id="mj-judul" placeholder="Majalah Kartidaya — Edisi …" value="' +
         esc(m ? (m.judul || '') : '') + '"></div>' +
-    '<div class="field"><label>Halaman majalah <span class="hint">— pilih semua gambar sekaligus</span></label>' +
-      '<input type="file" id="mj-file" accept="image/jpeg,image/png,image/webp" multiple>' +
-      '<p class="tiny muted" style="margin:6px 0 0">Urutan halaman mengikuti urutan berkas yang dipilih. ' +
-        'Maksimal 40 halaman, tiap halaman maksimal 4 MB. Format JPG/PNG/WebP.</p></div>' +
+    '<div class="field"><label>Berkas majalah</label>' +
+      '<div class="row" style="gap:8px;margin-bottom:8px">' +
+        '<button type="button" class="btn sm primary" data-action="mj-mode" data-mode="pdf">PDF</button>' +
+        '<button type="button" class="btn sm" data-action="mj-mode" data-mode="gambar">Gambar per halaman</button>' +
+      '</div>' +
+      '<div id="mj-pdf-blok">' +
+        '<input type="file" id="mj-pdf" accept="application/pdf">' +
+        '<p class="tiny muted" style="margin:6px 0 0">Pilih <b>satu berkas PDF</b> — aplikasi akan ' +
+          'mengubah setiap halaman jadi gambar secara otomatis. Tidak perlu aplikasi lain. ' +
+          'Maksimal 40 halaman, berkas maksimal 25 MB.</p>' +
+      '</div>' +
+      '<div id="mj-img-blok" hidden>' +
+        '<input type="file" id="mj-file" accept="image/jpeg,image/png,image/webp" multiple>' +
+        '<p class="tiny muted" style="margin:6px 0 0">Pilih semua gambar halaman sekaligus. ' +
+          'Urutan halaman mengikuti urutan berkas. Maksimal 40 halaman, tiap halaman maksimal 4 MB. ' +
+          'Format JPG/PNG/WebP.</p>' +
+      '</div>' +
+    '</div>' +
     (m
       ? '<div class="warnbox">Sudah tersimpan: <b>' + esc(m.judul || 'Majalah') + '</b> — ' +
           m.halaman + ' halaman. Mengunggah lagi akan <b>mengganti</b> seluruh halaman.</div>'
@@ -3229,6 +3260,54 @@ function openMajalahForm(){
     '<button class="btn primary" data-action="mj-unggah"' + (base ? '' : ' disabled') + '>↑ Unggah</button>';
 
   openModal({ title:'Kelola Majalah', body:body, footer:footer, wide:true });
+}
+
+/* ---------- PDF → GAMBAR ----------
+   Pustaka pdf.js dimuat hanya saat benar-benar dipakai, supaya aplikasi
+   sehari-hari tidak ikut berat. Berkasnya ada di dalam aplikasi sendiri
+   (vendor/), jadi tidak butuh internet ke layanan luar. */
+let pdfjsSiap = null;
+function muatPdfJs(){
+  if(pdfjsSiap) return pdfjsSiap;
+  pdfjsSiap = import('./vendor/pdf.min.mjs').then(function(mod){
+    mod.GlobalWorkerOptions.workerSrc = new URL('vendor/pdf.worker.min.mjs', location.href).href;
+    return mod;
+  });
+  return pdfjsSiap;
+}
+
+/* Ubah satu halaman PDF jadi PNG. Lebar 1240 px setara 150 dpi — hasil ukur
+   ±11 KB per halaman untuk PDF teks, jadi 10 halaman hanya ±110 KB. */
+async function halamanPdfKePng(pdf, nomor, lebarTarget){
+  const page = await pdf.getPage(nomor);
+  const dasar = page.getViewport({ scale: 1 });
+  const skala = (lebarTarget || 1240) / dasar.width;
+  const vp = page.getViewport({ scale: skala });
+  const cv = document.createElement('canvas');
+  cv.width = Math.round(vp.width);
+  cv.height = Math.round(vp.height);
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, cv.width, cv.height);
+  await page.render({ canvasContext: ctx, viewport: vp }).promise;
+  return new Promise(function(resolve){
+    cv.toBlob(function(b){ resolve(b); }, 'image/png');
+  });
+}
+
+/* Baca PDF, kembalikan daftar Blob PNG — satu per halaman. */
+async function pdfKeGambar(file, lapor){
+  const pdfjs = await muatPdfJs();
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjs.getDocument({ data: new Uint8Array(buf) }).promise;
+  const total = pdf.numPages;
+  if(total > 40) throw new Error('PDF ini ' + total + ' halaman — maksimal 40 halaman');
+  const hasil = [];
+  for(let i = 1; i <= total; i++){
+    if(lapor) lapor(i, total);
+    hasil.push(await halamanPdfKePng(pdf, i));
+  }
+  return hasil;
 }
 
 /* Baca berkas jadi base64 tanpa awalan data:. */
@@ -3244,35 +3323,74 @@ function fileKeBase64(file){
   });
 }
 
+/* Blob → base64 tanpa awalan data:. */
+function blobKeBase64(blob){
+  return new Promise(function(resolve, reject){
+    const fr = new FileReader();
+    fr.onload = function(){
+      const s = String(fr.result || '');
+      resolve(s.slice(s.indexOf(',') + 1));
+    };
+    fr.onerror = function(){ reject(new Error('Gagal membaca gambar')); };
+    fr.readAsDataURL(blob);
+  });
+}
+
 async function unggahMajalah(){
-  const input = document.getElementById('mj-file');
   const prog = document.getElementById('mj-progress');
   const judulEl = document.getElementById('mj-judul');
-  const files = input && input.files ? Array.prototype.slice.call(input.files) : [];
-  if(!files.length){ toast('Pilih gambar halaman majalah dulu', true); return; }
-  if(files.length > 40){ toast('Maksimal 40 halaman', true); return; }
+  const pdfEl = document.getElementById('mj-pdf');
+  const imgEl = document.getElementById('mj-file');
+  const pakaiPdf = pdfEl && pdfEl.files && pdfEl.files.length;
+  const files = imgEl && imgEl.files ? Array.prototype.slice.call(imgEl.files) : [];
+
+  if(!pakaiPdf && !files.length){ toast('Pilih berkas PDF atau gambar halaman dulu', true); return; }
   if(!WhatsApp.isConfigured()){ toast('Alamat Worker / kunci aplikasi belum diisi', true); return; }
 
   const id = 'mj-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   const judul = judulEl ? judulEl.value.trim() : '';
-  const tipeDari = function(f){
-    if(/\.png$/i.test(f.name)) return 'image/png';
-    if(/\.webp$/i.test(f.name)) return 'image/webp';
-    return 'image/jpeg';
-  };
 
-  for(let i = 0; i < files.length; i++){
-    const f = files[i];
-    if(f.size > 4 * 1024 * 1024){
-      toast('Halaman ' + (i + 1) + ' lebih dari 4 MB — perkecil dulu', true);
-      return;
+  /* Siapkan daftar halaman: dari PDF (diubah dulu) atau dari gambar langsung. */
+  let halaman = [];
+  try{
+    if(pakaiPdf){
+      const f = pdfEl.files[0];
+      if(f.size > 25 * 1024 * 1024){ toast('Berkas PDF lebih dari 25 MB', true); return; }
+      if(prog) prog.textContent = 'Membaca PDF…';
+      const gambar = await pdfKeGambar(f, function(i, total){
+        if(prog) prog.textContent = 'Mengubah halaman ' + i + ' dari ' + total + ' jadi gambar…';
+      });
+      halaman = gambar.map(function(b){ return { blob:b, tipe:'image/png' }; });
+    }else{
+      if(files.length > 40){ toast('Maksimal 40 halaman', true); return; }
+      for(const f of files){
+        if(f.size > 4 * 1024 * 1024){
+          toast('Halaman ' + f.name + ' lebih dari 4 MB — perkecil dulu', true);
+          return;
+        }
+      }
+      halaman = files.map(function(f){
+        const tipe = /\.png$/i.test(f.name) ? 'image/png'
+          : (/\.webp$/i.test(f.name) ? 'image/webp' : 'image/jpeg');
+        return { file:f, tipe:tipe };
+      });
     }
-    if(prog) prog.textContent = 'Mengunggah halaman ' + (i + 1) + ' dari ' + files.length + '…';
+  }catch(e){
+    if(prog) prog.textContent = '';
+    toast('Gagal membaca berkas: ' + (e.message || e), true);
+    return;
+  }
+
+  if(!halaman.length){ if(prog) prog.textContent = ''; toast('Tidak ada halaman yang terbaca', true); return; }
+
+  for(let i = 0; i < halaman.length; i++){
+    if(prog) prog.textContent = 'Mengunggah halaman ' + (i + 1) + ' dari ' + halaman.length + '…';
     try{
-      const data = await fileKeBase64(f);
+      const h = halaman[i];
+      const data = h.blob ? await blobKeBase64(h.blob) : await fileKeBase64(h.file);
       await WhatsApp.api('/majalah', {
         method:'POST',
-        body:{ id:id, halaman:i + 1, total:files.length, tipe:tipeDari(f), judul:judul, data:data }
+        body:{ id:id, halaman:i + 1, total:halaman.length, tipe:h.tipe, judul:judul, data:data }
       });
     }catch(e){
       if(prog) prog.textContent = '';
@@ -3281,11 +3399,12 @@ async function unggahMajalah(){
     }
   }
 
-  state.settings.majalah = { id:id, halaman:files.length, judul:judul || 'Majalah Kartidaya' };
+  state.settings.majalah = { id:id, halaman:halaman.length, judul:judul || 'Majalah Kartidaya',
+    dariPdf: !!pakaiPdf, diunggah: new Date().toISOString() };
   save('settings');
   if(prog) prog.textContent = '';
   closeModal();
-  toast(files.length + ' halaman majalah tersimpan');
+  toast(halaman.length + ' halaman majalah tersimpan');
   render();
 }
 
@@ -4403,6 +4522,23 @@ document.addEventListener('click', function(e){
       break;
     }
     case 'mj-unggah': unggahMajalah(); break;
+    case 'mj-baca': {
+      const u = majalahBacaURL();
+      if(!u){ toast('Majalah belum disiapkan', true); break; }
+      window.open(u, '_blank', 'noopener');
+      break;
+    }
+    case 'mj-mode': {
+      const mode = act.getAttribute('data-mode') === 'gambar' ? 'gambar' : 'pdf';
+      const pdfBlok = document.getElementById('mj-pdf-blok');
+      const imgBlok = document.getElementById('mj-img-blok');
+      if(pdfBlok) pdfBlok.hidden = mode !== 'pdf';
+      if(imgBlok) imgBlok.hidden = mode !== 'gambar';
+      document.querySelectorAll('[data-action="mj-mode"]').forEach(function(b){
+        b.classList.toggle('primary', b.getAttribute('data-mode') === mode);
+      });
+      break;
+    }
     case 'cek-dibaca': cekTandaDibaca(); break;
     case 'auto-sync-toggle':
       state.settings.autoSync = !state.settings.autoSync;

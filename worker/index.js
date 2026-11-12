@@ -285,6 +285,81 @@ function b64ToBytes(b64){
 }
 
 /* ============================================================
+   HALAMAN PEMBACA MAJALAH — /baca/<id>
+
+   Kenapa perlu halaman ini? Mengirim 10 gambar di badan email
+   membuat email berat dan sering dianggap spam. Jadi email hanya
+   memuat sampul + tombol "Baca majalah"; halamannya dibuka di
+   sini — satu halaman per layar, tinggal digeser naik-turun.
+
+   Halaman ini sengaja dibuat tanpa pustaka luar sama sekali:
+   hanya <img> dan CSS scroll-snap. Jadi ringan dan cepat dibuka
+   di HP dengan koneksi lambat.
+   ============================================================ */
+
+function escHtml(s){
+  return String(s === null || s === undefined ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function halamanBaca(meta, base, id){
+  const n = meta.halaman || 0;
+  const judul = meta.judul || 'Majalah Kartidaya';
+  const gambar = [];
+  for (let i = 1; i <= n; i++) {
+    gambar.push(
+      '<figure class="hal">' +
+        '<img src="' + base + '/majalah/' + id + '/' + i + '" alt="Halaman ' + i + '" loading="' +
+        (i <= 2 ? 'eager' : 'lazy') + '">' +
+        '<figcaption>Halaman ' + i + ' dari ' + n + '</figcaption>' +
+      '</figure>'
+    );
+  }
+  return '<!DOCTYPE html><html lang="id"><head>' +
+    '<meta charset="utf-8">' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">' +
+    '<meta name="robots" content="noindex,nofollow">' +
+    '<title>' + escHtml(judul) + '</title>' +
+    '<style>' +
+      '*{box-sizing:border-box}' +
+      'html,body{margin:0;padding:0;background:#1b1e1d;color:#e8e8e3;' +
+        'font-family:Arial,Helvetica,sans-serif;-webkit-text-size-adjust:100%}' +
+      'header{position:sticky;top:0;z-index:5;background:rgba(27,30,29,.94);' +
+        'border-bottom:1px solid #333;padding:10px 14px;' +
+        '-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}' +
+      'header h1{margin:0;font-size:14px;font-weight:700;line-height:1.35}' +
+      'header p{margin:3px 0 0;font-size:11.5px;color:#9aa09d}' +
+      'main{max-width:900px;margin:0 auto;padding:12px 10px 40px}' +
+      '.hal{margin:0 0 14px;background:#fff;border-radius:8px;overflow:hidden;' +
+        'box-shadow:0 2px 10px rgba(0,0,0,.35)}' +
+      '.hal img{display:block;width:100%;height:auto}' +
+      '.hal figcaption{padding:7px 10px;font-size:11px;color:#666;background:#f4f4f0;' +
+        'text-align:center;border-top:1px solid #e2e2dc}' +
+      '.naik{position:fixed;right:14px;bottom:18px;z-index:6;width:44px;height:44px;' +
+        'border:0;border-radius:50%;background:#2f6f9f;color:#fff;font-size:19px;' +
+        'cursor:pointer;box-shadow:0 3px 12px rgba(0,0,0,.4)}' +
+      '.naik[hidden]{display:none}' +
+      'footer{max-width:900px;margin:0 auto;padding:0 14px 34px;font-size:11.5px;' +
+        'color:#8b918e;text-align:center;line-height:1.6}' +
+      '@media print{header,.naik,figcaption{display:none}' +
+        'html,body{background:#fff}.hal{box-shadow:none;margin:0;border-radius:0}}' +
+    '</style></head><body>' +
+    '<header><h1>' + escHtml(judul) + '</h1>' +
+      '<p>' + n + ' halaman · geser ke bawah untuk halaman berikutnya</p></header>' +
+    '<main>' + gambar.join('') + '</main>' +
+    '<footer>Kartidaya Sahabat Indonesia<br>' +
+      'Halaman ini hanya untuk membaca majalah. Tidak ada data pribadi yang disimpan.</footer>' +
+    '<button class="naik" id="naik" hidden aria-label="Ke atas">↑</button>' +
+    '<script>' +
+      'var b=document.getElementById("naik");' +
+      'addEventListener("scroll",function(){b.hidden=scrollY<600;},{passive:true});' +
+      'b.addEventListener("click",function(){scrollTo({top:0,behavior:"smooth"});});' +
+    '<\/script>' +
+  '</body></html>';
+}
+
+/* ============================================================
    TANDA DIBACA — pixel 1×1 yang dicatat saat email dibuka.
 
    Klien email memuat gambar dari alamat publik, jadi satu
@@ -375,6 +450,34 @@ export default {
             'Content-Length': String(gif.length),
             'Cache-Control': 'no-store, no-cache, must-revalidate, private',
             'Pragma': 'no-cache'
+          }
+        });
+      }
+
+      /* --- halaman pembaca majalah (tanpa X-App-Key) ---
+         Email hanya memuat sampul + tombol; halaman penuh dibuka di sini
+         supaya email tetap ringan dan tidak dianggap spam. */
+      const bc = path.match(/^\/baca\/([A-Za-z0-9_-]{4,64})$/);
+      if (bc && req.method === 'GET') {
+        const metaRaw = await env.WA_INBOX.get(majalahMetaKey(bc[1]));
+        if (!metaRaw) {
+          return new Response(
+            '<!DOCTYPE html><html lang="id"><head><meta charset="utf-8">' +
+            '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+            '<title>Majalah tidak ditemukan</title></head>' +
+            '<body style="font-family:Arial,sans-serif;padding:40px 20px;text-align:center;color:#333">' +
+            '<h1 style="font-size:18px">Majalah tidak ditemukan</h1>' +
+            '<p style="font-size:14px;color:#666">Tautan ini mungkin sudah kedaluwarsa ' +
+            'atau majalahnya sudah diganti edisi baru.</p></body></html>',
+            { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+          );
+        }
+        const meta = JSON.parse(metaRaw);
+        return new Response(halamanBaca(meta, url.origin, bc[1]), {
+          status: 200,
+          headers: {
+            'Content-Type': 'text/html; charset=utf-8',
+            'Cache-Control': 'public, max-age=300'
           }
         });
       }

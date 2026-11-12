@@ -34,6 +34,13 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=ROOT, **kwargs)
 
+    def guess_type(self, path):
+        """`.mjs` harus dikirim sebagai JavaScript, kalau tidak browser menolak
+        memuatnya sebagai modul (dipakai pdf.js untuk majalah)."""
+        if str(path).lower().endswith(".mjs"):
+            return "text/javascript"
+        return super().guess_type(path)
+
     def end_headers(self):
         self.send_header("Cache-Control", "no-store, must-revalidate")
         super().end_headers()
