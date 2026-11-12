@@ -2673,11 +2673,52 @@ Kwitansi dan majalah **tidak wajib**. Keduanya hanya tambahan yang bisa
 dinyalakan kalau perlu. Kalau tidak dinyalakan, surat tetap terkirim seperti
 biasa — tidak ada yang menghalangi.
 
-### WhatsApp — ditunda sampai nomor resmi ada
+### WhatsApp — DITUNDA (12 Nov 2026)
 
-Anda menyebut akan menguji WhatsApp dengan nomor HP sendiri karena nomor resmi
-Kartidaya belum diberikan. **Tidak ada perubahan kode yang diperlukan** untuk
-itu. Catatan: akun Meta masih berstatus `BLOCKED` (`130497`), jadi pengiriman
-media sungguhan belum bisa diuji sampai statusnya dibuka.
+**Keputusan Anda:** WhatsApp harus memakai nomor resmi Kartidaya, **bukan akun
+Facebook pribadi**. Jadi WhatsApp di-hold dulu; fokus ke email yang sudah
+berjalan.
+
+**Yang diubah di aplikasi** — ada satu saklar di `app.js`:
+
+```js
+const WA_DITUNDA = true;   /* ubah ke false kalau nomor resmi sudah siap */
+```
+
+Selama `true`:
+
+| Tempat | Sebelum | Sesudah |
+|---|---|---|
+| Tulis Surat → Kanal pengiriman | tombol **Email** + **WhatsApp** | hanya **Email**, dengan catatan *"WhatsApp ditunda sampai nomor resmi Kartidaya tersedia"* |
+| Beranda → kartu status | *Status WhatsApp: —* | *Status WhatsApp: **Ditunda** — Menunggu nomor resmi Kartidaya* |
+| Kotak Masuk / Keluar → saringan kanal | Email + WhatsApp | hanya Email |
+| Kotak Masuk → tombol | Sinkron Gmail + Sinkron WhatsApp | hanya Sinkron Gmail |
+| Catat Surat Masuk → Kanal | Email + WhatsApp | hanya Email |
+| Setelan → kartu | **WhatsApp** | **Worker Cloudflare** (lihat di bawah) |
+| Sinkron WhatsApp otomatis | jalan tiap 1 menit | tidak dijalankan sama sekali |
+
+**Yang TIDAK diubah:** semua kode WhatsApp tetap ada dan utuh. Begitu nomor
+resmi siap, cukup ubah `WA_DITUNDA` jadi `false` — semuanya kembali muncul.
+Tidak ada yang perlu ditulis ulang.
+
+### Kartu Setelan "WhatsApp" → "Worker Cloudflare"
+
+**Sebab diganti nama:** Worker Cloudflare itu **bukan hanya untuk WhatsApp**.
+Dua fitur **email** yang sudah berjalan juga memakainya:
+
+| Fitur | Kanal | Butuh Worker? |
+|---|---|---|
+| Majalah di email (sampul + tautan baca) | **Email** | ✅ ya — halaman majalah disimpan di sana |
+| Tanda dibaca & konfirmasi penerimaan | **Email** | ✅ ya — catatan dibuka/disimpan di sana |
+| Kirim WhatsApp | WhatsApp | ⏸ ditunda |
+
+Kalau kartu itu dinamai "WhatsApp", orang akan mengira boleh dilewati karena
+WhatsApp ditunda — padahal **majalah dan tanda dibaca akan ikut mati**. Karena
+itu kartunya sekarang bernama **Worker Cloudflare** dan menyebutkan ketiga
+kegunaannya secara terbuka.
+
+**Penting:** **Alamat Worker** dan **Kunci aplikasi** tetap perlu diisi walau
+WhatsApp ditunda — supaya majalah bisa tampil di email dan tanda dibaca
+bekerja.
 
 ---

@@ -29,6 +29,11 @@ const STATUS_MASUK = ['Belum dibaca','Dibaca','Dibalas'];
 const KANAL = ['email','whatsapp'];
 const LABEL_KANAL = { email:'Email', whatsapp:'WhatsApp' };
 const ICO_KANAL = { email:'✉', whatsapp:'✆' };
+/* WhatsApp ditunda sampai nomor resmi Kartidaya ada — pengiriman tidak boleh
+   memakai akun Facebook pribadi. Selama ditunda, kanal WhatsApp disembunyikan
+   dari pemilih kanal supaya tidak ada yang salah pilih. Fitur email tetap
+   jalan penuh. Ubah ke false kalau nomor resmi sudah siap. */
+const WA_DITUNDA = true;
 const ARTI_STATUS_MASUK = {
   'Belum dibaca': 'pesan baru, belum dibuka',
   'Dibaca': 'sudah dibuka',
@@ -1322,15 +1327,17 @@ function viewBeranda(){
     stat('Belum Dibaca', unread, masuk + ' surat masuk') +
     stat('Surat Keluar', keluar, keluarBulan + ' bulan ini') +
     stat('Status Gmail', gmailState === 'connected' ? 'Aktif' : '—', gmailText) +
-    stat('Status WhatsApp', waState === 'connected' ? 'Aktif' : '—', waText) +
+    (WA_DITUNDA
+      ? stat('Status WhatsApp', 'Ditunda', 'Menunggu nomor resmi Kartidaya')
+      : stat('Status WhatsApp', waState === 'connected' ? 'Aktif' : '—', waText)) +
   '</div>' +
 
-  ((gmailState === 'connected' || waState === 'connected') ?
+  ((gmailState === 'connected' || (!WA_DITUNDA && waState === 'connected')) ?
     '<div class="card" style="margin-bottom:14px"><div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:8px">' +
-      '<span class="small muted">' + esc(syncText) + ' · ' + esc(waSyncText) + '</span>' +
+      '<span class="small muted">' + esc(syncText) + (WA_DITUNDA ? '' : ' · ' + esc(waSyncText)) + '</span>' +
       '<span class="row" style="gap:8px">' +
         '<button class="btn sm" data-action="sync">⟳ Sinkron Gmail</button>' +
-        '<button class="btn sm" data-action="wa-sync">⟳ Sinkron WhatsApp</button>' +
+        (WA_DITUNDA ? '' : '<button class="btn sm" data-action="wa-sync">⟳ Sinkron WhatsApp</button>') +
       '</span>' +
     '</div></div>' : '') +
 
@@ -1468,14 +1475,14 @@ function viewKotak(arah){
     '<select id="k-donor" style="max-width:230px">' + donorOpts + '</select>' +
     '<select id="k-kanal" style="max-width:150px">' +
       '<option value="">Semua kanal</option>' +
-      KANAL.map(function(k){
+      KANAL.filter(function(k){ return !(WA_DITUNDA && k === 'whatsapp'); }).map(function(k){
         return '<option value="' + k + '"' + (kotakFilter.kanal === k ? ' selected' : '') + '>' +
           ICO_KANAL[k] + ' ' + LABEL_KANAL[k] + '</option>';
       }).join('') + '</select>' +
     (isMasuk
       ? '<button class="btn" data-action="cocokkan">⇄ Cocokkan ulang</button>' +
         '<button class="btn primary" data-action="sync">⟳ Sinkron Gmail</button>' +
-        '<button class="btn" data-action="wa-sync">⟳ Sinkron WhatsApp</button>'
+        (WA_DITUNDA ? '' : '<button class="btn" data-action="wa-sync">⟳ Sinkron WhatsApp</button>')
       : '<select id="k-dibaca" style="max-width:190px">' +
           '<option value="">Semua tanda dibaca</option>' +
           '<option value="belum"' + (kotakFilter.dibaca === 'belum' ? ' selected' : '') + '>✓✓ Belum dibaca</option>' +
@@ -1696,7 +1703,7 @@ function viewSurat(){
         '<button class="btn sm ghost" data-action="tpl-kelola">Kelola template</button></div>' +
       '<div class="field"><label>Kanal pengiriman</label>' +
         '<div class="row" style="gap:8px">' +
-          KANAL.map(function(k){
+          KANAL.filter(function(k){ return !(WA_DITUNDA && k === 'whatsapp'); }).map(function(k){
             return '<button type="button" class="btn sm' + (kanal === k ? ' primary' : '') +
               '" data-action="kanal-pilih" data-kanal="' + k + '">' +
               ICO_KANAL[k] + ' ' + LABEL_KANAL[k] + '</button>';
@@ -1705,7 +1712,11 @@ function viewSurat(){
       '<p class="tiny muted" style="margin:-4px 0 12px">' +
         (kanal === 'whatsapp'
           ? 'Pesan dikirim lewat WhatsApp Cloud API. Subjek tidak ikut terkirim — hanya isi pesan.'
-          : 'Surat dikirim lewat Gmail API.') + '</p>' +
+          : 'Surat dikirim lewat Gmail API.') +
+        (WA_DITUNDA
+          ? ' <b>WhatsApp ditunda</b> sampai nomor resmi Kartidaya tersedia — ' +
+            'pengiriman tidak boleh memakai akun Facebook pribadi.'
+          : '') + '</p>' +
       '<div class="form-grid">' +
         '<div class="field"><label>Template</label><select id="s-tpl">' +
           (tplOpts || '<option value="">(belum ada template)</option>') + '</select></div>' +
@@ -2292,7 +2303,7 @@ function blokMajalah(){
               ? 'Majalah belum disiapkan. Unggah berkas PDF majalah dulu lewat tombol di bawah — ' +
                 'halamannya diubah jadi gambar otomatis.'
               : '<b>Majalah belum bisa disiapkan.</b> Lengkapi dulu di halaman ' +
-                '<b>Setelan → WhatsApp</b>:' + kurang +
+                '<b>Setelan → Worker Cloudflare</b>:' + kurang +
                 '<p style="margin:8px 0 0">Majalah disimpan di Worker supaya bisa tampil di email ' +
                 'penerima dan dikirim lewat WhatsApp.</p>')) +
         '</div>') +
@@ -3003,7 +3014,7 @@ function hapusPrg(id){
 
 /* ---------- PENGATURAN ---------- */
 function viewPengaturan(){
-  setTitle('Setelan','Gmail, WhatsApp, data, dan tampilan');
+  setTitle('Setelan','Gmail, Worker Cloudflare, data, dan tampilan');
   const st = Gmail.status();
   const bytes = new Blob([JSON.stringify(state)]).size;
   const label = { unconfigured:'Belum diatur', disconnected:'Siap dihubungkan', connected:'Terhubung' }[st];
@@ -3102,11 +3113,19 @@ function viewPengaturan(){
   '</div>' +
 
   '<div class="card">' +
-    '<div class="card-head"><h2>WhatsApp</h2>' +
+    '<div class="card-head"><h2>Worker Cloudflare</h2>' +
       '<span class="chip' + (wst === 'connected' ? '' : ' plain') + '">' + wlabel + '</span></div>' +
-    '<p class="small muted">WhatsApp dikirim lewat <b>Cloudflare Worker</b> yang menyimpan token Meta. ' +
-      'Token itu tidak boleh ada di browser, dan pesan masuk butuh alamat webhook — dua hal yang ' +
-      'tidak bisa dilakukan halaman statis. Panduan: <b class="mono">PANDUAN-WHATSAPP.md</b></p>' +
+    '<p class="small muted">Worker ini dipakai untuk <b>dua hal</b>:</p>' +
+    '<ul class="small muted" style="margin:6px 0 10px;padding-left:20px">' +
+      '<li><b>Majalah di email</b> — halaman majalah disimpan di sini supaya bisa tampil ' +
+        'di email penerima. <b>Sudah dipakai sekarang.</b></li>' +
+      '<li><b>Tanda dibaca &amp; konfirmasi</b> — mencatat kapan email dibuka dan kapan ' +
+        'donor menekan tombol konfirmasi. <b>Sudah dipakai sekarang.</b></li>' +
+      '<li><b>Kirim WhatsApp</b> — <b>ditunda</b> sampai nomor resmi Kartidaya tersedia. ' +
+        'Pengiriman tidak boleh memakai akun Facebook pribadi.</li>' +
+    '</ul>' +
+    '<p class="small muted">Token Meta disimpan di Worker, bukan di browser — token itu tidak ' +
+      'boleh ada di halaman statis. Panduan: <b class="mono">PANDUAN-WHATSAPP.md</b></p>' +
     '<div class="field"><label>Alamat Worker <span class="hint">— hasil deploy worker/</span></label>' +
       '<input type="text" id="w-endpoint" class="mono" placeholder="https://kartidaya-wa.namaanda.workers.dev" value="' +
         esc(WhatsApp.endpoint || state.settings.waEndpoint || '') + '"></div>' +
@@ -3117,14 +3136,15 @@ function viewPengaturan(){
       'setiap membuka aplikasi. Kunci tidak ikut ter-ekspor ke berkas cadangan.</p>' +
     '<div class="btn-row">' +
       '<button class="btn primary" data-action="w-save">Simpan &amp; uji sambungan</button>' +
-      '<button class="btn" data-action="wa-sync">⟳ Sinkron WhatsApp</button>' +
-      '<button class="btn" data-action="wa-cocokkan">⇄ Cocokkan ulang</button>' +
+      (WA_DITUNDA ? '' : '<button class="btn" data-action="wa-sync">⟳ Sinkron WhatsApp</button>') +
+      (WA_DITUNDA ? '' : '<button class="btn" data-action="wa-cocokkan">⇄ Cocokkan ulang</button>') +
       '<button class="btn danger" data-action="w-disconnect">Putuskan</button>' +
     '</div>' +
     (WhatsApp.phone ? '<p class="small muted" style="margin-top:10px">Nomor WhatsApp Business: <b class="mono">' +
       esc(WhatsApp.phone) + '</b></p>' : '') +
-    (waPending ? '<div class="warnbox">' + waPending + ' pesan WhatsApp belum terhubung ke donor. ' +
+    (waPending && !WA_DITUNDA ? '<div class="warnbox">' + waPending + ' pesan WhatsApp belum terhubung ke donor. ' +
       'Isi nomor HP donor (HP 1 / HP 2) lalu klik <b>Cocokkan ulang</b>.</div>' : '') +
+    (WA_DITUNDA ? '' :
     '<div class="sep"></div>' +
     '<div class="row" style="justify-content:space-between">' +
       '<span class="small">Sinkron WhatsApp otomatis</span>' +
@@ -3140,7 +3160,7 @@ function viewPengaturan(){
       '<button class="btn sm" data-action="wa-min-save">Simpan jarak</button>' +
       '<p class="tiny muted" style="margin-top:8px">Terakhir sinkron: <b class="mono">' +
         (state.settings.waLastSync ? fmtDateTime(state.settings.waLastSync) : 'belum pernah') + '</b></p>'
-      : '') +
+      : '')) +
   '</div>' +
 
   '<div class="card">' +
@@ -3468,7 +3488,7 @@ function openCatatMasuk(donorId){
       '<div class="field"><label>Tanggal</label><input type="date" id="l-tanggal" value="' +
         new Date().toISOString().slice(0,10) + '"></div>' +
       '<div class="field"><label>Kanal</label><select id="l-kanal">' +
-        KANAL.map(function(k){
+        KANAL.filter(function(k){ return !(WA_DITUNDA && k === 'whatsapp'); }).map(function(k){
           return '<option value="' + k + '">' + ICO_KANAL[k] + ' ' + LABEL_KANAL[k] + '</option>';
         }).join('') + '</select></div>' +
       '<div class="field"><label>Status</label><select id="l-status">' +
@@ -3612,7 +3632,7 @@ function openMajalahForm(){
   const body =
     (s.siap ? '' :
       '<div class="warnbox"><b>Belum bisa mengunggah.</b> Lengkapi dulu di halaman ' +
-      '<b>Setelan → WhatsApp</b>:<ul style="margin:8px 0 0;padding-left:20px">' +
+      '<b>Setelan → Worker Cloudflare</b>:<ul style="margin:8px 0 0;padding-left:20px">' +
         baris(s.adaEndpoint, 'Alamat Worker', s.endpoint) +
         baris(s.adaKey, 'Kunci aplikasi', 'terisi') +
       '</ul>' +
@@ -3768,7 +3788,7 @@ async function unggahMajalah(){
   const siap = waSiapInfo();
   if(!siap.siap){
     toast('Belum bisa mengunggah — ' + (siap.adaEndpoint ? '' : 'Alamat Worker belum diisi. ') +
-      (siap.adaKey ? '' : 'Kunci aplikasi belum diisi. ') + 'Isi dulu di Setelan → WhatsApp', true);
+      (siap.adaKey ? '' : 'Kunci aplikasi belum diisi. ') + 'Isi dulu di Setelan → Worker Cloudflare', true);
     return;
   }
 
@@ -4361,6 +4381,7 @@ async function sinkronOtomatis(paksa){
    pengguna tidak perlu bolak-balik ke Setelan. */
 let _waSyncJalan = false;
 async function waSinkronOtomatis(paksa){
+  if(WA_DITUNDA) return;
   if(!state.settings.waAutoSync) return;
   if(!WhatsApp.isConfigured()) return;
   if(_waSyncJalan) return;
@@ -5019,6 +5040,8 @@ document.addEventListener('click', function(e){
     }
     case 'kanal-pilih':
       suratState.kanal = act.getAttribute('data-kanal') === 'whatsapp' ? 'whatsapp' : 'email';
+      /* WhatsApp ditunda — jangan biarkan kanal itu terpilih. */
+      if(WA_DITUNDA && suratState.kanal === 'whatsapp') suratState.kanal = 'email';
       /* WhatsApp tidak bisa menampilkan tabel HTML, jadi kwitansi dimatikan. */
       if(suratState.kanal === 'whatsapp') suratState.kwitansi = false;
       render();
@@ -5275,7 +5298,7 @@ jagaSesiGmail();
 /* ---------- 17. SINKRON OTOMATIS — pemicu ---------- */
 /* Fungsi sinkronOtomatis() ada di bagian 11 bersama gmailSync(). */
 setInterval(sinkronOtomatis, 60 * 1000);
-setInterval(waSinkronOtomatis, 60 * 1000);
+if(!WA_DITUNDA) setInterval(waSinkronOtomatis, 60 * 1000);
 /* Tanda dibaca & konfirmasi penerimaan ikut diperiksa berkala — tidak perlu
    menekan tombol. */
 setInterval(function(){ cekTandaDibaca(); cekKonfirmasiTerima(); }, 3 * 60 * 1000);
@@ -5286,7 +5309,7 @@ document.addEventListener('visibilitychange', function(){
 });
 /* Beri jeda sedikit supaya token sempat dipulihkan lebih dulu. */
 setTimeout(sinkronOtomatis, 3000);
-setTimeout(waSinkronOtomatis, 4000);
+if(!WA_DITUNDA) setTimeout(waSinkronOtomatis, 4000);
 setTimeout(function(){ cekTandaDibaca(); cekKonfirmasiTerima(); }, 6000);
 /* Majalah disimpan di Worker, bukan di browser. Kalau berkasnya sudah tidak
    ada di sana (mis. KV dibersihkan atau namespace diganti), aplikasi harus
