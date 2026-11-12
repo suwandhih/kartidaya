@@ -13,7 +13,8 @@ const LS = {
   settings:'kartidaya.v2.settings',
   programs:'kartidaya.v2.programs',
   finance:'kartidaya.v2.finance',
-  isian:'kartidaya.v2.isian'
+  isian:'kartidaya.v2.isian',
+  uji:'kartidaya.v2.uji'
 };
 
 /* OAuth Client ID project `kartidaya-513714` (nomor 531116872278).
@@ -969,6 +970,7 @@ function save(what){
   if(!what || what === 'programs')   writeLS(LS.programs, state.programs);
   if(!what || what === 'finance')    writeLS(LS.finance, state.finance);
   if(!what || what === 'isian')      writeLS(LS.isian, state.isian);
+  if(!what || what === 'uji')        writeLS(LS.uji, state.uji);
 }
 function loadState(){
   const firstRun = localStorage.getItem(LS.donors) === null;
@@ -980,6 +982,7 @@ function loadState(){
   state.programs   = readLS(LS.programs, null) || DEFAULT_PROGRAMS.slice();
   state.finance    = readLS(LS.finance, null) || [];
   state.isian      = readLS(LS.isian, null) || [];
+  state.uji        = readLS(LS.uji, null) || [];
   if(!state.settings.theme) state.settings.theme = 'light';
   if(!state.settings.gmailClientId) state.settings.gmailClientId = DEFAULT_CLIENT_ID;
   /* Client ID lama milik project yang tidak bisa diakses akun ini — sumber
@@ -1211,6 +1214,7 @@ const PAGES = [
   { id:'surat',      label:'Tulis',      ico:'✎' },
   { id:'keuangan',   label:'Keuangan',   ico:'◫' },
   { id:'kategori',   label:'Kategori',   ico:'▤' },
+  { id:'uji',        label:'Uji',        ico:'✉' },
   { id:'pengaturan', label:'Setelan',    ico:'⚙' }
 ];
 let currentPage = 'beranda';
@@ -1262,6 +1266,7 @@ function render(){
   else if(currentPage === 'surat')      v.innerHTML = viewSurat();
   else if(currentPage === 'keuangan')   v.innerHTML = viewKeuangan();
   else if(currentPage === 'kategori')   v.innerHTML = viewKategori();
+  else if(currentPage === 'uji')        v.innerHTML = viewUji();
   else if(currentPage === 'pengaturan') v.innerHTML = viewPengaturan();
   else v.innerHTML = '<div class="empty">Halaman tidak ditemukan</div>';
   afterRender();
@@ -1812,8 +1817,10 @@ function viewSurat(){
             '<button class="btn" data-action="kirim-sendiri"' + (nSel ? '' : ' disabled') + '>' +
               '✉ Kirim ke saya sendiri dulu</button>' +
             '<span class="tiny muted" style="align-self:center">' +
-              'Kirim satu salinan ke ' + esc(Gmail.email || 'email Anda') +
-              ' supaya bisa diperiksa dulu sebelum ke donor.</span>' +
+              'Tidak ada pertanyaan alamat — salinan langsung dikirim ke <b>' +
+              esc(Gmail.email || 'email Anda') + '</b> (alamat Gmail yang sedang tersambung). ' +
+              'Isinya memakai penerima pertama sebagai contoh, dan <b>tidak dicatat</b> di buku donor.' +
+            '</span>' +
           '</div>'
         : '') +
     '</div>' +
@@ -2169,6 +2176,105 @@ function openPeriksaKirim(){
           kodeKiriman:kodeKiriman(), waktuKirim:waktuKirim() }
       : null
   });
+}
+
+/* ---------- KOTAK UJI ---------- */
+
+/* Salinan uji ("Kirim ke saya sendiri dulu") memakai tanda dibaca & tombol
+   konfirmasi yang sama seperti surat sungguhan, tapi TIDAK dicatat di buku
+   donor. Supaya hasilnya tetap bisa dilihat, catatannya disimpan terpisah di
+   sini — dan hanya yang masih menunggu kabar yang disimpan, jadi daftarnya
+   tidak menumpuk. */
+const UJI_MAKS = 20;
+
+function catatUji(rec){
+  if(!state.uji) state.uji = [];
+  state.uji.unshift(rec);
+  if(state.uji.length > UJI_MAKS) state.uji.length = UJI_MAKS;
+  save('uji');
+}
+
+/* Tanya Worker kabar salinan uji. Dipanggil bersama pemeriksaan surat biasa. */
+async function cekUji(){
+  if(!WhatsApp.isConfigured()) return;
+  const menunggu = (state.uji || []).filter(function(u){
+    return (u.pixelId && !u.dibaca) || (u.terimaId && !u.dikonfirmasi);
+  });
+  if(!menunggu.length) return;
+  try{
+    const px = menunggu.filter(function(u){ return u.pixelId && !u.dibaca; });
+    if(px.length){
+      const r = await WhatsApp.api('/pixel/status', {
+        method:'POST', body:{ ids: px.map(function(u){ return u.pixelId; }) }
+      });
+      const map = (r && r.dibaca) || {};
+      px.forEach(function(u){
+        const rec = map[u.pixelId];
+        if(rec && rec.pertama) u.dibaca = rec.pertama;
+      });
+    }
+    const tr = menunggu.filter(function(u){ return u.terimaId && !u.dikonfirmasi; });
+    if(tr.length){
+      const r2 = await WhatsApp.api('/terima/status', {
+        method:'POST', body:{ ids: tr.map(function(u){ return u.terimaId; }) }
+      });
+      const map2 = (r2 && r2.terima) || {};
+      tr.forEach(function(u){
+        const rec = map2[u.terimaId];
+        if(rec && rec.waktu) u.dikonfirmasi = rec.waktu;
+      });
+    }
+    save('uji');
+    render();
+  }catch(e){ /* diamkan — ini hanya alat bantu uji */ }
+}
+
+function hapusUji(id){
+  state.uji = (state.uji || []).filter(function(u){ return u.id !== id; });
+  save('uji');
+  render();
+}
+
+function viewUji(){
+  setTitle('Kotak Uji', 'Salinan percobaan yang dikirim ke email Anda sendiri');
+  const list = state.uji || [];
+  const kartu = list.map(function(u){
+    const d = findDonor(u.donorId);
+    const chipDibaca = u.pixelId
+      ? (u.dibaca
+          ? '<span class="chip st-dibaca" title="Dibuka ' + esc(fmtDateTime(u.dibaca)) + '">✓✓ Dibaca</span>'
+          : '<span class="chip plain">✓✓ Belum dibaca</span>')
+      : '<span class="chip plain">tanpa tanda dibaca</span>';
+    const chipTerima = u.terimaId
+      ? (u.dikonfirmasi
+          ? '<span class="chip ok" title="Dikonfirmasi ' + esc(fmtDateTime(u.dikonfirmasi)) + '">✓ Dikonfirmasi</span>'
+          : '<span class="chip plain">belum dikonfirmasi</span>')
+      : '';
+    return '<article class="mail">' +
+      '<div class="mail-top">' +
+        '<span class="mail-who">' + esc(u.subjek || '(tanpa subjek)') + '</span>' +
+        '<span class="mail-time">' + relTime(u.tanggal) + '</span>' +
+      '</div>' +
+      '<div class="mail-prev">Dikirim ke <b>' + esc(u.tujuan) + '</b>' +
+        (d ? ' · contoh penerima: ' + esc(donorName(d)) : '') + '</div>' +
+      '<div class="mail-foot">' + chipDibaca + chipTerima +
+        '<span class="chip plain">tidak masuk buku donor</span>' +
+        '<button class="btn sm ghost" data-action="uji-hapus" data-id="' + esc(u.id) + '">Hapus</button>' +
+      '</div>' +
+    '</article>';
+  }).join('');
+
+  return '<div class="card">' +
+    '<div class="card-head"><h2>Kotak Uji</h2>' +
+      '<span class="hint">' + list.length + ' salinan terakhir</span></div>' +
+    '<p class="small muted" style="margin:0 0 12px">Salinan dari tombol <b>✉ Kirim ke saya sendiri dulu</b>. ' +
+      'Isinya sama persis dengan yang akan diterima donor — termasuk tanda dibaca dan tombol konfirmasi — ' +
+      'tetapi <b>tidak dicatat</b> di buku donor. Hapus kalau sudah tidak perlu.</p>' +
+    (list.length
+      ? '<div class="mail-list">' + kartu + '</div>'
+      : '<div class="empty"><span class="big">✉</span><p>Belum ada salinan uji.<br>' +
+        'Buka <b>Tulis</b>, pilih penerima, lalu tekan <b>✉ Kirim ke saya sendiri dulu</b>.</p></div>') +
+  '</div>';
 }
 
 /* Kotak 5 isian serba guna di halaman Tulis. Diisi SEKALI, lalu dipakai di
@@ -3979,7 +4085,12 @@ function isiHTML(d, isiTeks, bahasa, finId, opts){
 
 /* Kirim satu salinan ke email sendiri dulu. Tujuannya supaya user bisa
    memeriksa hasil sungguhan di kotak masuknya sendiri sebelum dikirim ke
-   donor. Salinan ini TIDAK dicatat di buku donor — ini hanya uji coba. */
+   donor. Salinan ini TIDAK dicatat di buku donor — ini hanya uji coba.
+
+   Salinan uji memakai tanda dibaca & tombol konfirmasi yang SAMA seperti surat
+   sungguhan, supaya yang diuji benar-benar sama dengan yang akan diterima
+   donor. Bedanya: catatannya diberi awalan `uji-` dan tidak pernah masuk buku
+   donor, jadi tidak mengotori daftar surat keluar. */
 async function kirimKeSendiri(){
   const ids = Object.keys(suratState.selected).filter(function(k){ return suratState.selected[k]; });
   if(!ids.length){ toast('Pilih penerima dulu', true); return; }
@@ -4000,16 +4111,37 @@ async function kirimKeSendiri(){
   const isi = fillTemplate(suratState.isi, d);
   const kode = kodeKiriman();
   const waktu = waktuKirim();
+  /* Awalan `uji-` menandai bahwa ini salinan percobaan, bukan surat donor. */
+  const pixelId = workerBase() ? ('uji-px-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8)) : '';
+  const terimaId = workerBase() ? ('uji-tr-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8)) : '';
   const html = isiHTML(d, isi, suratState.kwitansiBahasa, suratState.kwitansiFinId, {
     kwitansi: !!suratState.kwitansi,
     majalah: !!suratState.majalah,
-    kodeKiriman: kode, waktuKirim: waktu
+    kodeKiriman: kode, waktuKirim: waktu,
+    pixelId: pixelId,
+    terimaId: terimaId,
+    terimaInfo: {
+      judul: 'Kartidaya Sahabat Indonesia',
+      kwitansi: suratState.kwitansi ? dataKwitansi(d, suratState.kwitansiFinId).kode : '',
+      jumlah: suratState.kwitansi ? totalTransaksiRingkas(d, suratState.kwitansiFinId) : '',
+      donor: donorName(d),
+      dikirim: waktu
+    }
   });
 
   const btn = document.querySelector('[data-action="kirim-sendiri"]');
   if(btn){ btn.disabled = true; btn.textContent = 'Mengirim…'; }
   try{
     await Gmail.send({ from: Gmail.email || '', to: tujuan, subject: subjek, body: isi, html: html });
+    /* Catat supaya hasilnya bisa dilihat di halaman Uji — termasuk apakah
+       salinannya sudah dibuka dan apakah tombol konfirmasinya bekerja. */
+    catatUji({
+      id: 'uji-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      tanggal: new Date().toISOString(),
+      tujuan: tujuan, subjek: subjek, donorId: d.id,
+      pixelId: pixelId, terimaId: terimaId,
+      dibaca: '', dikonfirmasi: ''
+    });
     toast('Salinan uji terkirim ke ' + tujuan + ' — periksa kotak masuk Anda');
   }catch(e){
     toast('Gagal kirim salinan uji: ' + (e.message || e), true);
@@ -4886,6 +5018,7 @@ document.addEventListener('click', function(e){
     }
     case 'kirim': kirimSurat(false); break;
     case 'kirim-sendiri': kirimKeSendiri(); break;
+    case 'uji-hapus': hapusUji(e.target.dataset.id); break;
     case 'kirim-sendiri-dari-periksa': closeModal(); kirimKeSendiri(); break;
     case 'simpan-draft': kirimSurat(true); break;
     case 'sel-all':
@@ -5317,16 +5450,16 @@ setInterval(sinkronOtomatis, 60 * 1000);
 if(!WA_DITUNDA) setInterval(waSinkronOtomatis, 60 * 1000);
 /* Tanda dibaca & konfirmasi penerimaan ikut diperiksa berkala — tidak perlu
    menekan tombol. */
-setInterval(function(){ cekTandaDibaca(); cekKonfirmasiTerima(); }, 3 * 60 * 1000);
+setInterval(function(){ cekTandaDibaca(); cekKonfirmasiTerima(); cekUji(); }, 3 * 60 * 1000);
 document.addEventListener('visibilitychange', function(){
   if(!document.hidden){
-    sinkronOtomatis(); waSinkronOtomatis(); cekTandaDibaca(); cekKonfirmasiTerima();
+    sinkronOtomatis(); waSinkronOtomatis(); cekTandaDibaca(); cekKonfirmasiTerima(); cekUji();
   }
 });
 /* Beri jeda sedikit supaya token sempat dipulihkan lebih dulu. */
 setTimeout(sinkronOtomatis, 3000);
 if(!WA_DITUNDA) setTimeout(waSinkronOtomatis, 4000);
-setTimeout(function(){ cekTandaDibaca(); cekKonfirmasiTerima(); }, 6000);
+setTimeout(function(){ cekTandaDibaca(); cekKonfirmasiTerima(); cekUji(); }, 6000);
 /* Majalah disimpan di Worker, bukan di browser. Kalau berkasnya sudah tidak
    ada di sana (mis. KV dibersihkan atau namespace diganti), aplikasi harus
    tahu — kalau tidak, email akan memuat gambar yang tidak bisa dibuka. */

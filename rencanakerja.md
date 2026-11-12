@@ -2971,4 +2971,56 @@ dibaca semuanya tetap jalan normal** (tidak satu pun memakai token WhatsApp).
 | 3 | Cek ulang `health_status` untuk memastikan `130497` sudah hilang |
 | 4 | Ubah `WA_DITUNDA` jadi `false` di `app.js` |
 
+### 21.3 "Kirim ke saya sendiri dulu" — diperbaiki & dilengkapi (12 Nov 2026)
+
+**Pertanyaan Anda:** *"apakah setelah klik di tanya email yg mau di tuju?"*
+
+**Jawaban: tidak ada pertanyaan apa pun.** Tombol itu **langsung mengirim** ke
+alamat Gmail yang sedang tersambung — tidak ada kotak isian, tidak ada jendela
+konfirmasi. Alamatnya diambil dari Gmail (`/gmail/v1/users/me/profile`), dan
+alamat itu **sudah tertulis** di keterangan tombolnya, jadi Anda bisa melihat
+tujuan sebelum menekan.
+
+**Dua kekurangan yang saya temukan dan perbaiki:**
+
+| # | Kekurangan | Akibat | Perbaikan |
+|---|---|---|---|
+| 1 | Salinan uji **tidak** memuat tanda dibaca & tombol konfirmasi | Yang diuji **beda** dengan yang diterima donor — jadi tidak bisa dipakai memastikan kedua fitur itu bekerja | Salinan uji sekarang memuat keduanya, persis seperti surat sungguhan |
+| 2 | Keterangan tombol tidak menyebut ke mana kirimnya | Anda harus menebak | Keterangan diperjelas: *"Tidak ada pertanyaan alamat — salinan langsung dikirim ke **fotohotono03@gmail.com**…"* |
+
+**Tambahan halaman baru: **Uji** (menu ✉ Uji).** Karena salinan uji tidak boleh
+masuk buku donor, hasilnya perlu tempat sendiri. Halaman ini menampilkan
+20 salinan uji terakhir beserta:
+
+| Yang ditampilkan | Arti |
+|---|---|
+| ✓✓ Dibaca | salinan itu sudah dibuka (atau belum) |
+| ✓ Dikonfirmasi | tombol konfirmasi di salinan itu sudah ditekan (atau belum) |
+| contoh penerima | donor yang datanya dipakai mengisi surat |
+| tombol **Hapus** | membersihkan catatan yang sudah tidak perlu |
+
+Catatan uji disimpan di `localStorage` dengan kunci `kartidaya.v2.uji`,
+**terpisah** dari `kartidaya.v2.messages` — jadi buku donor tetap bersih.
+
+**Hasil uji (12 Nov 2026):**
+
+| # | Yang diuji | Hasil |
+|---|---|---|
+| 1 | Tekan tombol → tidak ada pertanyaan alamat | ✅ langsung terkirim ke `fotohotono03@gmail.com` |
+| 2 | Subjek diberi awalan `[UJI]` | ✅ `[UJI] Ucapan terima kasih` |
+| 3 | HTML memuat kwitansi | ✅ ada `KWT-…` |
+| 4 | HTML memuat majalah | ✅ ada tautan `/majalah/…` |
+| 5 | HTML memuat pixel tanda dibaca | ✅ ada `/pixel/…` |
+| 6 | HTML memuat tombol konfirmasi | ✅ ada `/terima/…` |
+| 7 | Buku donor tidak bertambah | ✅ 3 → 3 pesan (tetap) |
+| 8 | Catatan masuk halaman Uji | ✅ 2 salinan tercatat |
+| 9 | Buka pixel di Worker → chip berubah | ✅ **✓✓ Dibaca** muncul |
+| 10 | Buka halaman konfirmasi → chip berubah | ✅ **✓ Dikonfirmasi** muncul |
+| 11 | Tombol Hapus | ✅ 2 → 1 salinan |
+| 12 | Semua halaman lain tetap jalan | ✅ 9 halaman diperiksa |
+
+**Catatan:** pemeriksaan kabar salinan uji berjalan otomatis bersama
+pemeriksaan surat biasa (tiap 3 menit, saat tab kembali aktif, dan 6 detik
+setelah aplikasi dibuka). Tidak perlu menekan tombol apa pun.
+
 ---
