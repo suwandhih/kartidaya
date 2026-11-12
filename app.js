@@ -1831,14 +1831,14 @@ function previewHTML(d){
        WhatsApp: tidak bisa tabel — dikirim sebagai gambar, jadi yang
        ditampilkan di sini pun harus gambarnya. */
     (!wa && pakaiKwitansi
-      ? '<p class="tiny muted" style="margin:14px 0 0">Kwitansi yang ikut terkirim di badan email:</p>' +
+      ? '<p class="tiny muted" style="margin:14px 0 0">Kwitansi yang tercetak di dalam email:</p>' +
         '<div class="kwitansi-preview">' + kwitansiHTML(d, suratState.kwitansiBahasa, suratState.kwitansiFinId) + '</div>'
       : '') +
     (wa && pakaiKwitansi
       ? '<p class="tiny muted" style="margin:14px 0 0">Kwitansi dikirim sebagai gambar — tekan tombol di bawah untuk melihatnya:</p>'
       : '') +
     (!wa && suratState.majalah && majalahInfo()
-      ? '<p class="tiny muted" style="margin:14px 0 0">Majalah yang ikut terkirim di badan email:</p>' +
+      ? '<p class="tiny muted" style="margin:14px 0 0">Majalah yang ikut terkirim — sampul + tombol baca:</p>' +
         '<div class="mj-preview">' + majalahHTML() + '</div>'
       : '') +
     '<div class="btn-row" style="margin-top:12px">' +
@@ -2220,7 +2220,7 @@ function blokKwitansi(){
 
   return '<div class="sep"></div>' +
     '<div class="row" style="justify-content:space-between">' +
-      '<span class="small"><b>Lampirkan kwitansi</b> <span class="hint">— tampil di badan email</span></span>' +
+      '<span class="small"><b>Lampirkan kwitansi</b> <span class="hint">— tercetak di dalam email</span></span>' +
       '<button class="btn sm' + (on ? ' primary' : '') + '" data-action="kw-toggle">' + (on ? 'Aktif' : 'Mati') + '</button>' +
     '</div>' +
     (on
@@ -2305,7 +2305,7 @@ function blokMajalah(){
               : '<b>Majalah belum bisa disiapkan.</b> Lengkapi dulu di halaman ' +
                 '<b>Setelan → Worker Cloudflare</b>:' + kurang +
                 '<p style="margin:8px 0 0">Majalah disimpan di Worker supaya bisa tampil di email ' +
-                'penerima dan dikirim lewat WhatsApp.</p>')) +
+                'penerima.</p>')) +
         '</div>') +
     '<div class="btn-row" style="margin-top:10px">' +
       '<button class="btn sm' + (hilang ? ' primary' : '') + '" data-action="mj-kelola">' +
@@ -3115,7 +3115,7 @@ function viewPengaturan(){
   '<div class="card">' +
     '<div class="card-head"><h2>Worker Cloudflare</h2>' +
       '<span class="chip' + (wst === 'connected' ? '' : ' plain') + '">' + wlabel + '</span></div>' +
-    '<p class="small muted">Worker ini dipakai untuk <b>dua hal</b>:</p>' +
+    '<p class="small muted">Bagian ini bukan untuk WhatsApp saja. Worker ini dipakai untuk <b>tiga hal</b>:</p>' +
     '<ul class="small muted" style="margin:6px 0 10px;padding-left:20px">' +
       '<li><b>Majalah di email</b> — halaman majalah disimpan di sini supaya bisa tampil ' +
         'di email penerima. <b>Sudah dipakai sekarang.</b></li>' +
@@ -3124,15 +3124,15 @@ function viewPengaturan(){
       '<li><b>Kirim WhatsApp</b> — <b>ditunda</b> sampai nomor resmi Kartidaya tersedia. ' +
         'Pengiriman tidak boleh memakai akun Facebook pribadi.</li>' +
     '</ul>' +
-    '<p class="small muted">Token Meta disimpan di Worker, bukan di browser — token itu tidak ' +
-      'boleh ada di halaman statis. Panduan: <b class="mono">PANDUAN-WHATSAPP.md</b></p>' +
-    '<div class="field"><label>Alamat Worker <span class="hint">— hasil deploy worker/</span></label>' +
+    '<p class="small muted">Jadi <b>dua kolom di bawah tetap harus diisi</b> walaupun WhatsApp ' +
+      'sedang ditunda — kalau kosong, majalah dan tanda dibaca tidak jalan.</p>' +
+    '<div class="field"><label>Alamat Worker <span class="hint">— sudah terisi, jangan diubah</span></label>' +
       '<input type="text" id="w-endpoint" class="mono" placeholder="https://kartidaya-wa.namaanda.workers.dev" value="' +
         esc(WhatsApp.endpoint || state.settings.waEndpoint || '') + '"></div>' +
-    '<div class="field"><label>Kunci aplikasi <span class="hint">— APP_KEY di Worker</span></label>' +
-      '<input type="password" id="w-key" class="mono" placeholder="kunci rahasia" value="' +
+    '<div class="field"><label>Kunci aplikasi <span class="hint">— kata sandi rahasia, minta ke pembuat aplikasi</span></label>' +
+      '<input type="password" id="w-key" class="mono" placeholder="tempel kunci rahasia di sini" value="' +
         esc(WhatsApp.appKey || '') + '"></div>' +
-    '<p class="tiny muted">Alamat &amp; kunci disimpan di browser ini, jadi tidak perlu diisi ulang ' +
+    '<p class="tiny muted">Kedua isian ini disimpan di browser ini saja, jadi tidak perlu diisi ulang ' +
       'setiap membuka aplikasi. Kunci tidak ikut ter-ekspor ke berkas cadangan.</p>' +
     '<div class="btn-row">' +
       '<button class="btn primary" data-action="w-save">Simpan &amp; uji sambungan</button>' +
@@ -3451,7 +3451,7 @@ function pratinjauLampiran(m, d){
 
   if(!bagian.length) return '';
   return '<div class="sep"></div>' +
-    '<p class="small" style="margin:0 0 4px"><b>Lampiran di badan email</b> ' +
+    '<p class="small" style="margin:0 0 4px"><b>Lampiran di dalam email</b> ' +
       '<span class="hint">— inilah yang dilihat penerima</span></p>' +
     bagian.join('');
 }
@@ -3637,7 +3637,7 @@ function openMajalahForm(){
         baris(s.adaKey, 'Kunci aplikasi', 'terisi') +
       '</ul>' +
       '<p style="margin:8px 0 0">Majalah disimpan di Worker supaya bisa tampil di email ' +
-      'penerima dan dikirim lewat WhatsApp.</p>' +
+      'penerima.</p>' +
       '<div class="btn-row" style="margin-top:10px">' +
         '<button class="btn sm primary" data-action="mj-ke-setelan">⚙ Buka Setelan</button>' +
       '</div></div>') +

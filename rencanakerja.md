@@ -2685,7 +2685,7 @@ tanpa menyebut mana yang kurang. Membingungkan.
 (alamat ✅, kunci ❌), tombol Unggah bisa ditekan, dan menekannya tanpa berkas
 memberi kabar *"Pilih berkas PDF atau gambar halaman dulu"*.
 
-**Yang perlu Anda lakukan:** buka **Setelan → WhatsApp**, isi **Kunci
+**Yang perlu Anda lakukan:** buka **Setelan → Worker Cloudflare**, isi **Kunci
 aplikasi** (sama dengan `APP_KEY` di Worker), tekan **Simpan & uji sambungan**.
 Setelah itu unggah majalahnya.
 
@@ -2783,5 +2783,40 @@ kegunaannya secara terbuka.
 **Penting:** **Alamat Worker** dan **Kunci aplikasi** tetap perlu diisi walau
 WhatsApp ditunda — supaya majalah bisa tampil di email dan tanda dibaca
 bekerja.
+
+### Perbaikan tulisan — istilah "badan email" diganti (12 Nov 2026)
+
+**Laporan Anda:** *"belum ada perbaikan tulisan"*.
+
+**Sebabnya:** perbaikan sebelumnya hanya mengganti label **majalah**. Label
+**kwitansi** dan dua keterangan lain masih memakai istilah teknis *"badan
+email"* yang tidak jelas bagi orang awam. Jadi di layar Anda masih terlihat
+tulisan lama.
+
+**Yang diganti:**
+
+| Tempat | Sebelum | Sesudah |
+|---|---|---|
+| Tulis Surat → label kwitansi | *"Lampirkan kwitansi — tampil di badan email"* | *"Lampirkan kwitansi — **tercetak di dalam email**"* |
+| Pratinjau → keterangan kwitansi | *"Kwitansi yang ikut terkirim di badan email:"* | *"Kwitansi yang **tercetak di dalam email**:"* |
+| Pratinjau → keterangan majalah | *"Majalah yang ikut terkirim di badan email:"* | *"Majalah yang ikut terkirim — **sampul + tombol baca**:"* |
+| Pratinjau → judul lampiran | *"Lampiran di badan email"* | *"Lampiran **di dalam email**"* |
+
+**Kata "badan email" tidak dipakai lagi di layar.** Istilah itu hanya tinggal
+di komentar kode (tidak terlihat pengguna).
+
+**Kartu Setelan "Worker Cloudflare" juga diperjelas:**
+
+| Sebelum | Sesudah |
+|---|---|
+| *"Worker ini dipakai untuk **dua hal**"* (padahal tiga) | *"Bagian ini **bukan untuk WhatsApp saja**. Worker ini dipakai untuk **tiga hal**"* |
+| Tidak ada penegasan | Ditambah: *"Jadi **dua kolom di bawah tetap harus diisi** walaupun WhatsApp sedang ditunda — kalau kosong, majalah dan tanda dibaca tidak jalan."* |
+| *"Alamat Worker — hasil deploy worker/"* | *"Alamat Worker — **sudah terisi, jangan diubah**"* |
+| *"Kunci aplikasi — APP_KEY di Worker"* | *"Kunci aplikasi — **kata sandi rahasia, minta ke pembuat aplikasi**"* |
+| *"Token Meta disimpan di Worker…"* (tidak relevan selama ditunda) | dihapus dari layar |
+| *"…supaya bisa tampil di email penerima **dan dikirim lewat WhatsApp**"* | *"…supaya bisa tampil di email penerima."* |
+
+**Uji:** diperiksa di browser (localhost, `?v=44`) — label kwitansi, label
+majalah, kartu Setelan, dan daftar centang semuanya sudah memakai kata baru.
 
 ---
