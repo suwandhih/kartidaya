@@ -2577,6 +2577,69 @@ pernah selesai karena kunci aplikasi tidak ada di profil otomasi).
 majalah akan tersimpan di Cloudflare dan bisa dipakai untuk email maupun
 WhatsApp.
 
+### Pemeriksaan ulang lewat dashboard Cloudflare (12 Nov 2026, 12:40 WIB)
+
+Anda membagikan dashboard Cloudflare, jadi isi KV bisa dilihat **langsung** —
+tidak lagi menebak dari luar. Hasilnya **mengubah kesimpulan di atas**.
+
+**Isi KV `WA_INBOX` yang sebenarnya** (dibaca dari dashboard):
+
+| Kunci | Isi | Kesimpulan |
+|---|---|---|
+| `pixel:px-mwd05b6vmyy4tn54` | `{pertama, hit:2, terakhir}` | ✅ tanda dibaca **bekerja** |
+| `pixel:px-uji-5947` | `{pertama, hit:3, terakhir}` | ✅ uji tanda dibaca |
+| `pixel:uji-baca-1` | `{pertama, hit:1}` | ✅ |
+| `pixel:uji-publik-1` | `{pertama, hit:1}` | ✅ |
+| `status` | 2 catatan status WhatsApp | ✅ pelacakan status |
+| `terima:tidakada` | catatan konfirmasi | ✅ |
+| `terima:tr-mwcupu97i67w1gwu` | Ferry Kangsadjaja · Rp 750.000 | ✅ konfirmasi **bekerja** |
+| `terima:tr-mwd05b6vx45hg1oa` | Linda Lau · Rp 1.500.000 | ✅ |
+| `terima:uji-terima-1`, `terima:uji-terima-2` | uji konfirmasi | ✅ |
+
+**Yang TIDAK ada di KV:** tidak ada satu pun kunci `majalah:*`,
+`majalah-pdf:*`, atau `kwt:*`.
+
+**Kesimpulan yang diperbaiki:** majalah **bukan** "terhapus" — majalah
+**belum pernah berhasil tersimpan**. Sebabnya bukan KV dibersihkan, tapi
+**unggahan tidak pernah selesai** karena kunci aplikasi tidak ada di browser.
+
+**Konfigurasi Worker — semuanya benar:**
+
+| Yang diperiksa | Hasil |
+|---|---|
+| Worker `kartidaya-wa` | ✅ aktif, versi `ad9e204b`, 100% trafik, error 0% |
+| Secret `APP_KEY` | ✅ ada |
+| Secret `WA_TOKEN` | ✅ ada |
+| Secret `WA_PHONE_ID` | ✅ ada |
+| Secret `WA_VERIFY_TOKEN` | ✅ ada |
+| Binding KV `WA_INBOX` | ✅ terpasang |
+| Namespace KV | hanya **satu** — tidak ada salah namespace |
+
+**Jadi masalahnya bukan di Cloudflare.** Cloudflare sudah benar dan sudah
+bekerja (tanda dibaca & konfirmasi terbukti jalan). Yang kurang **hanya satu**:
+**Kunci aplikasi belum pernah diisi di browser**.
+
+**Bukti dari browser Anda** (profil Chrome `Default`, dibaca dari
+`Local Storage`):
+
+| Yang dicari | Hasil |
+|---|---|
+| `kartidaya.wa.session` (tempat kunci disimpan) | ❌ **tidak ada sama sekali** |
+| `settings.waEndpoint` | ✅ `https://kartidaya-wa.suwandhih.workers.dev` |
+| `settings.majalah` | ❌ tidak ada |
+
+Artinya: **Alamat Worker sudah diisi, Kunci aplikasi belum pernah diisi.**
+Karena kunci belum pernah diisi, `kartidaya.wa.session` belum pernah dibuat —
+dan setiap unggahan majalah ditolak Worker dengan **401**.
+
+**Satu-satunya langkah yang tersisa:** isi **Kunci aplikasi** di
+**Setelan → Worker Cloudflare**, tekan **Simpan & uji sambungan**, lalu unggah
+majalahnya. Nilai kuncinya **tidak bisa dibaca dari mana pun** — di Cloudflare
+nilainya terenkripsi (`Value encrypted`) dan tidak ada di repo. Ambil dari
+catatan Anda saat pertama kali menjalankan `npx wrangler secret put APP_KEY`.
+Kalau catatan itu hilang, jalankan perintah itu lagi dengan nilai baru, lalu
+pakai nilai yang sama di aplikasi.
+
 ### Celah yang ditemukan dan diperbaiki
 
 Sebelumnya aplikasi **mengaku majalah "siap"** padahal berkasnya sudah tidak
