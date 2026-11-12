@@ -3525,21 +3525,44 @@ tersimpan lama. POST lebih andal.
 | 17 | Internet mati saat aplikasi dibuka → aplikasi **dikunci** (tidak bisa mengedit) | ✅ |
 | 18 | Halaman **Setelan** tetap bisa dibuka saat terkunci | ✅ |
 | 19 | `save()` tidak menulis apa pun selama terkunci | ✅ |
+| 20 | **Dua tab**: tab A menyimpan, donor baru dari tab B **tidak ikut terhapus** | ✅ |
+| 21 | Penghapusan yang disengaja **tetap** sampai ke server | ✅ |
+| 22 | Pemakaian pertama kali: server kosong, data browser **tidak ditimpa** | ✅ |
 
 **Uji nomor 7–10 adalah inti jawaban pertanyaan Anda:** dua browser berbeda
 benar-benar melihat dan mengubah **satu data yang sama**.
 
-**Uji nomor 14–19 menutup satu lubang berbahaya.** Sebelum diperbaiki: kalau
-internet mati, aplikasi masih terbuka dari salinan di browser, pengguna bisa
-mengedit, dan **editannya hilang tanpa pemberitahuan** begitu internet kembali
-— karena data server menimpa semuanya. Sekarang ada tiga lapis pengaman:
+### 23.7b Tiga lubang berbahaya yang ditemukan & ditutup
 
-1. **Perubahan tertunda dicatat** di browser (`kartidaya.v2.tertunda`).
+Ketiganya baru ketahuan saat menguji dengan **dua tab sekaligus** — bukan dari
+membaca kode. Semuanya bisa menghilangkan pekerjaan pengguna tanpa peringatan.
+
+**Lubang 1 — perubahan hilang saat internet putus.**
+Sebelumnya: internet mati → aplikasi masih terbuka dari salinan di browser →
+pengguna mengedit → internet kembali → data server menimpa semuanya →
+**editan hilang tanpa pemberitahuan**.
+Sekarang ada tiga lapis pengaman:
+
+1. Perubahan yang gagal terkirim **dicatat** di browser (`kartidaya.v2.tertunda`).
 2. **Dikirim lebih dulu** sebelum data server diambil — baik saat halaman
    dibuka maupun saat tombol **Coba lagi** ditekan.
-3. **Aplikasi dikunci** kalau data server tidak bisa dimuat sama sekali, supaya
-   tidak ada yang mengedit dengan harapan sia-sia. Halaman **Setelan** tetap
-   bisa dibuka supaya alamat/kunci bisa diperbaiki.
+3. Aplikasi **dikunci** kalau data server tidak bisa dimuat sama sekali.
+   Halaman **Setelan** tetap bisa dibuka supaya alamat/kunci bisa diperbaiki.
+
+**Lubang 2 — pekerjaan rekan terhapus saat kita menyimpan.**
+Cara lama menghapus data di server: *"bandingkan daftar di komputer ini dengan
+daftar di server; yang ada di server tapi tidak ada di sini, hapus."*
+Akibatnya: kalau rekan baru menambah donor, lalu kita menyimpan apa pun,
+**donor rekan itu ikut terhapus** — karena memang belum ada di komputer kita.
+Sekarang penghapusan memakai **daftar tersendiri** (`kartidaya.v2.hapus`):
+hanya baris yang **benar-benar sengaja dihapus di komputer ini** yang dihapus
+di server.
+
+**Lubang 3 — data lama hilang saat pertama kali pakai.**
+Server yang masih kosong akan menimpa data yang sudah ada di browser. Sekarang,
+pada pemakaian **pertama kali** saja, kalau server kosong untuk sebuah jenis
+data padahal di browser ada isinya, data browser **dipertahankan** dan langsung
+dikirim ke server.
 
 ### 23.8 Yang perlu Anda tahu
 

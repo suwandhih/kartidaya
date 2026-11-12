@@ -20,6 +20,18 @@ const LS = {
    kalau halaman dimuat ulang sebelum internet kembali, perubahan itu dikirim
    lebih dulu — bukan ditimpa oleh data server. */
 const LS_TERTUNDA = 'kartidaya.v2.tertunda';
+/* Penanda bahwa browser ini sudah pernah berhasil menyinkron dengan server.
+   Dipakai sekali saja: pada pemakaian pertama, data di browser tidak boleh
+   ditimpa oleh server yang masih kosong. */
+const LS_PERNAH_SINKRON = 'kartidaya.v2.pernahSinkron';
+/* Daftar id yang sudah dihapus di komputer ini tetapi belum terhapus di server.
+   Bentuk: { donors:['L00001R'], messages:['MSG-1'] }.
+   Kenapa perlu? Kalau penghapusan dilakukan dengan cara "bandingkan daftar
+   lokal dengan daftar server", maka setiap kali menyimpan, semua baris yang
+   ada di server tetapi tidak ada di komputer ini akan ikut terhapus — termasuk
+   pekerjaan rekan yang baru saja ditambahkan. Dengan daftar ini, yang terhapus
+   hanya baris yang memang sengaja dihapus di sini. */
+const LS_HAPUS = 'kartidaya.v2.hapus';
 
 /* OAuth Client ID project `kartidaya-513714` (nomor 531116872278).
    Dipakai sebagai nilai awal supaya browser yang masih menyimpan Client ID
@@ -972,6 +984,13 @@ function save(what){
      Pengecualian: `settings` & `uji` memang milik komputer ini sendiri, dan
      Setelan harus tetap bisa disimpan supaya alamat/kunci bisa diperbaiki. */
   if(terkunciServer && what && what !== 'settings' && what !== 'uji') return;
+  /* Catat penghapusan SEBELUM data dikirim. Pembandingnya `Server.diketahui`
+     (id yang kita tahu ada di server), bukan localStorage — lihat catatHapus. */
+  const namaKoleksi = what ? [what] : Server.koleksi;
+  namaKoleksi.forEach(function(nama){
+    if(Server.koleksi.indexOf(nama) < 0) return;
+    Server.catatHapus(nama);
+  });
   if(!what || what === 'donors')     writeLS(LS.donors, state.donors);
   if(!what || what === 'categories') writeLS(LS.categories, state.categories);
   if(!what || what === 'templates')  writeLS(LS.templates, state.templates);
@@ -1006,6 +1025,8 @@ const Server = {
   sibuk: 0,           /* berapa pengiriman sedang berjalan */
   gagal: 0,           /* berapa pengiriman gagal sejak terakhir berhasil */
   tertunda: {},       /* koleksi yang gagal terkirim, menunggu dikirim ulang */
+  hapus: {},          /* id yang sudah dihapus di sini, belum dihapus di server */
+  diketahui: {},      /* id yang kita tahu ADA di server (dari muat/kirim sukses) */
   terakhir: '',       /* waktu sinkron terakhir berhasil */
   pesan: '',          /* pesan galat terakhir */
 
@@ -1013,10 +1034,38 @@ const Server = {
   bacaTertunda(){
     try{ this.tertunda = JSON.parse(localStorage.getItem(LS_TERTUNDA) || '{}') || {}; }
     catch(e){ this.tertunda = {}; }
+    try{ this.hapus = JSON.parse(localStorage.getItem(LS_HAPUS) || '{}') || {}; }
+    catch(e){ this.hapus = {}; }
     return this.tertunda;
   },
   simpanTertunda(){
     try{ localStorage.setItem(LS_TERTUNDA, JSON.stringify(this.tertunda)); }catch(e){ /* penuh — abaikan */ }
+    try{ localStorage.setItem(LS_HAPUS, JSON.stringify(this.hapus)); }catch(e){ /* penuh — abaikan */ }
+  },
+  /* Daftar id dari sebuah koleksi. Dipakai untuk membandingkan. */
+  idDari(daftar){
+    return (daftar || []).map(function(b){
+      return String(b && (b.id !== undefined ? b.id : b.kode));
+    }).filter(function(id){ return id && id !== 'undefined' && id !== 'null'; });
+  },
+  /* Catat bahwa satu baris sengaja dihapus di komputer ini.
+     Pembandingnya adalah `diketahui` — daftar id yang kita TAHU ada di server
+     (hasil muat terakhir atau kirim yang berhasil), BUKAN isi localStorage.
+     Alasannya penting: localStorage dipakai bersama oleh semua tab di komputer
+     ini. Kalau pembandingnya localStorage, perubahan yang ditulis tab lain
+     akan terlihat seperti penghapusan — dan pekerjaan rekan ikut terhapus. */
+  catatHapus(nama){
+    const adaSekarang = {};
+    this.idDari(state[nama]).forEach(function(id){ adaSekarang[id] = true; });
+    const daftar = this.hapus[nama] || (this.hapus[nama] = []);
+    (this.diketahui[nama] || []).forEach(function(id){
+      if(!adaSekarang[id] && daftar.indexOf(id) < 0) daftar.push(id);
+    });
+    /* Kalau id yang pernah dihapus muncul lagi (mis. dibatalkan atau diimpor
+       ulang), jangan dihapus dari server. */
+    for(let i = daftar.length - 1; i >= 0; i--){
+      if(adaSekarang[daftar[i]]) daftar.splice(i, 1);
+    }
   },
 
   /* Koleksi yang disimpan di server. `settings` & `uji` TIDAK termasuk —
@@ -1049,11 +1098,34 @@ const Server = {
     try{
       const r = await this.panggil('/data');
       const k = r.koleksi || {};
+      /* Jaring pengaman untuk pemakaian PERTAMA KALI: kalau server masih
+         KOSONG untuk sebuah koleksi padahal di browser ini ada isinya, jangan
+         timpa. Kalau ditimpa, data yang belum pernah diunggah akan hilang
+         tanpa jejak. Data browser dipertahankan dan ditandai perlu diunggah.
+         Hanya berlaku sebelum browser ini pernah berhasil sinkron — sesudah
+         itu, server selalu dianggap yang benar (mis. semua donor memang
+         sengaja dihapus).
+         Catatan: server TIDAK mengirim kunci untuk koleksi yang masih kosong,
+         jadi "tidak ada kunci" harus dibaca sebagai "kosong". */
+      const pertamaKali = !localStorage.getItem(LS_PERNAH_SINKRON);
+      const perluUnggah = [];
       this.koleksi.forEach(function(nama){
-        if(Array.isArray(k[nama])) state[nama] = k[nama];
+        const dariServer = Array.isArray(k[nama]) ? k[nama] : null;
+        const diBrowser = state[nama] || [];
+        if(pertamaKali && diBrowser.length > 0 && (!dariServer || dariServer.length === 0)){
+          perluUnggah.push(nama);
+          return;                       /* pertahankan data browser */
+        }
+        if(dariServer) state[nama] = dariServer;
       });
       if(r.meta && Array.isArray(r.meta.isian)) state.isian = r.meta.isian;
       if(r.meta && r.meta.majalah) state.settings.majalah = r.meta.majalah;
+      /* Perbarui daftar id yang kita tahu ada di server. Ini pembanding untuk
+         mendeteksi penghapusan — lihat catatHapus. */
+      const ini = this;
+      this.koleksi.forEach(function(nama){
+        ini.diketahui[nama] = ini.idDari(k[nama]);
+      });
       /* Tulis salinan ke browser supaya tampilan berikutnya cepat. */
       this.koleksi.forEach(function(nama){ writeLS(LS[nama], state[nama]); });
       writeLS(LS.isian, state.isian);
@@ -1062,7 +1134,17 @@ const Server = {
       this.online = true;
       this.gagal = 0;
       this.terakhir = new Date().toISOString();
-      this.tandai('ok', 'Data bersama tersambung');
+      try{ localStorage.setItem(LS_PERNAH_SINKRON, '1'); }catch(e){ /* abaikan */ }
+      if(perluUnggah.length){
+        /* Tandai supaya dikirim ke server — bukan dibuang. */
+        perluUnggah.forEach(function(nama){ Server.tertunda[nama] = true; });
+        this.simpanTertunda();
+        this.tandai('gagal', 'Ada data di komputer ini yang belum ada di server');
+        toast('Server masih kosong untuk ' + perluUnggah.length + ' jenis data. ' +
+          'Data di komputer ini dipertahankan dan akan dikirim ke server.', true);
+      }else{
+        this.tandai('ok', 'Data bersama tersambung');
+      }
       return true;
     }catch(e){
       this.online = false;
@@ -1095,19 +1177,24 @@ const Server = {
             method:'POST', body: JSON.stringify({ id: String(id), data: baris })
           });
         }
-        /* Hapus di server yang sudah tidak ada di sini. */
-        const r = await this.panggil('/data');
-        const adaDiServer = ((r.koleksi || {})[nama] || []).map(function(b){
-          return String(b && (b.id !== undefined ? b.id : b.kode));
-        });
-        const adaDiSini = daftar.map(function(b){
-          return String(b && (b.id !== undefined ? b.id : b.kode));
-        });
-        for(const id of adaDiServer){
-          if(adaDiSini.indexOf(id) < 0){
-            await this.panggil('/data/' + nama + '/' + encodeURIComponent(id) + '/hapus', { method:'POST' });
-          }
+        /* Hapus di server HANYA baris yang memang sengaja dihapus di komputer
+           ini (lihat catatHapus). Sengaja tidak membandingkan daftar lokal
+           dengan daftar server: kalau dibandingkan, pekerjaan rekan yang baru
+           ditambahkan akan ikut terhapus setiap kali kita menyimpan. */
+        const akanDihapus = (this.hapus[nama] || []).slice();
+        for(const id of akanDihapus){
+          await this.panggil('/data/' + nama + '/' + encodeURIComponent(id) + '/hapus', { method:'POST' });
         }
+        if(akanDihapus.length){
+          this.hapus[nama] = [];
+          this.simpanTertunda();
+        }
+        /* Perbarui daftar id yang kita tahu ada di server: semua yang baru
+           saja dikirim, dikurangi yang baru saja dihapus. */
+        const masihAda = {};
+        this.idDari(daftar).forEach(function(id){ masihAda[id] = true; });
+        akanDihapus.forEach(function(id){ delete masihAda[id]; });
+        this.diketahui[nama] = Object.keys(masihAda);
       }
       this.online = true;
       this.gagal = 0;
@@ -1140,9 +1227,6 @@ const Server = {
       await this.kirim(nama);
       if(!this.online) return;   /* masih putus — jangan buang waktu */
     }
-    /* Semua tertunda sudah terkirim. Kalau tadi aplikasi terkunci karena
-       sambungan putus, sekarang bisa dibuka lagi. */
-    if(terkunciServer) cobaSambungLagi();
   },
 
   /* Tampilkan keadaan di chip header. */
@@ -5851,7 +5935,11 @@ async function sambungDanMuat(){
       if(!Server.online) break;
     }
   }
-  return await Server.muat();
+  const ok = await Server.muat();
+  /* Kalau muat() menemukan data di browser yang belum ada di server (pemakaian
+     pertama kali), kirim sekarang — jangan tunggu 20 detik. */
+  if(ok && Object.keys(Server.tertunda).length) await Server.kirimTertunda();
+  return ok;
 }
 
 /* Coba sambung ulang dari layar "tidak tersambung" atau dari banner. */
