@@ -3587,9 +3587,17 @@ dikirim ke server.
 
 ---
 
-## 24. Login & akun pengguna — rencana (12 Nov 2026) 📋 BELUM DIKERJAKAN
+## 24. Login & akun pengguna — ✅ SELESAI (13 Nov 2026)
 
-**Pertanyaan Anda:** *"selanjutnya dibuat form signup untuk buat username dan
+**Keputusan Anda (13 Nov 2026):** *"aplikasi signup, aplikasi terpisah dari
+aplikasi kartidaya.. login untuk aplikasi kartidaya.."*
+
+Jadi: **halaman pendaftaran berdiri sendiri** (di Worker), **login** di aplikasi
+Kartidaya. Rancangan di bawah dipertahankan apa adanya; yang berubah hanya satu
+hal — sesuai arahan §25, pengamanan dibuat **sederhana dulu**, tidak seketat
+rancangan awal. Bedanya dicatat di §24.9.
+
+**Pertanyaan Anda sebelumnya:** *"selanjutnya dibuat form signup untuk buat username dan
 password .. apakah lebih baik terpisah dengan aplikasi kartidaya.. karena
 aplikasi signup sangat jarang di gunakan .. di gunakan untuk membuat email +
 password yg bisa akses .. setelah di gunakan dimatikan.. aman
@@ -3676,28 +3684,28 @@ Worker sudah punya alatnya bawaan (`crypto.subtle`), tidak perlu tambahan.
 | **Pesan galat seragam** | "Email atau password salah" — jangan bilang mana yang salah, itu memberi petunjuk ke penyerang |
 | **Kode undangan untuk signup** | Pintu signup bisa ditutup seketika |
 
-### 24.6 Keputusan yang masih menunggu Anda
+### 24.6 Keputusan yang sudah diambil
 
-| # | Pertanyaan | Pilihan |
+| # | Pertanyaan | Jawaban |
 |---|---|---|
-| 1 | Halaman signup diletakkan di mana? | **(a)** Di server (Worker) — halaman terpisah, butuh kode undangan. Paling aman & paling mudah dimatikan. **(b)** Berkas terpisah di repo (GitHub Pages) — sederhana, tapi halamannya tetap bisa dibuka orang. **(c)** Tanpa halaman sama sekali — Anda buat akun lewat perintah di komputer. Paling aman, tapi perlu sedikit teknis |
-| 2 | Email untuk login pakai yang mana? | **(a)** Email Gmail yang dipakai mengirim surat (mis. kantor@kartidaya.org). **(b)** Email apa saja sebagai nama pengguna — tidak harus email Gmail yang tersambung |
-| 3 | Kunci aplikasi lama (`APP_KEY`) diapakan? | **(a)** Tetap jalan sebagai cadangan — Anda tidak bisa terkunci sendiri kalau lupa password. **(b)** Dimatikan total — hanya login yang bisa masuk. Lebih aman, tapi kalau lupa password harus diperbaiki manual |
-| 4 | Kalau lupa password, siapa yang mengurus? | **(a)** Anda (admin) yang reset lewat perintah di komputer — cukup untuk 2 user. **(b)** Ada tombol "lupa password" yang mengirim email — perlu tambahan pekerjaan & alamat pengirim |
+| 1 | Halaman signup diletakkan di mana? | **(a)** Di server (Worker) — halaman terpisah `/daftar`, butuh kode undangan |
+| 2 | Email untuk login pakai yang mana? | **(b)** Email apa saja sebagai nama pengguna — tidak harus Gmail yang tersambung |
+| 3 | Kunci aplikasi lama (`APP_KEY`) diapakan? | **(a)** Tetap jalan — endpoint akun sendiri juga butuh kunci itu, jadi tidak bisa terkunci di luar |
+| 4 | Kalau lupa password, siapa yang mengurus? | **(a)** Admin lewat perintah di komputer — lihat PANDUAN-AKUN.md bagian 5 |
 
 ### 24.7 Perkiraan pekerjaan
 
 Ini perubahan **besar** — menyentuh database, server, dan aplikasi. Bukan
 pekerjaan 1 jam. Urutan yang disarankan:
 
-| # | Langkah | Perkiraan |
-|---|---|---|
-| 1 | Tabel `users` + alat acak password di server | sedang |
-| 2 | Pintu signup + kode undangan | sedang |
-| 3 | Pintu login + token | sedang |
-| 4 | Layar login di aplikasi | sedang |
-| 5 | Ganti semua panggilan data dari kunci lama ke token | **besar** — menyentuh banyak tempat |
-| 6 | Uji: 2 user, salah password, token kedaluwarsa, akun dimatikan | sedang |
+| # | Langkah | Perkiraan | Hasil |
+|---|---|---|---|
+| 1 | Tabel `users` + alat acak password di server | sedang | ✅ |
+| 2 | Pintu signup + kode undangan | sedang | ✅ |
+| 3 | Pintu login + token | sedang | ✅ |
+| 4 | Layar login di aplikasi | sedang | ✅ |
+| 5 | Ganti semua panggilan data dari kunci lama ke token | **besar** | ⏸ ditunda (§24.9) |
+| 6 | Uji: 2 user, salah password, token kedaluwarsa, akun dimatikan | sedang | ✅ 48 pemeriksaan |
 
 ### 24.8 Catatan penting
 
@@ -3710,6 +3718,66 @@ seperti sekarang. Jadi §22.1 sebaiknya diputuskan bersamaan dengan pekerjaan in
 **Kalau dikerjakan setengah-setengah, hasilnya lebih berbahaya daripada
 sekarang** — karena memberi rasa aman yang palsu. Jadi harus lengkap: password
 diacak, batas percobaan login, dan token yang kedaluwarsa.
+
+### 24.9 Yang dikerjakan 13 Nov 2026 — dan yang sengaja ditunda
+
+**Dua aplikasi, sesuai permintaan Anda:**
+
+| Aplikasi | Alamat | Isi |
+|---|---|---|
+| **Pendaftaran** (terpisah) | `https://kartidaya-wa.suwandhih.workers.dev/daftar` | formulir buat akun, butuh kode undangan |
+| **Kartidaya** | `https://suwandhih.github.io/kartidaya/` | layar masuk email + password |
+
+**Yang sudah jadi:**
+
+| # | Bagian | Hasil |
+|---|---|---|
+| 1 | Tabel `users`, `sessions`, `invites`, `login_acuan` | ✅ terpasang di D1 (APAC) |
+| 2 | Endpoint `/akun/login`, `/saya`, `/keluar`, `/daftar`, `/daftar-terbuka`, `/pengguna`, `/ganti-password` | ✅ |
+| 3 | Halaman pendaftaran terpisah `/daftar` | ✅ tanpa kunci aplikasi, dijaga kode undangan |
+| 4 | Password diacak PBKDF2-SHA256, 100.000 putaran + salt 16 byte | ✅ |
+| 5 | Batas 5 percobaan salah → blokir 15 menit | ✅ |
+| 6 | Pesan galat seragam + waktu jawaban seragam | ✅ |
+| 7 | Token 12 jam, disimpan di server (bisa dicabut) | ✅ |
+| 8 | Ganti password → semua sesi akun itu dicabut | ✅ |
+| 9 | Layar masuk di aplikasi — menutup seluruh aplikasi | ✅ |
+| 10 | Nama pengguna + tombol Keluar di sidebar | ✅ |
+| 11 | Kartu **Akun saya** di Setelan + tombol **Cek pintu pendaftaran** | ✅ |
+| 12 | Alamat Worker bisa diperbaiki **dari layar masuk** | ✅ tanpa ini alamat yang salah membuat pengguna terkunci |
+| 13 | Sesi diperiksa ulang saat tab kembali aktif | ✅ |
+| 14 | Deploy Worker + skema D1 | ✅ versi `ad53d5c0` |
+
+**Uji:** 48 pemeriksaan otomatis lulus (pendaftaran, login, blokir, token,
+ganti password, keluar, kunci aplikasi), ditambah uji browser: login salah →
+pesan; login benar → data termuat; muat ulang → sesi bertahan; keluar → data
+donor tidak terlihat; kunci aplikasi salah → **sesi bertahan** dan yang tampil
+layar "tidak tersambung", bukan layar masuk.
+
+**Dua kesalahan yang ditemukan & diperbaiki saat uji (12→13 Nov):**
+
+| Kesalahan | Akibat sebelum diperbaiki |
+|---|---|
+| `/akun/daftar` ikut mewajibkan kunci aplikasi | halaman pendaftaran **tidak akan pernah berhasil** — ia tidak memegang kunci. Sekarang rute itu ditangani sebelum pemeriksaan kunci, dan tetap dijaga kode undangan |
+| `Akun.periksa()` menghapus sesi untuk **semua** galat | kunci aplikasi yang salah atau internet mati membuat pengguna terlempar ke layar masuk, padahal masalahnya bukan sesi. Sekarang hanya penolakan yang benar-benar soal sesi yang menghapus sesi |
+
+**Sengaja DITUNDA** (sesuai arahan §25 — fase tes, sederhana dulu):
+
+| Ditunda | Akibatnya sekarang | Kapan perlu |
+|---|---|---|
+| Token dipakai untuk `/data` | orang yang punya kunci aplikasi masih bisa membaca data tanpa login | saat aplikasi mandiri |
+| Hak akses per peran | `admin` dan `user` sama-sama bisa mengubah semua data | kalau ada staf yang hanya boleh melihat |
+| Halaman kelola pengguna | tambah/nonaktifkan akun lewat perintah `wrangler` | lebih dari 3 user |
+| "Lupa password" lewat email | admin mengganti lewat perintah | saat dipakai banyak orang |
+
+**Yang perlu Anda lakukan sekali:** buat akun admin pertama. Panduan langkahnya
+di **[PANDUAN-AKUN.md](PANDUAN-AKUN.md)**. Kode undangan
+`kartidaya-2026` **sudah dipasang** di server — setelah akun Anda jadi, tutup
+pintunya:
+
+```powershell
+cd worker
+npx wrangler d1 execute kartidaya --remote --command "DELETE FROM invites"
+```
 
 ---
 
@@ -3741,7 +3809,7 @@ bukan pengamanan yang belum perlu.
 | # | Pekerjaan | Sebelumnya | **Sekarang** |
 |---|---|---|---|
 | §22.1 | Kosongkan data donor asli dari repo publik | 🔴 mendesak | 🟡 **turun** — masih data tes, tidak perlu kuatir. Tetap dicatat untuk nanti |
-| §22.9 / §24 | Login & akun pengguna | 🟡 perlu keputusan | ⬇️ **DITUNDA** — cukup konsepnya (§24 sudah ditulis). Dikerjakan saat aplikasi sudah mandiri |
+| §22.9 / §24 | Login & akun pengguna | 🟡 perlu keputusan | ✅ **SELESAI 13 Nov 2026** — sesuai permintaan: pendaftaran terpisah, login di aplikasi (§24.9) |
 | §22.10 | Verifikasi OAuth Google | 🟡 proses 1–4 minggu | ⬇️ **DITUNDA** — selama masih pakai akun Anda, tidak perlu |
 | §22.4 | Kata sandi halaman pembaca majalah | 🟡 | ⬇️ **DITUNDA** — belum perlu |
 | §22.2 | Pengingat mencadangkan data | 🟠 | ➡️ tetap, kecil & berguna |

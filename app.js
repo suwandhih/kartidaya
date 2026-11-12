@@ -1511,6 +1511,10 @@ let pageParams = {};
 /* Diisi kalau data bersama tidak bisa dimuat dari server. Selama terisi,
    halaman selain Setelan dikunci (lihat render()). */
 let terkunciServer = null;
+/* Diisi kalau belum ada pengguna yang masuk. Selama terisi, seluruh aplikasi
+   diganti layar masuk — data donor tidak boleh tampil sebelum jelas siapa
+   yang melihatnya (lihat render()). */
+let terkunciLogin = null;
 
 function go(page, params){
   currentPage = page;
@@ -1531,6 +1535,16 @@ function renderNav(){
   }).join('');
   document.getElementById('nav-desktop').innerHTML = html;
 
+    /* Siapa yang sedang masuk — diletakkan di kaki sidebar, di atas tombol tema. */
+    const siapa = document.getElementById('side-siapa');
+    if(siapa){
+      siapa.innerHTML = Akun.masuk()
+        ? '<div class="who"><b>' + esc(Akun.nama()) + '</b>' +
+            '<span class="tiny muted">' + esc(Akun.peran()) + '</span></div>' +
+          '<button class="btn sm ghost" data-action="keluar-akun" title="Keluar dari aplikasi">Keluar</button>'
+        : '<button class="btn sm" data-action="masuk">Masuk</button>';
+    }
+
   /* Kategori & Setelan tetap di sidebar; sisanya jadi tab bawah. */
   const tabs = PAGES.filter(function(p){ return p.id !== 'kategori' && p.id !== 'pengaturan'; });
   document.getElementById('nav-mobile').innerHTML = tabs.map(function(p){
@@ -1546,15 +1560,201 @@ function setTitle(t, s){
   document.getElementById('page-sub').textContent = s || '';
 }
 
+/* ---------- 7b. LAYAR MASUK ---------- */
+/* Dipakai selama belum ada pengguna yang masuk. Bentuknya sengaja sederhana:
+   email + password + tombol Masuk. */
+function layarMasuk(){
+  const salah = (window._loginGalat || '');
+  const alamatDaftar = Akun.alamatDaftar();
+  return '<div class="masuk">' +
+    '<div class="masuk-kotak">' +
+      '<div class="masuk-merek">' +
+        '<img src="vendor/kartidaya-logo.png" alt="Kartidaya">' +
+      '</div>' +
+      '<h1>Masuk</h1>' +
+      '<p class="small muted">Aplikasi ini dipakai bersama. Masuk dengan akun Anda ' +
+        'supaya setiap perubahan tercatat atas nama Anda.</p>' +
+      (window._loginTerkunci ? '<div class="warnbox">' + esc(window._loginTerkunci) + '</div>' : '') +
+      (salah ? '<div class="warnbox">' + esc(salah) + '</div>' : '') +
+      '<div class="field"><label>Email</label>' +
+        '<input type="email" id="login-email" class="mono" autocomplete="username" ' +
+          'placeholder="nama@kartidaya.org" value="' + esc(window._loginEmail || '') + '"></div>' +
+      '<div class="field"><label>Password</label>' +
+        '<input type="password" id="login-password" autocomplete="current-password" ' +
+          'placeholder="password"></div>' +
+      '<button class="btn primary" style="width:100%" data-action="masuk">Masuk</button>' +
+      '<p class="tiny muted" style="margin-top:12px;text-align:center">' +
+        'Belum punya akun? ' +
+        (alamatDaftar
+          ? '<a href="' + esc(alamatDaftar) + '" target="_blank" rel="noopener">Buat akun di halaman pendaftaran</a>'
+          : 'Minta admin membuatkan akun') +
+      '</p>' +
+            (window._loginServer
+              ? '<div class="sep"></div>' +
+                '<p class="tiny muted">Alamat server aplikasi ini. Hanya perlu diubah kalau ' +
+                  'alamat Worker berubah atau baru dipasang.</p>' +
+                '<div class="field"><label>Alamat Worker</label>' +
+                  '<input type="text" id="login-endpoint" class="mono" value="' +
+                    esc(WhatsApp.endpoint || state.settings.waEndpoint || DEFAULT_WORKER) + '"></div>' +
+                '<div class="field"><label>Kunci aplikasi</label>' +
+                  '<input type="password" id="login-key" class="mono" value="' +
+                    esc(WhatsApp.appKey || '') + '"></div>' +
+                '<div class="btn-row">' +
+                  '<button class="btn sm primary" data-action="masuk-server-simpan">Simpan</button>' +
+                  '<button class="btn sm ghost" data-action="masuk-server-batal">Batal</button>' +
+                '</div>'
+              : '<p class="tiny muted" style="margin-top:10px;text-align:center">' +
+                  'Server: <span class="mono">' + esc(workerBase() || 'belum diisi') + '</span> · ' +
+                  '<a href="#" data-action="masuk-server">ubah</a></p>') +
+    '</div>' +
+  '</div>';
+}
+
+      /* Alamat Worker & kunci aplikasi harus bisa diperbaiki dari layar masuk.
+         Kalau tidak, alamat yang salah membuat pengguna tidak bisa masuk sama sekali
+         — padahal Setelan baru bisa dibuka setelah masuk. */
+      function simpanServerDariLogin(){
+        const eEl = document.getElementById('login-endpoint');
+        const kEl = document.getElementById('login-key');
+        const endpoint = (eEl ? eEl.value : '').trim().replace(/\/+$/, '');
+        const appKey = (kEl ? kEl.value : '').trim();
+        if(!endpoint){ toast('Isi alamat Worker dulu', true); return; }
+        if(!/^https:\/\//i.test(endpoint) && !/^http:\/\/(localhost|127\.0\.0\.1)/i.test(endpoint)){
+          /* Origin http:// selain localhost ditolak browser untuk sebagian fitur,
+             dan Google menolak origin file://. Pesannya dibuat jelas. */
+          toast('Alamat harus diawali https:// (atau http://localhost untuk uji)', true);
+          return;
+        }
+        WhatsApp.endpoint = endpoint;
+        WhatsApp.appKey = appKey;
+        state.settings.waEndpoint = endpoint;
+        save('settings');
+        WhatsApp.saveSession();
+        window._loginServer = false;
+        toast('Alamat server disimpan');
+        render();
+      }
+
+/* Enter di kolom email/password langsung mengirim, tanpa harus klik. */
+function bindLogin(){
+  const kirim = function(e){
+    if(e.key !== 'Enter') return;
+    e.preventDefault();
+    loginKirim();
+  };
+  const em = document.getElementById('login-email');
+  const pw = document.getElementById('login-password');
+  if(em) em.addEventListener('keydown', kirim);
+  if(pw) pw.addEventListener('keydown', kirim);
+  if(pw && !(em && !em.value)) pw.focus();
+  else if(em) em.focus();
+}
+
+async function loginKirim(){
+  const em = document.getElementById('login-email');
+  const pw = document.getElementById('login-password');
+  const email = (em ? em.value : '').trim();
+  const password = (pw ? pw.value : '');
+  window._loginEmail = email;
+  window._loginGalat = '';
+  window._loginTerkunci = '';
+  if(!email || !password){
+    window._loginGalat = 'Isi email dan password dulu';
+    render();
+    return;
+  }
+  const tombol = document.querySelector('[data-action="masuk"]');
+  if(tombol){ tombol.disabled = true; tombol.textContent = 'Memeriksa…'; }
+  try{
+    await Akun.login(email, password);
+    window._loginGalat = '';
+    window._loginEmail = '';
+    terkunciLogin = null;
+    /* Setelah masuk, data bersama dimuat. Kalau server tidak terjangkau,
+       layar "tidak tersambung" yang tampil — bukan layar masuk lagi. */
+    const ok = await sambungDanMuat();
+    if(ok) bukaKunciServer();
+    else kunciServer('Tidak tersambung ke server',
+      'Aplikasi ini bekerja <b>online</b> — data disimpan di server supaya bisa ' +
+      'dipakai bersama. Periksa sambungan internet, lalu coba lagi.');
+    render();
+    toast('Selamat datang, ' + (Akun.nama() || email));
+  }catch(e){
+    window._loginGalat = e.message || 'Gagal masuk';
+    if(e.status === 429) window._loginTerkunci = e.message || '';
+    render();
+  }
+}
+
+async function logout(){
+  if(!confirm('Keluar dari aplikasi?\n\nAnda harus masuk lagi untuk membukanya.')) return;
+  /* Email diambil sebelum Akun.keluar() — keluar mengosongkan data pengguna. */
+  const email = (Akun.pengguna && Akun.pengguna.email) || '';
+  await Akun.keluar();
+  window._loginGalat = '';
+  window._loginEmail = email;
+  window._loginTerkunci = '';
+  terkunciLogin = 'masuk';
+  terkunciServer = null;
+  go('beranda');
+}
+
+/* Ganti password sendiri. Setelah berhasil, server mencabut semua sesi —
+   jadi pengguna langsung diminta masuk lagi dengan password baru. */
+function openGantiPassword(){
+  openModal({
+    title: 'Ganti password',
+    body:
+      '<p class="small muted">Password baru minimal 8 huruf. Setelah diganti, Anda ' +
+        'perlu masuk lagi dengan password baru.</p>' +
+      '<div class="field"><label>Password sekarang</label>' +
+        '<input type="password" id="gp-lama" autocomplete="current-password"></div>' +
+      '<div class="field"><label>Password baru <span class="hint">— minimal 8 huruf</span></label>' +
+        '<input type="password" id="gp-baru" autocomplete="new-password"></div>' +
+      '<div class="field"><label>Ulangi password baru</label>' +
+        '<input type="password" id="gp-ulang" autocomplete="new-password"></div>' +
+      '<p class="tiny muted">Password disimpan dalam bentuk acakan (PBKDF2), ' +
+        'bukan sebagai tulisan biasa.</p>',
+    footer: '<button class="btn" data-close>Batal</button>' +
+      '<button class="btn primary" data-action="akun-password-simpan">Simpan password</button>'
+  });
+}
+
+async function simpanGantiPassword(){
+  const lama = (document.getElementById('gp-lama') || {}).value || '';
+  const baru = (document.getElementById('gp-baru') || {}).value || '';
+  const ulang = (document.getElementById('gp-ulang') || {}).value || '';
+  if(baru.length < 8){ toast('Password baru minimal 8 huruf', true); return; }
+  if(baru !== ulang){ toast('Ulangan password tidak sama', true); return; }
+  /* Email diambil SEBELUM gantiPassword — fungsi itu mengosongkan sesi,
+     termasuk data pengguna. */
+  const email = (Akun.pengguna && Akun.pengguna.email) || '';
+  try{
+    await Akun.gantiPassword(lama, baru);
+    closeModal();
+    terkunciLogin = 'masuk';
+    window._loginEmail = email;
+    window._loginGalat = '';
+    toast('Password diganti — silakan masuk lagi');
+    render();
+  }catch(e){
+    toast('Gagal: ' + (e.message || e), true);
+  }
+}
+
 /* ---------- 8. RENDER ---------- */
 function render(){
   renderNav();
   const v = document.getElementById('view');
-  /* Kalau data bersama tidak bisa dimuat, halaman dikunci. Tanpa kunci,
-     pengguna bisa mengedit data yang sebenarnya tidak tersambung ke server —
-     dan editannya hilang begitu halaman dimuat ulang.
-     Halaman Setelan tetap boleh dibuka supaya alamat/kunci bisa diperbaiki. */
-  if(terkunciServer && currentPage !== 'pengaturan'){ v.innerHTML = layarTidakTersambung(); afterRender(); return; }
+  /* Saat layar masuk yang tampil, sidebar, navigasi, dan bilah judul
+     disembunyikan lewat kelas ini (lihat app.css). */
+  document.body.classList.toggle('login-aktif', !!terkunciLogin);
+  /* Belum masuk → seluruh aplikasi diganti layar masuk. Tanpa ini, data donor
+       sudah tampil sebelum jelas siapa yang membukanya.
+       Server tidak tersambung → halaman dikunci, kecuali Setelan (supaya alamat
+       & kunci aplikasi bisa diperbaiki). */
+  if(terkunciLogin){ v.innerHTML = layarMasuk(); bindLogin(); return; }
+    if(terkunciServer && currentPage !== 'pengaturan'){ v.innerHTML = layarTidakTersambung(); afterRender(); return; }
   if(currentPage === 'beranda')         v.innerHTML = viewBeranda();
   else if(currentPage === 'masuk')      v.innerHTML = viewKotak('masuk');
   else if(currentPage === 'keluar')     v.innerHTML = viewKotak('keluar');
@@ -3623,6 +3823,36 @@ function viewPengaturan(){
   '</div>' +
 
   '<div class="card">' +
+      '<div class="card-head"><h2>Akun saya</h2>' +
+        '<span class="chip ' + (Akun.masuk() ? 'ok' : 'plain') + '">' +
+          (Akun.masuk() ? esc(Akun.peran()) : 'belum masuk') + '</span></div>' +
+      (Akun.masuk()
+        ? '<p class="small muted">Masuk sebagai <b>' + esc(Akun.nama()) + '</b>' +
+            '<br><span class="mono tiny">' + esc((Akun.pengguna || {}).email || '') + '</span></p>' +
+          '<p class="tiny muted">Sesi berlaku sampai <b>' +
+            esc(Akun.kedaluwarsa ? fmtDateTime(Akun.kedaluwarsa) : '—') + '</b> ' +
+            '(' + Akun.sisaMenit() + ' menit lagi). Setelah itu perlu masuk ulang.</p>' +
+          '<div class="btn-row">' +
+            '<button class="btn" data-action="akun-ganti-password">🔑 Ganti password</button>' +
+            '<button class="btn" data-action="keluar-akun">Keluar</button>' +
+          '</div>'
+        : '<p class="small muted">Belum masuk.</p>') +
+      '<div class="sep"></div>' +
+      '<p class="small muted">Menambah pengguna baru dilakukan di <b>halaman pendaftaran</b> ' +
+        'yang terpisah dari aplikasi. Halaman itu hanya bisa dipakai kalau admin memasang ' +
+        '<b>kode undangan</b> di server.</p>' +
+      (Akun.alamatDaftar()
+        ? '<p class="tiny muted">Alamat: <a href="' + esc(Akun.alamatDaftar()) + '" target="_blank" rel="noopener" ' +
+            'class="mono">' + esc(Akun.alamatDaftar()) + '</a></p>'
+        : '<p class="tiny muted">Alamat Worker belum diisi, jadi alamat pendaftaran belum bisa ditampilkan.</p>') +
+      '<div class="btn-row">' +
+        '<button class="btn sm" data-action="akun-cek-daftar">Cek pintu pendaftaran</button>' +
+        '<button class="btn sm" data-action="akun-daftar-buka">Buka halaman pendaftaran</button>' +
+      '</div>' +
+      '<p class="tiny muted" id="akun-daftar-info" style="margin-top:8px"></p>' +
+    '</div>' +
+
+    '<div class="card">' +
     '<div class="card-head"><h2>Data bersama</h2>' +
       '<span class="chip ' + (Server.online ? 'ok' : (Server.bisa() ? 'warn' : 'plain')) + '">' +
         (Server.online ? 'Tersambung' : (Server.bisa() ? 'Tidak tersambung' : 'Belum diatur')) + '</span></div>' +
@@ -5284,6 +5514,31 @@ document.addEventListener('click', function(e){
   const id = act.getAttribute('data-id');
 
   switch(a){
+    case 'masuk': loginKirim(); break;
+        case 'masuk-server': window._loginServer = true; render(); break;
+        case 'masuk-server-batal': window._loginServer = false; render(); break;
+        case 'masuk-server-simpan': simpanServerDariLogin(); break;
+    case 'keluar-akun': logout(); break;
+        case 'akun-cek-daftar': {
+          const info = document.getElementById('akun-daftar-info');
+          if(info) info.textContent = 'Memeriksa…';
+          Akun.daftarTerbuka().then(function(terbuka){
+            if(info) info.innerHTML = terbuka
+              ? '✅ Pintu pendaftaran <b>terbuka</b> — siapa pun yang punya kode undangan bisa membuat akun.'
+              : '🔒 Pintu pendaftaran <b>tertutup</b> — tidak ada kode undangan yang aktif.';
+          }).catch(function(e){
+            if(info) info.textContent = 'Gagal memeriksa: ' + (e.message || e);
+          });
+          break;
+        }
+        case 'akun-daftar-buka': {
+          const a = Akun.alamatDaftar();
+          if(!a){ toast('Alamat Worker belum diisi', true); break; }
+          window.open(a, '_blank', 'noopener');
+          break;
+        }
+        case 'akun-ganti-password': openGantiPassword(); break;
+        case 'akun-password-simpan': simpanGantiPassword(); break;
     case 'donor-baru': openDonorForm(null); break;
     case 'donor-ubah': closeModal(); openDonorForm(id); break;
     case 'donor-hapus': deleteDonor(id); break;
@@ -5805,6 +6060,12 @@ WhatsApp.onStatus = function(){ renderNav(); };
 WhatsApp.restoreSession();
 if(state.settings.waEndpoint) WhatsApp.endpoint = state.settings.waEndpoint;
 
+/* Akun: sesi login dipulihkan dari localStorage. Kalau belum ada, aplikasi
+   langsung menampilkan layar masuk dan TIDAK memuat data apa pun — lihat
+   bagian 15b di bawah. */
+Akun.restore();
+terkunciLogin = Akun.masuk() ? null : 'masuk';
+
 /* ---------- 16. PENJAGA SESI GMAIL ---------- */
 /* Perbarui token di latar belakang sebelum kedaluwarsa, supaya pengguna tidak
    perlu klik "Hubungkan Gmail" berulang kali. Kalau Google menolak (sesi login
@@ -5845,6 +6106,13 @@ document.addEventListener('visibilitychange', function(){
   if(!document.hidden){
     sinkronOtomatis(); waSinkronOtomatis(); cekTandaDibaca(); cekKonfirmasiTerima(); cekUji();
     Server.kirimTertunda();
+    /* Sesi akun diperiksa lagi saat tab kembali aktif: bisa saja akun
+       dimatikan atau password diganti dari komputer lain. */
+    if(Akun.masuk()){
+      Akun.periksa().then(function(sah){
+        if(!sah){ terkunciLogin = 'masuk'; window._loginGalat = 'Sesi sudah berakhir — silakan masuk lagi'; render(); }
+      });
+    }
   }
 });
 /* Beri jeda sedikit supaya token sempat dipulihkan lebih dulu. */
@@ -5866,15 +6134,47 @@ document.getElementById('theme-btn-m').addEventListener('click', cycleTheme);
 
 render();
 
-/* Ambil data bersama dari server. Dijalankan SETELAH render() supaya aplikasi
-   langsung tampil (memakai salinan di browser) dan tidak menunggu jaringan.
-   Kalau berhasil, tampilan digambar ulang dengan data terbaru.
+/* ---------- 15b. MULAI — periksa akun lebih dulu ---------- */
+/* Urutannya penting:
+     1. Pulihkan sesi akun dari browser.
+     2. Kalau belum masuk → layar masuk, data TIDAK dimuat sama sekali.
+     3. Kalau sudah masuk → baru ambil data bersama dari server.
 
-   PENTING: kalau gagal, aplikasi dikunci. Alasannya: tanpa kunci, pengguna
-   bisa mengedit data yang sebenarnya sudah tidak terhubung ke server — dan
-   editannya hilang begitu halaman dimuat ulang. Lebih baik diberi tahu terus
-   terang daripada kehilangan pekerjaan tanpa sadar. */
+   Tanpa urutan ini, data donor sempat tampil sebelum jelas siapa yang
+   membuka aplikasi. */
 (async function(){
+  const pulih = Akun.restore();
+  if(!pulih){
+    terkunciLogin = 'masuk';
+    terkunciServer = null;
+    window._loginGalat = '';
+    document.getElementById('simpan-status').textContent = '';
+    render();
+    return;
+  }
+
+  /* Token ada, tapi belum tentu masih berlaku (mis. akun dimatikan, atau
+     password baru saja diganti sehingga semua sesi dicabut). */
+  render();
+  const sah = await Akun.periksa();
+  if(!sah){
+      /* Email diambil sebelum Akun.clear() — clear() mengosongkan data pengguna. */
+      window._loginEmail = (Akun.pengguna && Akun.pengguna.email) || '';
+    terkunciLogin = 'masuk';
+    window._loginGalat = 'Sesi sudah berakhir — silakan masuk lagi';
+    Akun.clear();
+    render();
+    return;
+  }
+  terkunciLogin = null;
+  render();
+
+  /* Ambil data bersama. Dijalankan SETELAH render() supaya aplikasi langsung
+     tampil (memakai salinan di browser) dan tidak menunggu jaringan.
+
+     PENTING: kalau gagal, aplikasi dikunci. Tanpa kunci, pengguna bisa
+     mengedit data yang sebenarnya sudah tidak terhubung ke server — dan
+     editannya hilang begitu halaman dimuat ulang. */
   if(!Server.bisa()){
     Server.tandai('mati', 'Isi alamat Worker & kunci aplikasi di Setelan');
     kunciServer('Data bersama belum diatur',

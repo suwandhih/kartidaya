@@ -35,6 +35,7 @@ Surat yang "dikirim" tercatat di buku donor, surat masuk bisa dicatat manual.
 | Cetak surat | `window.print()` per penerima |
 | Ekspor | JSON (backup/restore) + CSV (buka di Excel) |
 | Tema | Terang / gelap / ikut sistem |
+| **Akun & login** | Email + password per pengguna; halaman pendaftaran terpisah dengan kode undangan |
 | Responsif | HP Android dan PC |
 
 ## Menjalankan di komputer
@@ -146,16 +147,29 @@ serve.bat           Peluncur Windows
 rencanakerja.md     Rencana kerja & keputusan desain
 PANDUAN-GMAIL.md    Panduan Google Cloud Console
 PANDUAN-WHATSAPP.md Panduan Meta + Cloudflare Worker
+PANDUAN-AKUN.md     Panduan akun: daftar, login, lupa password
+akun.js             Login pengguna (sesi, ganti password)
+worker/schema.sql   Skema database D1 (data bersama + akun)
 ```
 
 ## Penyimpanan data
 
-Semua data disimpan di **localStorage browser** — tidak ada server, tidak ada
-database. Artinya:
+Data donor, surat, keuangan, dan template disimpan di **Cloudflare D1** lewat
+Worker, supaya beberapa orang bisa bekerja pada data yang sama. Browser hanya
+menyimpan salinan sementara agar tampilan cepat.
 
-- Data **per alamat**, tidak ikut berpindah antar perangkat
-- Ganti browser / hapus data situs = data hilang
-- **Rutin ekspor JSON** lewat Setelan sebagai backup
+Aplikasi **butuh login** (email + password). Layar masuk menutup seluruh
+aplikasi — data donor tidak ditampilkan sebelum jelas siapa yang membukanya.
+Panduan akun: **[PANDUAN-AKUN.md](PANDUAN-AKUN.md)**.
+
+Hal yang perlu diketahui:
+
+- Data **per akun**, bukan per perangkat — masuk dari komputer mana pun
+  melihat data yang sama
+- Aplikasi bekerja **online**. Kalau internet mati, aplikasi dikunci sampai
+  sambungan kembali — supaya tidak ada perubahan yang tampak tersimpan
+  padahal hilang
+- **Rutin ekspor JSON** lewat Setelan sebagai cadangan
 
 ## Teknologi
 

@@ -118,6 +118,28 @@ button,input,select,textarea{font:inherit;color:inherit}
 }
 .navitem .badge.hot{background:var(--accent);color:var(--accent-text);border-color:transparent}
 .side-foot{margin-top:auto;padding-top:12px;border-top:1px solid var(--line)}
+.side-siapa{display:flex;align-items:center;gap:8px;padding:0 4px 8px;min-height:0}
+.side-siapa:empty{display:none}
+.side-siapa .who{display:flex;flex-direction:column;min-width:0;flex:1;line-height:1.3}
+.side-siapa .who b{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ---------- LAYAR MASUK ---------- */
+.masuk{display:flex;align-items:center;justify-content:center;min-height:min(70vh,600px);padding:12px}
+.masuk-kotak{
+  width:100%;max-width:400px;background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--radius);padding:26px 24px;box-shadow:var(--shadow);
+}
+.masuk-kotak h1{font-size:19px;margin:0 0 4px}
+.masuk-kotak p{margin:0 0 14px}
+.masuk-merek{margin-bottom:18px}
+.masuk-merek img{display:block;width:100%;max-width:150px;height:auto}
+.masuk-kotak .btn.primary{padding:11px}
+/* Layar masuk harus tampil penuh walaupun sidebar & navigasi masih kosong. */
+body.login-aktif .side,
+body.login-aktif .nav-mobile,
+body.login-aktif .topbar{display:none}
+body.login-aktif .content{padding:24px 16px;max-width:none}
+body.login-aktif .main{justify-content:center}
 
 .main{flex:1;min-width:0;display:flex;flex-direction:column}
 .topbar{
@@ -206,7 +228,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .field label{font-size:12.5px;font-weight:600;color:var(--muted)}
 .field .hint{font-weight:400;color:var(--muted);opacity:.85}
 input[type=text],input[type=email],input[type=tel],input[type=date],
-input[type=search],input[type=number],select,textarea{
+input[type=password],input[type=search],input[type=number],select,textarea{
   width:100%;padding:9px 11px;
   border:1px solid var(--line);border-radius:var(--radius-sm);
   background:var(--surface-2);color:var(--text);
