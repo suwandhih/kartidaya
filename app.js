@@ -2260,13 +2260,21 @@ async function cekMajalahAda(){
 function blokMajalah(){
   const m = majalahInfo();
   const on = !!suratState.majalah;
-  const base = workerBase();
   const hilang = !!(m && m.hilang);
-  const siap = !!(m && base && !hilang);
+  const s = waSiapInfo();
+  const siap = !!(m && s.siap && !hilang);
+  /* Daftar apa yang masih kurang — sama seperti di form majalah, supaya user
+     tidak menebak-nebak kenapa tombolnya tidak bisa dipakai. */
+  const kurang = '<ul style="margin:8px 0 0;padding-left:20px">' +
+    '<li>' + (s.adaEndpoint ? '✅' : '❌') + ' <b>Alamat Worker</b> — ' +
+      (s.adaEndpoint ? esc(s.endpoint) : '<b>belum diisi</b>') + '</li>' +
+    '<li>' + (s.adaKey ? '✅' : '❌') + ' <b>Kunci aplikasi</b> — ' +
+      (s.adaKey ? 'terisi' : '<b>belum diisi</b>') + '</li>' +
+    '</ul>';
 
   return '<div class="sep"></div>' +
     '<div class="row" style="justify-content:space-between">' +
-      '<span class="small"><b>Lampirkan majalah</b> <span class="hint">— tampil di badan email</span></span>' +
+      '<span class="small"><b>Lampirkan majalah</b> <span class="hint">— sampul + tautan baca di email</span></span>' +
       '<button class="btn sm' + (on ? ' primary' : '') + '" data-action="mj-toggle"' +
         (siap ? '' : ' disabled') + '>' + (on ? 'Aktif' : 'Mati') + '</button>' +
     '</div>' +
@@ -2280,11 +2288,13 @@ function blokMajalah(){
           ? 'Majalah <b>' + esc(m.judul || 'Majalah') + '</b> sudah tidak ada di Worker — ' +
             'berkasnya terhapus atau tersimpan di tempat lain. <b>Unggah ulang</b> berkas PDF-nya ' +
             'supaya email tidak memuat gambar yang tidak bisa dibuka penerima.'
-          : 'Majalah belum disiapkan. ' +
-            (base
-              ? 'Unggah berkas PDF majalah dulu lewat tombol di bawah — halamannya diubah jadi gambar otomatis.'
-              : 'Isi <b>Alamat Worker</b> di halaman <b>Setelan</b> dulu — majalah disimpan di sana ' +
-                'supaya bisa tampil di email.')) +
+          : (s.siap
+              ? 'Majalah belum disiapkan. Unggah berkas PDF majalah dulu lewat tombol di bawah — ' +
+                'halamannya diubah jadi gambar otomatis.'
+              : '<b>Majalah belum bisa disiapkan.</b> Lengkapi dulu di halaman ' +
+                '<b>Setelan → WhatsApp</b>:' + kurang +
+                '<p style="margin:8px 0 0">Majalah disimpan di Worker supaya bisa tampil di email ' +
+                'penerima dan dikirim lewat WhatsApp.</p>')) +
         '</div>') +
     '<div class="btn-row" style="margin-top:10px">' +
       '<button class="btn sm' + (hilang ? ' primary' : '') + '" data-action="mj-kelola">' +
@@ -2292,6 +2302,8 @@ function blokMajalah(){
       (siap ? '<button class="btn sm" data-action="mj-baca">👁 Buka halaman pembaca</button>' : '') +
       (siap ? '<button class="btn sm ghost" data-action="mj-hapus">Hapus majalah</button>' : '') +
       (hilang ? '<button class="btn sm ghost" data-action="mj-lupakan">Lupakan catatan ini</button>' : '') +
+      (!siap && !hilang && !s.siap
+        ? '<button class="btn sm primary" data-action="mj-ke-setelan">⚙ Buka Setelan</button>' : '') +
     '</div>';
 }
 

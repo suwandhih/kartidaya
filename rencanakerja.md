@@ -2626,4 +2626,58 @@ memberi kabar *"Pilih berkas PDF atau gambar halaman dulu"*.
 aplikasi** (sama dengan `APP_KEY` di Worker), tekan **Simpan & uji sambungan**.
 Setelah itu unggah majalahnya.
 
+### Peringatan majalah di halaman Tulis — diperbaiki (12 Nov 2026)
+
+**Laporan Anda:** label *"Lampirkan majalah — tampil di badan email"* dan
+peringatannya membingungkan.
+
+**Dua hal yang keliru:**
+
+1. **Peringatannya salah tuduh.** Bunyinya *"Isi **Alamat Worker** di halaman
+   **Setelan** dulu"* — padahal di browser Anda alamat Worker **sudah** terisi;
+   yang kurang adalah **Kunci aplikasi**. Peringatan itu masih memakai
+   pemeriksaan lama (hanya alamat), belum memakai pemeriksaan baru yang sudah
+   dipakai di form unggah.
+2. **Labelnya tidak tepat.** Majalah **tidak** dikirim seluruhnya di badan
+   email. Yang masuk badan email hanya **sampul** + tombol **Baca majalah**;
+   sisanya dibuka di halaman pembaca. Label lama membuat orang mengira 16
+   halaman dikirim sekaligus.
+
+**Yang diperbaiki:**
+
+| Sebelum | Sesudah |
+|---|---|
+| *"Lampirkan majalah — tampil di badan email"* | *"Lampirkan majalah — sampul + tautan baca di email"* |
+| *"Isi Alamat Worker di halaman Setelan dulu"* (salah tuduh) | Daftar centang: ✅ Alamat Worker · ❌ Kunci aplikasi |
+| Tidak ada jalan pintas | Tombol **⚙ Buka Setelan** langsung di blok majalah |
+| Kalau alamat & kunci sudah ada tapi majalah belum diunggah | Pesan berbeda: *"Unggah berkas PDF majalah dulu"* |
+
+**Uji:** 3 keadaan diperiksa di browser —
+
+| Keadaan | Hasil |
+|---|---|
+| Alamat & kunci kosong | ❌ Alamat Worker · ❌ Kunci aplikasi + tombol Buka Setelan |
+| Alamat terisi, kunci kosong (keadaan Anda) | ✅ Alamat Worker · ❌ Kunci aplikasi + tombol Buka Setelan |
+| Tombol Buka Setelan ditekan | pindah ke halaman **Setelan** ✅ |
+
+### Alur email yang Anda minta
+
+Anda menulis: *"kalau email seharusnya tinggal pilih kirim ke siapa atau
+seluruh donor"*. **Itu memang sudah begitu.** Urutannya:
+
+1. **Tulis** — pilih template, tulis isi surat.
+2. **Penerima** — centang donor, atau tekan **Pilih semua** untuk seluruh donor.
+3. **Kirim** — tekan **🔍 Periksa & Kirim**, layar periksa muncul, lalu kirim.
+
+Kwitansi dan majalah **tidak wajib**. Keduanya hanya tambahan yang bisa
+dinyalakan kalau perlu. Kalau tidak dinyalakan, surat tetap terkirim seperti
+biasa — tidak ada yang menghalangi.
+
+### WhatsApp — ditunda sampai nomor resmi ada
+
+Anda menyebut akan menguji WhatsApp dengan nomor HP sendiri karena nomor resmi
+Kartidaya belum diberikan. **Tidak ada perubahan kode yang diperlukan** untuk
+itu. Catatan: akun Meta masih berstatus `BLOCKED` (`130497`), jadi pengiriman
+media sungguhan belum bisa diuji sampai statusnya dibuka.
+
 ---
