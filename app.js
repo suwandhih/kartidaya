@@ -771,13 +771,21 @@ function totalTransaksiRingkas(d, finId){
   return kode.map(function(u){ return fmtUang(k.perUang[u] || 0, u); }).join(' + ');
 }
 
-/* Tanya Worker surat mana yang sudah dibuka penerima. */
-async function cekTandaDibaca(){
-  if(!WhatsApp.isConfigured()) return;
+/* Tanya Worker surat mana yang sudah dibuka penerima.
+   `manual` = true kalau user menekan tombol sendiri, supaya ada kabar
+   walau tidak ada perubahan (kalau tidak, tombolnya terasa "tidak bekerja"). */
+async function cekTandaDibaca(manual){
+  if(!WhatsApp.isConfigured()){
+    if(manual) toast('Alamat Worker / kunci aplikasi belum diisi di Setelan', true);
+    return;
+  }
   const pending = state.messages.filter(function(m){
     return m.arah === 'keluar' && m.pixelId && !m.dibacaPenerima;
   }).slice(0, 200);
-  if(!pending.length) return;
+  if(!pending.length){
+    if(manual) toast('Tidak ada surat yang menunggu kabar dibaca');
+    return;
+  }
   try{
     const r = await WhatsApp.api('/pixel/status', {
       method:'POST',
@@ -790,17 +798,28 @@ async function cekTandaDibaca(){
       if(rec && rec.pertama){ m.dibacaPenerima = rec.pertama; n++; }
     });
     if(n){ save('messages'); render(); }
-  }catch(e){ /* Worker belum siap — abaikan, coba lagi nanti */ }
+    if(manual) toast(n
+      ? n + ' surat baru saja terbaca — tanda ✓✓ Dibaca diperbarui'
+      : 'Diperiksa ' + pending.length + ' surat — belum ada yang dibuka penerima');
+  }catch(e){
+    if(manual) toast('Gagal memeriksa: ' + (e.message || e), true);
+  }
 }
 
 /* Tanya Worker surat mana yang sudah DIKONFIRMASI penerima. Ini yang memberi
    kepastian — berbeda dari tanda dibaca yang bisa gagal kalau gambar diblokir. */
-async function cekKonfirmasiTerima(){
-  if(!WhatsApp.isConfigured()) return;
+async function cekKonfirmasiTerima(manual){
+  if(!WhatsApp.isConfigured()){
+    if(manual) toast('Alamat Worker / kunci aplikasi belum diisi di Setelan', true);
+    return;
+  }
   const pending = state.messages.filter(function(m){
     return m.arah === 'keluar' && m.terimaId && !m.terimaPenerima;
   }).slice(0, 200);
-  if(!pending.length) return;
+  if(!pending.length){
+    if(manual) toast('Tidak ada surat yang menunggu konfirmasi');
+    return;
+  }
   try{
     const r = await WhatsApp.api('/terima/status', {
       method:'POST',
@@ -813,7 +832,12 @@ async function cekKonfirmasiTerima(){
       if(rec && rec.waktu){ m.terimaPenerima = rec.waktu; n++; }
     });
     if(n){ save('messages'); render(); }
-  }catch(e){ /* Worker belum siap — abaikan, coba lagi nanti */ }
+    if(manual) toast(n
+      ? n + ' donor baru saja mengonfirmasi penerimaan'
+      : 'Diperiksa ' + pending.length + ' surat — belum ada konfirmasi baru');
+  }catch(e){
+    if(manual) toast('Gagal memeriksa: ' + (e.message || e), true);
+  }
 }
 
 /* Program dukungan contoh. Bisa ditambah/ubah/hapus dari halaman Keuangan. */
@@ -1366,7 +1390,34 @@ function stat(k,v,d){
 }
 
 /* ---------- KOTAK MASUK / KELUAR ---------- */
-let kotakFilter = { q:'', donorId:'', status:'', kanal:'' };
+let kotakFilter = { q:'', donorId:'', status:'', kanal:'', dibaca:'' };
+
+/* Ringkasan tanda dibaca untuk surat keluar: berapa yang sudah dibuka,
+   berapa yang sudah dikonfirmasi, dan berapa yang belum ada kabar. */
+function ringkasDibaca(){
+  const keluar = outboxList().filter(function(m){ return m.status === 'Terkirim'; });
+  if(!keluar.length) return '';
+  const berPixel = keluar.filter(function(m){ return m.pixelId; });
+  const dibaca = berPixel.filter(function(m){ return m.dibacaPenerima; }).length;
+  const konfirmasi = keluar.filter(function(m){ return m.terimaPenerima; }).length;
+  const belum = berPixel.length - dibaca;
+  const tanpaPixel = keluar.length - berPixel.length;
+  const kotak = function(n, label, kelas, saring){
+    return '<button class="stat-mini' + (kelas ? ' ' + kelas : '') + '" data-action="k-dibaca" ' +
+      'data-nilai="' + saring + '" title="Klik untuk menyaring">' +
+      '<span class="n">' + n + '</span><span class="l">' + label + '</span></button>';
+  };
+  return '<div class="stat-row">' +
+    kotak(keluar.length, 'surat terkirim', '', '') +
+    kotak(dibaca, 'sudah dibaca', 'ok', 'sudah') +
+    kotak(belum, 'belum dibaca', belum ? 'warn' : '', 'belum') +
+    kotak(konfirmasi, 'sudah dikonfirmasi', 'ok', 'konfirmasi') +
+    (tanpaPixel
+      ? '<span class="tiny muted" style="align-self:center">' + tanpaPixel +
+        ' surat lama belum punya tanda dibaca</span>'
+      : '') +
+  '</div>';
+}
 
 function viewKotak(arah){
   const isMasuk = arah === 'masuk';
@@ -1380,6 +1431,12 @@ function viewKotak(arah){
     }else if(kotakFilter.donorId && m.donorId !== kotakFilter.donorId) return false;
     if(kotakFilter.status && m.status !== kotakFilter.status) return false;
     if(kotakFilter.kanal && (m.kanal === 'whatsapp' ? 'whatsapp' : 'email') !== kotakFilter.kanal) return false;
+    /* Saringan tanda dibaca — hanya berlaku untuk surat keluar. */
+    if(!isMasuk && kotakFilter.dibaca){
+      if(kotakFilter.dibaca === 'belum' && m.dibacaPenerima) return false;
+      if(kotakFilter.dibaca === 'sudah' && !m.dibacaPenerima) return false;
+      if(kotakFilter.dibaca === 'konfirmasi' && !m.terimaPenerima) return false;
+    }
     if(!q) return true;
     const d = findDonor(m.donorId);
     return [m.subjek, m.isi, m.from, m.to, d ? donorName(d) : '', d ? d.id : '']
@@ -1419,11 +1476,20 @@ function viewKotak(arah){
       ? '<button class="btn" data-action="cocokkan">⇄ Cocokkan ulang</button>' +
         '<button class="btn primary" data-action="sync">⟳ Sinkron Gmail</button>' +
         '<button class="btn" data-action="wa-sync">⟳ Sinkron WhatsApp</button>'
-      : '<button class="btn" data-action="cek-dibaca">✓✓ Cek tanda dibaca</button>' +
+      : '<select id="k-dibaca" style="max-width:190px">' +
+          '<option value="">Semua tanda dibaca</option>' +
+          '<option value="belum"' + (kotakFilter.dibaca === 'belum' ? ' selected' : '') + '>✓✓ Belum dibaca</option>' +
+          '<option value="sudah"' + (kotakFilter.dibaca === 'sudah' ? ' selected' : '') + '>✓✓ Sudah dibaca</option>' +
+          '<option value="konfirmasi"' + (kotakFilter.dibaca === 'konfirmasi' ? ' selected' : '') + '>✓ Sudah dikonfirmasi</option>' +
+        '</select>' +
+        '<button class="btn" data-action="cek-dibaca">✓✓ Cek tanda dibaca</button>' +
         '<button class="btn" data-action="cek-terima">✓ Cek konfirmasi</button>' +
         '<button class="btn primary" data-go="surat">✎ Tulis Surat</button>') +
   '</div>' +
-  '<p class="tiny muted" style="margin:-6px 0 12px">' + list.length + ' surat</p>' +
+  (isMasuk ? '' : ringkasDibaca()) +
+  '<p class="tiny muted" style="margin:-6px 0 12px">' + list.length + ' surat' +
+    (kotakFilter.dibaca || kotakFilter.status || kotakFilter.kanal || kotakFilter.donorId || kotakFilter.q
+      ? ' <button class="btn sm" data-action="k-reset">× Bersihkan saringan</button>' : '') + '</p>' +
   (list.length ? '<div class="maillist">' + list.map(function(m){
     const d = findDonor(m.donorId);
     const who = isMasuk ? (d ? donorName(d) : (m.from || 'Tidak dikenal')) : (d ? donorName(d) : (m.to || '—'));
@@ -4885,8 +4951,13 @@ document.addEventListener('click', function(e){
       });
       break;
     }
-    case 'cek-dibaca': cekTandaDibaca(); break;
-    case 'cek-terima': cekKonfirmasiTerima(); break;
+    case 'cek-dibaca': cekTandaDibaca(true); break;
+    case 'cek-terima': cekKonfirmasiTerima(true); break;
+    case 'k-dibaca': kotakFilter.dibaca = act.getAttribute('data-nilai') || ''; render(); break;
+    case 'k-reset':
+      kotakFilter = { q:'', donorId:'', status:'', kanal:'', dibaca:'' };
+      render();
+      break;
     case 'auto-sync-toggle':
       state.settings.autoSync = !state.settings.autoSync;
       save('settings');
@@ -4991,6 +5062,7 @@ document.addEventListener('change', function(e){
   if(e.target.id === 'k-status'){ kotakFilter.status = e.target.value; render(); }
   if(e.target.id === 'k-donor'){ kotakFilter.donorId = e.target.value; render(); }
   if(e.target.id === 'k-kanal'){ kotakFilter.kanal = e.target.value; render(); }
+  if(e.target.id === 'k-dibaca'){ kotakFilter.dibaca = e.target.value; render(); }
 });
 
 document.addEventListener('input', function(e){
