@@ -302,15 +302,20 @@ function parseStatuses(body) {
    langsung melihat halamannya tanpa membuka berkas apa pun.
    ============================================================ */
 
-const MAJALAH_MAX_PAGES = 40;
+const MAJALAH_MAX_PAGES = 80;
 const MAJALAH_MAX_BYTE = 4 * 1024 * 1024;   /* per halaman */
 
 function majalahMetaKey(id){ return 'majalah-meta:' + id; }
 function majalahPageKey(id, n){ return 'majalah:' + id + ':' + n; }
-function majalahPdfKey(id){ return 'majalah-pdf:' + id; }
 
-/* Batas KV Cloudflare 25 MiB per key — sisakan sedikit ruang. */
-const MAJALAH_PDF_MAX_BYTE = 24 * 1024 * 1024;
+/* Batas KV Cloudflare 25 MiB per key — sisakan sedikit ruang.
+   PDF majalah sungguhan bisa 60 MB, jadi berkasnya dipecah menjadi beberapa
+   bagian (masing-masing di bawah 20 MB) dan disatukan lagi saat diambil. */
+const MAJALAH_PDF_BAGIAN = 18 * 1024 * 1024;
+const MAJALAH_PDF_MAX_BAGIAN = 8;
+
+function majalahPdfKey(id, n){ return 'majalah-pdf:' + id + (n ? ':' + n : ''); }
+function majalahPdfMetaKey(id){ return 'majalah-pdf-meta:' + id; }
 
 /* ---------- kwitansi PNG ----------
    WhatsApp mengambil berkas dari alamat publik, jadi gambar kwitansi harus
@@ -601,15 +606,27 @@ export default {
 
       /* --- PDF majalah (tanpa X-App-Key) ---
          WhatsApp mengambil berkas ini dari alamat publik saat mengirim
-         sebagai lampiran dokumen. */
+         sebagai lampiran dokumen. Bagian-bagiannya disatukan lagi di sini. */
       const mp = path.match(/^\/majalah-pdf\/([A-Za-z0-9_-]{4,64})\.pdf$/);
       if (mp && req.method === 'GET') {
-        const raw = await env.WA_INBOX.get(majalahPdfKey(mp[1]), { type: 'arrayBuffer' });
-        if (!raw) return new Response('Not Found', { status: 404 });
-        return new Response(raw, {
+        const metaRaw = await env.WA_INBOX.get(majalahPdfMetaKey(mp[1]));
+        if (!metaRaw) return new Response('Not Found', { status: 404 });
+        const meta = JSON.parse(metaRaw);
+        const bagian = [];
+        for (let i = 1; i <= (meta.bagian || 0); i++) {
+          const b = await env.WA_INBOX.get(majalahPdfKey(mp[1], i), { type: 'arrayBuffer' });
+          if (!b) return new Response('Not Found', { status: 404 });
+          bagian.push(new Uint8Array(b));
+        }
+        const total = bagian.reduce(function (a, b) { return a + b.length; }, 0);
+        const gabung = new Uint8Array(total);
+        let pos = 0;
+        for (const b of bagian) { gabung.set(b, pos); pos += b.length; }
+        return new Response(gabung, {
           status: 200,
           headers: {
             'Content-Type': 'application/pdf',
+            'Content-Length': String(total),
             'Content-Disposition': 'inline; filename="majalah.pdf"',
             'Cache-Control': 'public, max-age=86400'
           }
@@ -838,21 +855,45 @@ export default {
       }
 
       /* Simpan berkas PDF majalah — dipakai untuk lampiran WhatsApp.
-         Halaman-halamannya sudah disimpan terpisah sebagai gambar. */
+         Halaman-halamannya sudah disimpan terpisah sebagai gambar.
+         Dikirim bertahap (bagian per bagian) karena KV Cloudflare hanya
+         menerima 25 MiB per key, sedangkan PDF majalah bisa 60 MB. */
       if (path === '/majalah-pdf' && req.method === 'POST') {
         const body = await req.json().catch(function () { return null; });
         if (!body) return withCors(json({ ok: false, error: 'Body bukan JSON' }, 400), req);
         const id = String(body.id || '').replace(/[^A-Za-z0-9_-]/g, '');
         if (id.length < 4) return withCors(json({ ok: false, error: 'ID majalah tidak sah' }, 400), req);
+
+        const n = Number(body.bagian) || 1;
+        const totalBagian = Number(body.totalBagian) || 1;
+        if (!(n >= 1 && n <= MAJALAH_PDF_MAX_BAGIAN)) {
+          return withCors(json({ ok: false, error: 'Nomor bagian di luar rentang' }, 400), req);
+        }
+        if (!(totalBagian >= 1 && totalBagian <= MAJALAH_PDF_MAX_BAGIAN)) {
+          return withCors(json({ ok: false, error: 'Jumlah bagian maksimal ' + MAJALAH_PDF_MAX_BAGIAN }, 400), req);
+        }
+
         let bytes;
         try { bytes = b64ToBytes(body.data); }
         catch (e) { return withCors(json({ ok: false, error: 'Data PDF tidak sah' }, 400), req); }
-        if (!bytes.length) return withCors(json({ ok: false, error: 'PDF kosong' }, 400), req);
-        if (bytes.length > MAJALAH_PDF_MAX_BYTE) {
-          return withCors(json({ ok: false, error: 'PDF maksimal 24 MB' }, 413), req);
+        if (!bytes.length) return withCors(json({ ok: false, error: 'Bagian PDF kosong' }, 400), req);
+        if (bytes.length > MAJALAH_PDF_BAGIAN) {
+          return withCors(json({ ok: false, error: 'Satu bagian maksimal 18 MB' }, 413), req);
         }
-        await env.WA_INBOX.put(majalahPdfKey(id), bytes);
-        return withCors(json({ ok: true, id: id, url: url.origin + '/majalah-pdf/' + id + '.pdf' }), req);
+
+        await env.WA_INBOX.put(majalahPdfKey(id, n), bytes);
+        /* Catatan bagian ditulis setiap kali supaya unggahan yang terputus
+           di tengah jalan tidak meninggalkan catatan yang menyesatkan. */
+        await env.WA_INBOX.put(majalahPdfMetaKey(id), JSON.stringify({
+          id: id, bagian: totalBagian, diterima: n,
+          judul: String(body.judul || '').slice(0, 200),
+          diperbarui: new Date().toISOString()
+        }));
+
+        return withCors(json({
+          ok: true, id: id, bagian: n, totalBagian: totalBagian,
+          url: url.origin + '/majalah-pdf/' + id + '.pdf'
+        }), req);
       }
 
       const mjMeta = path.match(/^\/majalah\/([A-Za-z0-9_-]{4,64})$/);      if (mjMeta && req.method === 'GET') {
@@ -869,7 +910,14 @@ export default {
           }
           await env.WA_INBOX.delete(majalahMetaKey(mjMeta[1]));
         }
-        await env.WA_INBOX.delete(majalahPdfKey(mjMeta[1]));
+        const pdfMetaRaw = await env.WA_INBOX.get(majalahPdfMetaKey(mjMeta[1]));
+        if (pdfMetaRaw) {
+          const pm = JSON.parse(pdfMetaRaw);
+          for (let i = 1; i <= (pm.bagian || 0); i++) {
+            await env.WA_INBOX.delete(majalahPdfKey(mjMeta[1], i));
+          }
+          await env.WA_INBOX.delete(majalahPdfMetaKey(mjMeta[1]));
+        }
         return withCors(json({ ok: true }), req);
       }
 

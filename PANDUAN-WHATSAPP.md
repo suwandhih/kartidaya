@@ -259,7 +259,7 @@ dibaca**. Tidak perlu Worker kedua.
 | `DELETE /majalah/<id>` | ya | hapus majalah beserta halamannya |
 | `GET /majalah/<id>/<n>` | **tidak** | gambar halaman ke-n — dipanggil klien email |
 | `GET /majalah-pdf/<id>.pdf` | **tidak** | PDF majalah asli — diambil WhatsApp untuk lampiran |
-| `POST /majalah-pdf` | ya | simpan PDF majalah asli |
+| `POST /majalah-pdf` | ya | simpan PDF majalah asli, **bertahap** (18 MB per bagian) |
 | `GET /kwitansi/<id>.png` | **tidak** | gambar kwitansi — diambil WhatsApp untuk dikirim |
 | `POST /kwitansi` | ya | simpan gambar kwitansi (kedaluwarsa 30 hari) |
 | `POST /wa/send-media` | ya | kirim gambar (`image`) atau PDF (`document`) lewat WhatsApp |
@@ -311,6 +311,20 @@ lama belum punya endpoint-nya.
 | 6 | Konfirmasi penerimaan | Buka `https://<worker>/terima/uji123?k=KWT-1&n=Rp%20100.000` | Muncul "Terima kasih!" + ringkasan; buka lagi → "Sudah dikonfirmasi" |
 | 7 | Gambar kwitansi | Buka `https://<worker>/kwitansi/tidakada.png` | Muncul 404 (bukan error mentah) |
 | 8 | PDF majalah | Buka `https://<worker>/majalah-pdf/tidakada.pdf` | Muncul 404 |
+
+**Batas ukuran majalah:**
+
+| Batas | Nilai | Sebab |
+|---|---|---|
+| Halaman | **80** | majalah sungguhan bisa 74 halaman |
+| Berkas PDF | **100 MB** | contoh sungguhan 58,4 MB |
+| Satu bagian PDF | **18 MB** | KV Cloudflare maksimal 25 MiB per key |
+| Satu halaman gambar | **4 MB** | hasil JPEG biasanya 0,2–0,5 MB |
+| Waktu ubah PDF → gambar | **±2,9 detik/halaman** | 74 halaman ≈ 3,5 menit |
+
+PDF besar otomatis dipecah: 58,4 MB → 4 bagian (18+18+18+4,4 MB). Saat
+diambil, bagian-bagiannya disatukan lagi sehingga berkasnya **utuh sama
+persis** seperti aslinya.
 
 **Cara kirim kwitansi & majalah lewat WhatsApp:**
 

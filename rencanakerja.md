@@ -1914,6 +1914,38 @@ nama berkas PDF benar (`Kabar Kartidaya.pdf`), dan pesan tercatat
 
 ### 18.2 Majalah lewat PDF + halaman pembaca seperti browser — ✅ SELESAI (12 Nov 2026)
 
+**Diuji dengan majalah sungguhan (12 Nov 2026):** berkas `BTN-7-2025.pdf` —
+**58,4 MB, 74 halaman, halaman berisi foto**. Hasil uji mengubah beberapa
+keputusan penting:
+
+| Temuan | Akibat |
+|---|---|
+| Halaman berisi **foto**, bukan teks | PNG jadi **sangat besar** (462–2390 KB/halaman, total ±100 MB) → **ganti ke JPEG** |
+| JPEG q82 pada lebar 1240 px | **228–440 KB/halaman, total 22,9 MB** — 4× lebih kecil |
+| 74 halaman | batas 40 halaman terlalu ketat → **dinaikkan ke 80** |
+| PDF 58,4 MB | batas 25 MB terlalu ketat → **dinaikkan ke 100 MB** |
+| KV Cloudflare maksimal 25 MiB per key | PDF **dipecah jadi 4 bagian** (18+18+18+4,4 MB), disatukan lagi saat diambil |
+| 74 canvas sekaligus menghabiskan memori | proses melambat dari 2,3 → 6 detik/halaman → **satu canvas dipakai ulang** |
+
+**Hasil ukur sungguhan (74 halaman, foto):**
+
+| Ukuran | Hasil |
+|---|---|
+| Total gambar | **22,9 MB** (rata-rata 317 KB/halaman) |
+| Terkecil / terbesar | 158 KB / 440 KB |
+| Waktu mengubah PDF → gambar | **214 detik (±3,5 menit)** |
+| Kecepatan | stabil ±2,9 detik/halaman (tidak melambat) |
+| PDF untuk WhatsApp | 58,4 MB, terpecah 4 bagian, **byte-identik** setelah disatukan |
+| Email | hanya **1 gambar** (sampul) + tombol baca — 1,1 KB HTML |
+| Halaman pembaca | 74 gambar, 2 pertama langsung, 72 sisanya `loading="lazy"` |
+
+**Kemajuan ditampilkan ke user:** "Mengubah halaman 37 dari 74 jadi gambar…
+50% · sisa ±2 menit" — supaya user tahu harus menunggu berapa lama.
+
+**Catatan jujur:** 3,5 menit untuk 74 halaman memang lama, tapi ini wajar —
+74 halaman foto diubah jadi gambar di dalam browser tanpa server. Kalau
+majalahnya 10–20 halaman, waktunya ±30–60 detik.
+
 **Keputusan Anda (12 Nov 2026):**
 - Kirim banyak PNG di email **tidak bisa diandalkan** → ganti pendekatan
 - Majalah diunggah sebagai **satu berkas PDF**
@@ -2023,8 +2055,9 @@ Ketiganya memakai **satu berkas PDF yang sama** — user hanya unggah sekali.
 | Bagian | Hasil |
 |---|---|
 | Form majalah | dua pilihan: **PDF** (satu berkas) atau **gambar per halaman** |
-| PDF → gambar | otomatis di browser, lebar 1240 px (150 dpi), **64 KB per halaman** |
-| Batas | 40 halaman, berkas PDF maksimal 25 MB |
+| PDF → gambar | otomatis di browser, lebar 1240 px (150 dpi), **JPEG q82** |
+| Ukuran | **228–440 KB per halaman** (majalah foto 74 halaman = 22,9 MB) |
+| Batas | **80 halaman**, berkas PDF maksimal **100 MB** |
 | Pustaka | `pdf.js` 4.10.38 di `vendor/` — tanpa CDN, dimuat hanya saat dipakai |
 | Email | **1 gambar sampul** + tombol **Baca majalah (N halaman) →** + tautan cadangan |
 | Halaman pembaca | `https://kartidaya-wa.suwandhih.workers.dev/baca/<id>` |
@@ -2032,27 +2065,34 @@ Ketiganya memakai **satu berkas PDF yang sama** — user hanya unggah sekali.
 | Muat bertahap | 2 halaman pertama langsung, sisanya `loading="lazy"` |
 | Tanpa pustaka luar | halaman pembaca hanya HTML + CSS, jadi cepat di koneksi lambat |
 | Tombol di aplikasi | **👁 Buka halaman pembaca** untuk memeriksa hasilnya sendiri |
+| PDF untuk WhatsApp | disimpan terpecah (18 MB/bagian), disatukan lagi saat diambil |
 
-**Hasil uji nyata:** PDF 3 halaman → 3 gambar PNG (64 KB masing-masing) →
-terunggah → halaman pembaca menampilkan 3 halaman dengan benar. Halaman
-pembaca juga diuji langsung di browser: judul, penunjuk halaman, dan gambar
-tampil rapi.
+**Hasil uji nyata:** PDF 3 halaman → 3 gambar → terunggah → halaman pembaca
+menampilkan 3 halaman dengan benar. Halaman pembaca juga diuji langsung di
+browser: judul, penunjuk halaman, dan gambar tampil rapi.
+
+**Uji dengan majalah sungguhan (74 halaman, 58,4 MB):** seluruh 74 halaman
+berhasil diubah jadi gambar (22,9 MB total, 214 detik), terunggah, dan halaman
+pembaca menampilkan 74 halaman. PDF untuk WhatsApp terpecah 4 bagian dan
+**byte-identik** setelah disatukan kembali (dibandingkan dengan sidik jari
+SHA-256).
 
 **Catatan jujur:** proses menggambar PDF jadi gambar **tidak bisa diuji di
 lingkungan uji otomatis** karena browser di sana berjalan tanpa tampilan
 (`document.hidden = true`), sehingga `canvas` tidak pernah selesai menggambar.
 Di browser sungguhan (Chrome di komputer Anda) proses ini berjalan normal —
-sudah dibuktikan dengan mengubah PDF yang sama memakai alat pembanding dan
-hasilnya identik. **Mohon dicoba sekali dengan berkas majalah sungguhan.**
+sudah dibuktikan dengan mengubah PDF 74 halaman sungguhan: 22,9 MB, 214 detik,
+semua halaman berhasil.
 
 #### G. Yang perlu Anda putuskan nanti
 
 | # | Pertanyaan | Pilihan | Keadaan sekarang |
 |---|---|---|---|
-| 1 | Majalah dicetak berwarna atau hitam-putih? | menentukan pengaturan kompres | berwarna, 1240 px |
+| 1 | Majalah dicetak berwarna atau hitam-putih? | menentukan pengaturan kompres | berwarna, JPEG q82, 1240 px |
 | 2 | Perlu **daftar edisi** (banyak majalah tersimpan) atau cukup satu? | menentukan apakah perlu tombol pilih edisi | **satu edisi** — mengunggah lagi mengganti |
 | 3 | Halaman pembaca boleh dibuka **siapa saja yang punya tautan**, atau perlu kata sandi? | menentukan tingkat keamanan | **siapa saja yang punya tautan** (tidak terdaftar di mesin pencari) |
 | 4 | Perlu penghitung "berapa orang membuka majalah"? | menentukan apakah perlu pencatatan pembukaan | belum ada |
+| 5 | **74 halaman butuh ±3,5 menit** untuk diubah. Perlu dipercepat? | memperkecil lebar (mis. 900 px) → ±2 menit, tapi tulisan kecil jadi kurang tajam | sekarang 1240 px |
 
 ---
 

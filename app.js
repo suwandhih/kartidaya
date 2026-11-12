@@ -3324,13 +3324,13 @@ function openMajalahForm(){
         '<input type="file" id="mj-pdf" accept="application/pdf">' +
         '<p class="tiny muted" style="margin:6px 0 0">Pilih <b>satu berkas PDF</b> — aplikasi akan ' +
           'mengubah setiap halaman jadi gambar secara otomatis. Tidak perlu aplikasi lain. ' +
-          'Maksimal 40 halaman, berkas maksimal 25 MB.</p>' +
+          'Maksimal ' + MJ_MAX_HALAMAN + ' halaman, berkas maksimal 100 MB.</p>' +
       '</div>' +
       '<div id="mj-img-blok" hidden>' +
         '<input type="file" id="mj-file" accept="image/jpeg,image/png,image/webp" multiple>' +
         '<p class="tiny muted" style="margin:6px 0 0">Pilih semua gambar halaman sekaligus. ' +
-          'Urutan halaman mengikuti urutan berkas. Maksimal 40 halaman, tiap halaman maksimal 4 MB. ' +
-          'Format JPG/PNG/WebP.</p>' +
+          'Urutan halaman mengikuti urutan berkas. Maksimal ' + MJ_MAX_HALAMAN +
+          ' halaman, tiap halaman maksimal 4 MB. Format JPG/PNG/WebP.</p>' +
       '</div>' +
     '</div>' +
     (m
@@ -3359,36 +3359,61 @@ function muatPdfJs(){
   return pdfjsSiap;
 }
 
-/* Ubah satu halaman PDF jadi PNG. Lebar 1240 px setara 150 dpi — hasil ukur
-   ±11 KB per halaman untuk PDF teks, jadi 10 halaman hanya ±110 KB. */
-async function halamanPdfKePng(pdf, nomor, lebarTarget){
+/* Batas majalah. 74 halaman dipilih karena majalah sungguhan bisa setebal itu
+   (contoh: 74 halaman). Batas 40 halaman sebelumnya terlalu ketat. */
+const MJ_MAX_HALAMAN = 80;
+const MJ_LEBAR = 1240;          /* setara 150 dpi untuk halaman A4 */
+const MJ_MUTU_JPEG = 0.82;
+
+/* Ubah satu halaman PDF jadi gambar.
+
+   PENTING — kenapa JPEG, bukan PNG? Tergantung isi halamannya:
+   - Halaman berisi TEKS & garis (kwitansi, surat) → PNG lebih kecil
+   - Halaman berisi FOTO (majalah) → JPEG jauh lebih kecil
+     Hasil ukur majalah sungguhan 74 halaman: PNG 462–2390 KB per halaman
+     (total ±100 MB), JPEG q82 hanya 228–322 KB per halaman (total ±23 MB).
+   Jadi JPEG yang dipakai — 4× lebih kecil, dan mata tidak bisa membedakan
+   pada foto.
+
+   `cv` boleh dipakai ulang antar halaman. Kalau setiap halaman membuat canvas
+   baru, 74 canvas sekaligus menghabiskan memori dan prosesnya makin lambat
+   (terukur: 2,3 detik/halaman di awal, 6 detik/halaman di halaman ke-30).
+   Dengan satu canvas yang dipakai ulang, kecepatannya tetap. */
+async function halamanPdfKeGambar(pdf, nomor, cv, lebarTarget){
   const page = await pdf.getPage(nomor);
   const dasar = page.getViewport({ scale: 1 });
-  const skala = (lebarTarget || 1240) / dasar.width;
+  const skala = (lebarTarget || MJ_LEBAR) / dasar.width;
   const vp = page.getViewport({ scale: skala });
-  const cv = document.createElement('canvas');
-  cv.width = Math.round(vp.width);
-  cv.height = Math.round(vp.height);
-  const ctx = cv.getContext('2d');
+  const kanvas = cv || document.createElement('canvas');
+  kanvas.width = Math.round(vp.width);
+  kanvas.height = Math.round(vp.height);
+  const ctx = kanvas.getContext('2d');
   ctx.fillStyle = '#fff';
-  ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.fillRect(0, 0, kanvas.width, kanvas.height);
   await page.render({ canvasContext: ctx, viewport: vp }).promise;
-  return new Promise(function(resolve){
-    cv.toBlob(function(b){ resolve(b); }, 'image/png');
+  /* Halaman dilepas supaya memori tidak menumpuk — pdf.js menyimpan cache
+     halaman yang sudah dibuka. */
+  const hasil = await new Promise(function(resolve){
+    kanvas.toBlob(function(b){ resolve(b); }, 'image/jpeg', MJ_MUTU_JPEG);
   });
+  page.cleanup();
+  return hasil;
 }
 
-/* Baca PDF, kembalikan daftar Blob PNG — satu per halaman. */
+/* Baca PDF, kembalikan daftar Blob JPEG — satu per halaman. */
 async function pdfKeGambar(file, lapor){
   const pdfjs = await muatPdfJs();
   const buf = await file.arrayBuffer();
   const pdf = await pdfjs.getDocument({ data: new Uint8Array(buf) }).promise;
   const total = pdf.numPages;
-  if(total > 40) throw new Error('PDF ini ' + total + ' halaman — maksimal 40 halaman');
+  if(total > MJ_MAX_HALAMAN){
+    throw new Error('PDF ini ' + total + ' halaman — maksimal ' + MJ_MAX_HALAMAN + ' halaman');
+  }
   const hasil = [];
+  const cv = document.createElement('canvas');
   for(let i = 1; i <= total; i++){
     if(lapor) lapor(i, total);
-    hasil.push(await halamanPdfKePng(pdf, i));
+    hasil.push(await halamanPdfKeGambar(pdf, i, cv));
   }
   return hasil;
 }
@@ -3439,16 +3464,25 @@ async function unggahMajalah(){
   try{
     if(pakaiPdf){
       const f = pdfEl.files[0];
-      if(f.size > 25 * 1024 * 1024){ toast('Berkas PDF lebih dari 25 MB', true); return; }
+      if(f.size > 100 * 1024 * 1024){ toast('Berkas PDF lebih dari 100 MB', true); return; }
       if(prog) prog.textContent = 'Membaca PDF…';
       /* PDF aslinya disimpan juga — dipakai untuk lampiran WhatsApp. */
       pdfBase64 = await fileKeBase64(f);
+      const t0 = Date.now();
       const gambar = await pdfKeGambar(f, function(i, total){
-        if(prog) prog.textContent = 'Mengubah halaman ' + i + ' dari ' + total + ' jadi gambar…';
+        if(!prog) return;
+        const lewat = (Date.now() - t0) / 1000;
+        const perHal = i > 1 ? lewat / (i - 1) : 0;
+        const sisa = Math.max(0, Math.round(perHal * (total - i)));
+        prog.textContent = 'Mengubah halaman ' + i + ' dari ' + total + ' jadi gambar… ' +
+          Math.round(i / total * 100) + '%' +
+          (i > 1 ? ' · sisa ±' + (sisa >= 60
+            ? Math.round(sisa / 60) + ' menit'
+            : sisa + ' detik') : '');
       });
-      halaman = gambar.map(function(b){ return { blob:b, tipe:'image/png' }; });
+      halaman = gambar.map(function(b){ return { blob:b, tipe:'image/jpeg' }; });
     }else{
-      if(files.length > 40){ toast('Maksimal 40 halaman', true); return; }
+      if(files.length > MJ_MAX_HALAMAN){ toast('Maksimal ' + MJ_MAX_HALAMAN + ' halaman', true); return; }
       for(const f of files){
         if(f.size > 4 * 1024 * 1024){
           toast('Halaman ' + f.name + ' lebih dari 4 MB — perkecil dulu', true);
@@ -3470,7 +3504,8 @@ async function unggahMajalah(){
   if(!halaman.length){ if(prog) prog.textContent = ''; toast('Tidak ada halaman yang terbaca', true); return; }
 
   for(let i = 0; i < halaman.length; i++){
-    if(prog) prog.textContent = 'Mengunggah halaman ' + (i + 1) + ' dari ' + halaman.length + '…';
+    if(prog) prog.textContent = 'Mengunggah halaman ' + (i + 1) + ' dari ' + halaman.length +
+      '… ' + Math.round((i + 1) / halaman.length * 100) + '%';
     try{
       const h = halaman[i];
       const data = h.blob ? await blobKeBase64(h.blob) : await fileKeBase64(h.file);
@@ -3490,15 +3525,25 @@ async function unggahMajalah(){
   save('settings');
 
   /* Simpan PDF aslinya di Worker — dipakai untuk lampiran WhatsApp.
-     Kalau gagal, majalah tetap tersimpan; hanya lampiran WhatsApp yang
-     tidak tersedia, dan itu diberitahukan. */
+     Dikirim bertahap karena KV Cloudflare hanya menerima 25 MiB per key,
+     sedangkan PDF majalah bisa 60 MB. Kalau gagal, majalah tetap tersimpan;
+     hanya lampiran WhatsApp yang tidak tersedia, dan itu diberitahukan. */
   if(pdfBase64){
-    if(prog) prog.textContent = 'Menyimpan berkas PDF untuk WhatsApp…';
     try{
-      await WhatsApp.api('/majalah-pdf', {
-        method:'POST',
-        body:{ id:id, judul:judul || 'Majalah Kartidaya', data:pdfBase64 }
-      });
+      const ukuran = Math.round(pdfBase64.length * 3 / 4);
+      const perBagian = 18 * 1024 * 1024;
+      const totalBagian = Math.max(1, Math.ceil(ukuran / perBagian));
+      if(totalBagian > 8) throw new Error('PDF lebih dari 100 MB');
+      for(let i = 1; i <= totalBagian; i++){
+        if(prog) prog.textContent = 'Menyimpan PDF untuk WhatsApp — bagian ' + i +
+          ' dari ' + totalBagian + '…';
+        const potong = pdfBase64.slice((i - 1) * perBagian * 4 / 3, i * perBagian * 4 / 3);
+        await WhatsApp.api('/majalah-pdf', {
+          method:'POST',
+          body:{ id:id, judul:judul || 'Majalah Kartidaya',
+            bagian:i, totalBagian:totalBagian, data:potong }
+        });
+      }
     }catch(e){
       state.settings.majalah.pdf = false;
       save('settings');

@@ -30,3 +30,7 @@ wa-token.txt
 app-key.txt
 worker/.wrangler/
 .tmp-*
+
+# Berkas uji besar — bukan bagian aplikasi
+tes/
+_uji*
