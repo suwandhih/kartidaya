@@ -1772,23 +1772,33 @@ di buku surat, dan surat lama yang dibuat ulang.
 
 ## 18. Rencana berikutnya — 11 November 2026 (BELUM dikerjakan)
 
-*Dicatat: 11 November 2026, 19:15 WIB. Ini **rencana saja** — belum ada kode
-yang diubah. Angka di bawah diukur langsung, bukan perkiraan.*
+*Dicatat: 11 November 2026, 19:15 WIB. **Diperbarui 12 Nov 2026** sesuai
+keputusan Anda. Ini **rencana saja** — belum ada kode yang diubah. Angka di
+bawah diukur langsung, bukan perkiraan.*
+
+**Ringkasan keputusan 12 Nov 2026:**
+
+| # | Keputusan |
+|---|---|
+| 1 | Majalah **di-hold** — berkas masih diminta ke user |
+| 2 | WhatsApp: kwitansi = **PNG**, majalah = **lampiran PDF** |
+| 3 | Email: kirim banyak PNG **tidak bisa diandalkan** → ganti ke **PDF + halaman pembaca** di website |
 
 ### 18.1 Kwitansi WhatsApp berupa gambar "struk" — ⏸ BELUM
 
-**Yang diminta:** kwitansi ikut terkirim di WhatsApp, tampil seperti **struk
-belanja**, tapi desainnya mengikuti template Kartidaya.
+**Keputusan Anda (12 Nov 2026):**
+- Kwitansi di WhatsApp: **format PNG** saja ✅
+- Majalah di WhatsApp: **lampiran PDF** (bukan gambar per halaman) ✅
 
 **Masalahnya:** WhatsApp hanya bisa mengirim **teks** dan **gambar/PDF**, tidak
 bisa tabel HTML. Selama ini kwitansi hanya ikut di email.
 
-**Rencana:** buat kwitansi sebagai **gambar** di dalam aplikasi, lalu kirim
+**Rencana:** buat kwitansi sebagai **gambar PNG** di dalam aplikasi, lalu kirim
 sebagai gambar WhatsApp dengan teks surat sebagai keterangan.
 
 | Bagian | Rencana |
 |---|---|
-| Bentuk | gambar struk, rasio sempit & tinggi (lebar 720 px) |
+| Bentuk | gambar PNG, rasio sempit & tinggi (lebar 720 px) |
 | Desain | mengikuti template: logo, judul KWITANSI / FUND RECEIPT, garis, nama, program, total, terbilang, nomor |
 | Dua bahasa | sama seperti email — Indonesia & Inggris |
 | Pembuat gambar | digambar di aplikasi (Canvas) dari data kwitansi yang sudah ada |
@@ -1807,167 +1817,149 @@ sebagai gambar WhatsApp dengan teks surat sebagai keterangan.
 
 Kesimpulan: **PNG lebih kecil** untuk struk karena isinya teks bergaris tegas,
 bukan foto. Ukuran 720 px PNG ≈ 12 KB — sangat ringan, tidak masalah untuk
-WhatsApp.
+WhatsApp. Ini juga sebabnya PNG pilihan yang tepat.
+
+**Majalah lewat WhatsApp (PDF):**
+
+| Aspek | Rincian |
+|---|---|
+| Cara kirim | unduh PDF dari Worker → unggah ke WhatsApp → kirim `type: document` |
+| Batas WhatsApp | dokumen maksimal **100 MB** |
+| Batas KV Cloudflare | **25 MiB per key** — jadi PDF harus di bawah 25 MB |
+| Batas praktis | **10 MB** per PDF, cukup untuk majalah 10–40 halaman |
+| Simpan PDF | di KV dengan nama `majalah-pdf:<id>` |
+| Cara kerja | PDF yang sama dipakai dua jalur: **email** (tautan) & **WhatsApp** (lampiran) |
 
 **Kendala yang perlu Anda tahu:**
 
 | Kendala | Akibat |
 |---|---|
-| Akun WhatsApp Meta masih `BLOCKED` | kirim gambar belum bisa diuji sungguhan |
-| Jendela 24 jam | kirim gambar di luar 24 jam sejak donor terakhir membalas butuh **template pesan** (header gambar) yang harus disetujui Meta |
+| Akun WhatsApp Meta masih `BLOCKED` | kirim gambar/PDF belum bisa diuji sungguhan |
+| Jendela 24 jam | kirim media di luar 24 jam sejak donor terakhir membalas butuh **template pesan** yang harus disetujui Meta |
 | Gambar tidak bisa "dipilih teks" | penerima tidak bisa menyalin angkanya — solusinya teks surat tetap memuat ringkasan angka |
+| PDF harus diunggah dulu ke WhatsApp | perlu langkah unggah ke Media API sebelum kirim |
 
-**Perkiraan waktu:** ±2 jam (gambar struk 45 menit, kirim media di Worker
-30 menit, pratinjau & salinan 30 menit, uji 15 menit).
+**Perkiraan waktu:** ±2,5 jam (gambar struk 45 menit, kirim media di Worker
+45 menit, jalur PDF WhatsApp 30 menit, pratinjau & salinan 30 menit, uji 15 menit).
 
 **Urutan yang disarankan:** kerjakan **setelah** verifikasi bisnis Meta selesai,
 supaya bisa langsung diuji ke nomor sungguhan.
 
 ---
 
-### 18.2 Majalah 10 halaman — kemudahan & kecepatan untuk user donor — ⏸ BELUM
+### 18.2 Majalah lewat PDF + halaman pembaca seperti browser — ⏸ BELUM
 
-**Pertanyaan Anda:** apakah 10 halaman mudah tampil di badan email, seberapa
-cepat proses memasukkan data majalah, dan adakah cara memudahkan user donor.
+**Keputusan Anda (12 Nov 2026):**
+- Kirim banyak PNG di email **tidak bisa diandalkan** → ganti pendekatan
+- Majalah diunggah sebagai **satu berkas PDF**
+- Di **website**: dibuat **halaman pembaca** — penerima membuka dan membaca
+  per halaman, naik-turun, nyaman di layar HP
+- Tujuannya supaya email **tidak dianggap spam**
 
-#### A. Apakah 10 halaman mudah tampil di badan email?
+**Catatan Anda:** berkas majalah masih diminta ke user, jadi bagian ini
+**di-hold** sampai berkasnya ada. Rencana tetap disiapkan supaya bisa langsung
+dikerjakan begitu PDF-nya masuk.
 
-**Ya — mudah.** Yang dikirim di email hanya **alamat gambar**, bukan gambarnya.
-Jadi ukuran emailnya kecil.
+#### A. Kenapa pendekatan "banyak PNG di email" diganti
 
-| Yang ditanyakan | Jawaban |
+| Masalah nyata | Sebab |
 |---|---|
-| Ukuran email yang dikirim | **± 10 KB** (hanya teks + 10 alamat gambar) |
-| Yang diunduh penerima | gambar diambil terpisah dari Worker saat email dibuka |
-| Batas aman Gmail | 102 MB per email — jauh di atas kebutuhan |
-| Batas jumlah halaman sekarang | 40 halaman |
-| Batas ukuran per halaman | 4 MB |
+| Gambar sering tidak tampil | Gmail & Outlook memblokir gambar dari pengirim baru/domain baru |
+| Email jadi sangat panjang | 10–40 gambar bertumpuk ke bawah, tidak nyaman di HP |
+| Dianggap spam | email berisi banyak gambar eksternal dari domain baru — pola khas spam |
+| Tidak konsisten | tampilan berbeda-beda di tiap aplikasi email |
 
-**Hitungan nyata** (hasil ukur halaman A4 bergambar penuh, JPEG):
+Kesimpulan: **email sebaiknya tidak memuat banyak gambar.** Email cukup
+memuat **satu ajakan** untuk membuka halaman pembaca.
 
-| Pengaturan | Ukuran per halaman | 10 halaman |
+#### B. Rancangan baru — "halaman pembaca majalah"
+
+Satu alamat publik seperti:
+
+```
+https://kartidaya-wa.suwandhih.workers.dev/baca/<id>
+```
+
+Yang tampil di HP: **satu halaman penuh per layar**, geser naik/turun untuk
+pindah halaman — seperti membaca majalah digital.
+
+| Fitur | Rincian |
+|---|---|
+| Satu halaman per layar | halaman menyesuaikan tinggi & lebar layar HP (tidak perlu zoom) |
+| Geser naik/turun | pindah halaman; bisa juga tombol ‹ › dan nomor halaman |
+| Penunjuk halaman | "Halaman 3 dari 10" |
+| Muat bertahap | halaman ke-4 dan seterusnya baru diunduh saat dibutuhkan → cepat walau koneksi lambat |
+| Bisa diperbesar | cubit/klik untuk zoom kalau tulisan kecil |
+| Tanpa aplikasi | cukup browser HP — tidak perlu memasang apa pun |
+| Ringan | hanya memuat halaman yang sedang dilihat |
+
+#### C. Bagaimana bentuknya di email sekarang
+
+| Bagian email | Isi |
+|---|---|
+| Isi surat | seperti biasa |
+| Kwitansi | tetap tampil penuh (HTML — ini bukan gambar, jadi tidak diblokir) |
+| Majalah | **gambar sampul (1 halaman) + tombol "Baca majalah"** |
+
+Jadi email hanya memuat **1 gambar**, bukan 10–40. Risiko dianggap spam turun
+sangat banyak, dan email jauh lebih rapi di HP.
+
+**Tambahan pengaman spam:**
+
+| Cara | Manfaat |
+|---|---|
+| Sampul disimpan di domain yang sama dengan pengirim | tidak terlihat sebagai gambar pihak ketiga |
+| Email selalu punya versi teks lengkap | filter spam lebih percaya |
+| Tombol "Baca majalah" berupa teks + tautan, bukan gambar | tetap terbaca walau gambar diblokir |
+| Sertakan alasan berlangganan + cara berhenti | mengurangi laporan spam |
+
+#### D. Alur kerja user (disederhanakan)
+
+| Langkah | Sekarang (PNG) | Rencana (PDF) |
 |---|---|---|
-| 110 dpi, kualitas 70, abu-abu | 53 KB | 0,52 MB |
-| **150 dpi, kualitas 80, abu-abu (disarankan)** | **95 KB** | **0,92 MB** |
-| 150 dpi, kualitas 80, berwarna | 110 KB | 1,07 MB |
-| 200 dpi, kualitas 80, berwarna | 188 KB | 1,83 MB |
+| 1 | potong PDF jadi 10 gambar pakai alat lain | — |
+| 2 | pilih 10 berkas gambar | pilih **1 berkas PDF** |
+| 3 | unggah 10 kali | unggah **1 kali** |
+| 4 | — | aplikasi membuat **sampul + halaman pembaca** otomatis |
+| Waktu | 10–20 menit | **±1 menit** |
 
-Jadi **10 halaman tetap di bawah 1 MB** pada pengaturan yang disarankan.
-Masih sangat wajar untuk email.
+**Teknis singkat:**
 
-**Masalah sebenarnya bukan ukuran, tapi:**
+| Bagian | Cara |
+|---|---|
+| Baca PDF di browser | `pdf.js` (Mozilla), disimpan di `vendor/` seperti `xlsx` |
+| Halaman pembaca | Worker mengubah tiap halaman PDF jadi gambar sesuai ukuran layar, disajikan satu per satu |
+| Sampul untuk email | halaman 1 PDF, dibuat sekali saat unggah |
+| Simpan PDF asli | KV `majalah-pdf:<id>` — dipakai juga untuk lampiran WhatsApp |
 
-| Masalah | Sebab | Rencana solusi |
+#### E. Kenapa ini lebih baik untuk semua jalur
+
+| Jalur | Cara kirim majalah | Hasil |
 |---|---|---|
-| Gambar email diblokir | banyak Gmail/Outlook memblokir gambar dari pengirim baru | sudah ada tautan cadangan; bisa ditambah tombol **Buka majalah** yang lebih menonjol |
-| Halaman panjang di HP | 10 halaman bertumpuk ke bawah | tampilkan **2 halaman pertama + tombol "Baca 8 halaman lagi"** |
-| Email terlihat seperti spam | banyak gambar dari domain baru | kirim tautan + 2 halaman saja, sisanya di halaman pembaca |
+| **Email** | sampul + tombol "Baca majalah" | ringan, rapi, kecil kemungkinan spam |
+| **WhatsApp** | lampiran **PDF** | sesuai keputusan Anda |
+| **Website** | halaman pembaca per halaman | nyaman di HP, bisa diperbesar |
 
-#### B. Seberapa cepat proses memasukkan majalah sekarang?
+Ketiganya memakai **satu berkas PDF yang sama** — user hanya unggah sekali.
 
-**Sekarang: lambat dan rawan salah.** Ini penyebabnya:
+#### F. Urutan pengerjaan
 
-| Langkah sekarang | Masalah |
-|---|---|
-| 1. User memotong / menyimpan tiap halaman jadi gambar | harus punya alat lain, 10 kali kerja |
-| 2. Klik **Unggah majalah** → pilih 10 berkas | harus urut; kalau salah urut, harus ulangi |
-| 3. Unggah satu per satu | 10 permintaan, ada indikator kemajuan |
-| 4. Mengulang tiap edisi baru | seluruh proses dari awal |
-
-Perkiraan waktu sekarang untuk 10 halaman: **10–20 menit**, belum termasuk
-memotong gambar.
-
-#### C. Ide memudahkan user donor
-
-Diurutkan dari yang paling terasa manfaatnya:
-
-**1. Terima PDF langsung — ⭐ paling menghemat waktu**
-
-Sekarang user harus mengubah PDF jadi 10 gambar dulu. Kalau aplikasi bisa
-menerima **satu berkas PDF**, prosesnya jadi satu langkah.
-
-| Aspek | Rincian |
-|---|---|
-| Cara kerja | PDF dibaca di browser, tiap halaman diubah jadi gambar, lalu diunggah |
-| Pustaka | `pdf.js` (dari Mozilla), disimpan di `vendor/` seperti `xlsx` |
-| Tambahan ukuran | ± 350 KB (dimuat hanya saat dipakai) |
-| Hasil | **satu kali pilih berkas → 10 halaman siap** |
-| Perkiraan waktu user | dari 10–20 menit → **±1 menit** |
-
-**2. Kompres otomatis di aplikasi**
-
-Sekarang user harus memperkecil gambar sendiri (kalau lebih 4 MB ditolak).
-
-| Aspek | Rincian |
-|---|---|
-| Cara kerja | gambar diperkecil ke lebar 1.240 px & kualitas 80 sebelum diunggah |
-| Hasil | 200 dpi berwarna 188 KB → **95 KB** (turun ±50%) |
-| Manfaat | tidak ada lagi pesan "lebih dari 4 MB, perkecil dulu" |
-| Catatan | teks majalah tetap terbaca pada 150 dpi |
-
-**3. Halaman pembaca majalah (bukan hanya gambar di email)**
-
-Satu alamat seperti `…/majalah/<id>` yang menampilkan semua halaman dengan
-rapi — bisa digulir, ada nomor halaman, bisa diperbesar.
-
-| Manfaat |
-|---|
-| Email cukup memuat **2 halaman + tombol "Baca selengkapnya"** → email ringan & tidak mirip spam |
-| Berlaku juga untuk WhatsApp: cukup kirim **tautan**, tidak perlu 10 gambar |
-| Penerima bisa membuka ulang kapan saja tanpa mencari email lama |
-| Bisa dihitung: berapa orang benar-benar membuka majalah |
-
-**4. Urutan halaman otomatis + bisa diatur**
-
-| Aspek | Rincian |
-|---|---|
-| Sekarang | urutan mengikuti urutan berkas yang dipilih — rawan salah |
-| Rencana | setelah diunggah, tampil 10 gambar kecil (thumbnail) bernomor; bisa **digeser** untuk menukar urutan |
-| Tambahan | nama berkas `01-cover.jpg` otomatis diurutkan lebih dulu |
-
-**5. Simpan sebagai "Edisi" dengan nama**
-
-| Aspek | Rincian |
-|---|---|
-| Sekarang | hanya **satu** majalah tersimpan; unggah baru **mengganti** yang lama |
-| Rencana | daftar edisi: "Edisi Januari 2027", "Edisi April 2027", dst. |
-| Manfaat | bisa kirim edisi lama ke donor baru; tidak perlu unggah ulang |
-| Tambahan | tombol **Duplikat edisi** untuk majalah yang isinya mirip |
-
-**6. Unggah ulang hanya halaman yang berubah**
-
-| Aspek | Rincian |
-|---|---|
-| Sekarang | mengunggah 1 halaman baru berarti mengulang semua |
-| Rencana | tombol **Ganti halaman 3** saja |
-
-**7. Perkiraan hasil setelah semua ide dipakai**
-
-| Keadaan | Sekarang | Setelah ide 1 + 2 + 4 |
+| Urutan | Pekerjaan | Perkiraan |
 |---|---|---|
-| Langkah user | potong gambar → pilih 10 berkas → unggah | pilih 1 PDF → periksa urutan → selesai |
-| Waktu | 10–20 menit | **±1–2 menit** |
-| Risiko salah urut | tinggi | rendah (ada thumbnail bernomor) |
-| Risiko ditolak "terlalu besar" | sering | hampir tidak pernah |
+| 1 | Terima & simpan **PDF** (unggah 1 berkas) | ±1,5 jam |
+| 2 | Halaman pembaca di `/baca/<id>` (satu halaman per layar) | ±2 jam |
+| 3 | Sampul + tombol "Baca majalah" di email | ±1 jam |
+| 4 | Kompres otomatis + peringatan ukuran | ±45 menit |
+| 5 | Jalur PDF untuk WhatsApp (setelah Meta beres) | ±30 menit |
 
-#### D. Urutan pengerjaan yang disarankan
+**Total: ±5,5 jam** — bisa dipecah beberapa sesi. **Di-hold** sampai berkas
+majalah dari user tersedia.
 
-| Urutan | Pekerjaan | Perkiraan | Alasan |
-|---|---|---|---|
-| 1 | **Terima PDF langsung** (ide 1) | ±2 jam | paling menghemat waktu user |
-| 2 | **Kompres otomatis** (ide 2) | ±45 menit | menghilangkan penolakan "terlalu besar" |
-| 3 | **Thumbnail + atur urutan** (ide 4) | ±1 jam | mencegah salah urut |
-| 4 | **Halaman pembaca majalah** (ide 3) | ±1,5 jam | email lebih ringan, bisa dipakai WhatsApp juga |
-| 5 | **Daftar edisi** (ide 5) | ±1,5 jam | perlu setelah sering kirim edisi baru |
-| 6 | **Ganti satu halaman** (ide 6) | ±45 menit | kenyamanan |
-
-**Total: ±7,5 jam** — bisa dipecah beberapa sesi.
-
-#### E. Yang perlu Anda putuskan
+#### G. Yang perlu Anda putuskan nanti
 
 | # | Pertanyaan | Pilihan |
 |---|---|---|
-| 1 | Apakah majalah selalu tersedia sebagai **PDF**? | kalau ya, ide 1 langsung dikerjakan |
-| 2 | Majalah dicetak berwarna atau hitam-putih? | menentukan ukuran & pengaturan kompres |
-| 3 | Perlu **daftar edisi** (banyak majalah tersimpan) atau cukup satu? | menentukan ide 5 dikerjakan atau tidak |
-| 4 | Untuk WhatsApp nanti: kirim **10 gambar** atau cukup **1 tautan**? | tautan jauh lebih hemat & rapi |
+| 1 | Majalah dicetak berwarna atau hitam-putih? | menentukan pengaturan kompres |
+| 2 | Perlu **daftar edisi** (banyak majalah tersimpan) atau cukup satu? | menentukan apakah perlu tombol pilih edisi |
+| 3 | Halaman pembaca boleh dibuka **siapa saja yang punya tautan**, atau perlu kata sandi? | menentukan tingkat keamanan |
+| 4 | Perlu penghitung "berapa orang membuka majalah"? | menentukan apakah perlu pencatatan pembukaan |
