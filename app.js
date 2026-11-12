@@ -845,6 +845,10 @@ function loadState(){
   /* Alamat untuk koreksi kwitansi — dicetak di kwitansi supaya donor tahu
      harus menghubungi ke mana kalau ada yang salah. */
   if(!state.settings.kontakKoreksi) state.settings.kontakKoreksi = 'finance@kartidaya.org';
+  /* Pratinjau wajib: sebelum benar-benar mengirim, layar "Periksa sebelum
+     kirim" muncul lebih dulu. Aktif secara bawaan karena ini pengaman utama
+     terhadap salah kirim — bisa dimatikan di Setelan kalau dirasa mengganggu. */
+  if(state.settings.wajibPeriksa === undefined) state.settings.wajibPeriksa = true;
   /* Transaksi lama belum punya kode kwitansi — lengkapi sekali di sini. */
   lengkapiKodeKwitansi();
   if(firstRun) save();
@@ -1440,7 +1444,7 @@ function kv(k,v){
 
 /* ---------- TULIS SURAT ---------- */
 let suratState = { tplId:'', subjek:'', isi:'', selected:{}, previewId:'', q:'', replyTo:'', kanal:'email',
-  kwitansi:false, kwitansiBahasa:'id', kwitansiFinId:'', majalah:false, kirimSendiri:false };
+  kwitansi:false, kwitansiBahasa:'id', kwitansiFinId:'', majalah:false, kirimSendiri:false, dariPeriksa:false };
 
 function viewSurat(){
   setTitle('Tulis Surat','Susun surat dengan template, kirim ke banyak penerima');
@@ -1561,10 +1565,16 @@ function viewSurat(){
           ' — pengirimannya akan ditandai <b>Gagal</b>.</div>'
         : '') +
       '<div class="btn-row">' +
-        '<button class="btn primary" id="kirim-btn" data-action="kirim"' + (nSel ? '' : ' disabled') + '>➤ Kirim (' + nSel + ')</button>' +
+        '<button class="btn primary" id="kirim-btn" data-action="kirim"' + (nSel ? '' : ' disabled') + '>' +
+          (state.settings.wajibPeriksa ? '🔍 Periksa &amp; Kirim (' + nSel + ')' : '➤ Kirim (' + nSel + ')') +
+        '</button>' +
         '<button class="btn" id="draft-btn" data-action="simpan-draft"' + (nSel ? '' : ' disabled') + '>Simpan Draft</button>' +
         '<button class="btn ghost" data-action="tpl-simpan-baru">Simpan sebagai template</button>' +
       '</div>' +
+      (state.settings.wajibPeriksa
+        ? '<p class="tiny muted" style="margin:8px 0 0">Pratinjau wajib aktif — surat diperiksa dulu ' +
+          'sebelum dikirim. Bisa dimatikan di <b>Setelan → Pengaman pengiriman</b>.</p>'
+        : '') +
       (kanal === 'email'
         ? '<div class="btn-row" style="margin-top:8px">' +
             '<button class="btn" data-action="kirim-sendiri"' + (nSel ? '' : ' disabled') + '>' +
@@ -2780,6 +2790,27 @@ function viewPengaturan(){
   '</div>' +
 
   '<div class="card">' +
+    '<div class="card-head"><h2>Pengaman pengiriman</h2></div>' +
+    '<div class="row" style="justify-content:space-between">' +
+      '<span class="small"><b>Wajib periksa sebelum kirim</b>' +
+        '<div class="tiny muted">Setiap kali menekan <b>Kirim</b>, layar periksa muncul dulu — ' +
+        'daftar penerima, jumlah kwitansi, isi surat, dan pratinjau. Baru setelah itu bisa dikirim.</div></span>' +
+      '<button class="btn sm' + (state.settings.wajibPeriksa ? ' primary' : '') +
+        '" data-action="wajib-periksa-toggle">' +
+        (state.settings.wajibPeriksa ? 'Aktif' : 'Mati') + '</button>' +
+    '</div>' +
+    '<div class="sep"></div>' +
+    '<div class="field"><label>Alamat untuk koreksi kwitansi ' +
+      '<span class="hint">— dicetak di kwitansi</span></label>' +
+      '<input type="text" id="set-koreksi" value="' + esc(state.settings.kontakKoreksi) + '" ' +
+        'placeholder="finance@kartidaya.org"></div>' +
+    '<button class="btn" data-action="koreksi-save">Simpan</button>' +
+    '<p class="tiny muted" style="margin-top:8px">Kwitansi memuat baris: ' +
+      '“Ada yang perlu diperbaiki? Hubungi <b>alamat di atas</b> dengan menyebut kode di atas.” ' +
+      'Ini memudahkan donor melaporkan kekeliruan tanpa harus mencari kontak.</p>' +
+  '</div>' +
+
+  '<div class="card">' +
     '<div class="card-head"><h2>Tampilan</h2></div>' +
     '<div class="row"><span class="small">Tema</span>' +
       '<button class="btn sm" data-action="tema-light">Terang</button>' +
@@ -3371,6 +3402,15 @@ async function kirimSurat(asDraft){
   const ids = Object.keys(suratState.selected).filter(function(k){ return suratState.selected[k]; });
   if(!ids.length){ toast('Pilih penerima dulu', true); return; }
   if(!suratState.isi.trim()){ toast('Isi surat masih kosong', true); return; }
+
+  /* Pratinjau wajib: kalau aktif, tombol Kirim membuka layar periksa dulu.
+     Dari layar itu user menekan "Kirim sekarang" — dan panggilan itu memakai
+     penanda `dariPeriksa` supaya tidak berputar tanpa henti. */
+  if(!asDraft && !suratState.dariPeriksa && state.settings.wajibPeriksa){
+    openPeriksaKirim();
+    return;
+  }
+  suratState.dariPeriksa = false;
 
   const kanal = suratState.kanal === 'whatsapp' ? 'whatsapp' : 'email';
 
@@ -4229,7 +4269,7 @@ document.addEventListener('click', function(e){
       pratinjauOpsi.tab = act.getAttribute('data-tab') === 'teks' ? 'teks' : 'html';
       gambarPratinjauEmail(findDonor(suratState.previewId));
       break;
-    case 'kirim-dari-periksa': closeModal(); kirimSurat(false); break;
+    case 'kirim-dari-periksa': closeModal(); suratState.dariPeriksa = true; kirimSurat(false); break;
     case 'print-one': { const d = findDonor(id); if(d) printLetter(d); break; }
     case 'cetak-alamat': { const d = findDonor(id); if(d) printAlamat(d); break; }
     case 'fin-baru': openFinForm(''); break;
@@ -4409,6 +4449,19 @@ document.addEventListener('click', function(e){
     case 'tema-light': setTheme('light'); break;
     case 'tema-dark':  setTheme('dark'); break;
     case 'tema-auto':  setTheme('auto'); break;
+    case 'wajib-periksa-toggle':
+      state.settings.wajibPeriksa = !state.settings.wajibPeriksa;
+      save('settings'); render();
+      toast(state.settings.wajibPeriksa
+        ? 'Pratinjau wajib diaktifkan — kirim akan lewat layar periksa dulu'
+        : 'Pratinjau wajib dimatikan — kirim langsung tanpa periksa');
+      break;
+    case 'koreksi-save': {
+      const el = document.getElementById('set-koreksi');
+      state.settings.kontakKoreksi = (el ? el.value.trim() : '') || 'finance@kartidaya.org';
+      save('settings'); render(); toast('Alamat koreksi disimpan');
+      break;
+    }
     case 'test-id': {
       const pic = (document.getElementById('test-pic')||{}).value || '';
       const inst = (document.getElementById('test-inst')||{}).value || '';

@@ -2168,9 +2168,13 @@ teks dengan penanda `#` yang tidak pernah diproses, sehingga kwitansi menampilka
 `#Tujuh ratus lima puluh ribu rupiah#`. Sudah dibetulkan menjadi
 `Tujuh ratus lima puluh ribu rupiah`.
 
-**Yang belum dikerjakan dari §19.3:** pratinjau **wajib** (saat ini masih bisa
-dilewati). Menunggu keputusan Anda — kalau diwajibkan, setiap kali menekan
-**Kirim** akan muncul layar periksa dulu dan tidak bisa langsung kirim.
+**Yang belum dikerjakan dari §19.3:** tidak ada lagi — semua pengaman sudah
+terpasang. Setelan **Pengaman pengiriman → Wajib periksa sebelum kirim** aktif
+secara bawaan. Saat aktif, tombol Kirim berubah jadi **🔍 Periksa & Kirim** dan
+selalu membuka layar periksa dulu; pengiriman sungguhan baru terjadi setelah
+menekan **➤ Kirim sekarang** di layar itu. Bisa dimatikan di Setelan kalau
+dirasa mengganggu. Alamat untuk koreksi kwitansi juga bisa diubah di kartu
+yang sama.
 
 ---
 
@@ -2180,13 +2184,13 @@ dilewati). Menunggu keputusan Anda — kalau diwajibkan, setiap kali menekan
 |---|---|---|---|
 | 1 | ~~**Kwitansi PNG** di Tulis Surat (§19.2)~~ | ~~±1 jam~~ | ✅ **SELESAI 12 Nov 2026** |
 | 2 | ~~**Kode kiriman + tanggal kirim + daftar per pengiriman** (§19.3)~~ | ~~±2 jam~~ | ✅ **SELESAI 12 Nov 2026** |
-| 3 | **Pratinjau wajib** (§19.3) — tombol "kirim ke diri sendiri" sudah selesai | ±30 menit | keputusan Anda |
+| 3 | ~~**Pratinjau wajib** (§19.3)~~ | ~~±30 menit~~ | ✅ **SELESAI 12 Nov 2026** |
 | 4 | **Terima PDF majalah** + PNG otomatis (§19.1) | ±1,5 jam | berkas PDF dari user |
 | 5 | **Halaman pembaca** `/baca/<id>` (§18.2) | ±2 jam | langkah 4 |
 | 6 | **Sampul + tombol Baca majalah di email** (§18.2) | ±1 jam | langkah 5 |
 | 7 | **WhatsApp: kirim PNG & PDF** (§18.1) | ±2,5 jam | akun Meta tidak BLOCKED |
 
-**Bisa dikerjakan sekarang (tidak menunggu apa pun): langkah 3.**
+**Bisa dikerjakan sekarang (tidak menunggu apa pun): tidak ada lagi.**
 Langkah 4–6 menunggu berkas PDF majalah. Langkah 7 menunggu Meta.
 
 ---
