@@ -3131,4 +3131,63 @@ mengotori catatan resmi.
 **"Riwayat Surat"**, saat kosong menampilkan *"Belum ada surat untuk donor
 ini."*, dan kata "buku" tidak muncul lagi di 9 halaman yang diperiksa.
 
+### 21.6 Menu "Uji" dihapus — disederhanakan jadi satu baris (12 Nov 2026)
+
+**Masukan Anda:** *"konsep kirim ke saya sendiri dulu … dalam kalimat ini terkesan
+sangat sederhana.. ternyata tidak ini komplex … sebelum tombol kirim ke saya
+sendiri dulu sudah ada tombol Pratinjau email dan ada periksa sebelum kirim ..
+sudah sangat baik dan cukup.. menurut saya menu uji sudah tidak diperlukan."*
+
+**Anda benar.** Saya yang membuatnya terlalu rumit. Menu **Uji** itu hasil
+tambahan saya sendiri, bukan permintaan Anda — dan itu menambah satu halaman
+baru yang harus dipelajari, padahal **Pratinjau email** dan **Periksa sebelum
+kirim** sudah cukup untuk memeriksa tampilan.
+
+**Yang dihapus:**
+
+| Dihapus | Keterangan |
+|---|---|
+| Menu **✉ Uji** di navigasi | kembali ke 8 menu |
+| Halaman **Kotak Uji** | beserta 4 langkah, daftar kartu, dan 5 tombolnya |
+| Tombol **👁 Lihat isi salinan** | tidak perlu — isinya sudah bisa dilihat di Pratinjau email |
+| Tombol **↻ Kirim ulang** | tidak perlu — cukup tekan tombol kirim lagi |
+| Tombol **Hapus** per salinan | diganti satu tombol **Bersihkan** |
+| Penyimpanan isi HTML salinan | tidak perlu lagi, jadi `localStorage` lebih hemat |
+
+**Yang tetap ada (sesuai pilihan Anda — opsi B):**
+
+Tombol **✉ Kirim ke saya sendiri dulu** tetap ada, karena itu **satu-satunya
+cara membuktikan tanda dibaca & tombol konfirmasi benar-benar bekerja di email
+sungguhan**. Pratinjau hanya menampilkan tampilan — tidak bisa membuktikan
+pixel-nya jalan.
+
+**Bentuk barunya — satu baris kecil di bawah tombol:**
+
+```
+Salinan terakhir baru saja ke kantor@kartidaya.org:  ✓✓ Dibaca  ✓ Dikonfirmasi  [Bersihkan]
+```
+
+Hanya **salinan terakhir** yang ditampilkan (maksimal 5 disimpan), jadi tidak
+pernah jadi daftar panjang. Tidak ada halaman baru, tidak ada langkah baru.
+
+**Catatan teknis:** baris itu diperbarui dengan `segarkanBarisUji()` yang hanya
+mengganti isi satu elemen — **bukan** `render()` seluruh halaman. Kalau memakai
+`render()`, isi surat yang sedang diketik ikut terhapus.
+
+**Hasil uji (12 Nov 2026):**
+
+| # | Yang diuji | Hasil |
+|---|---|---|
+| 1 | Menu Uji hilang dari navigasi | ✅ kembali 8 menu |
+| 2 | Baris uji kosong sebelum ada salinan | ✅ |
+| 3 | Kirim → baris muncul otomatis | ✅ *"Salinan terakhir baru saja ke kantor@kartidaya.org"* |
+| 4 | Isi surat yang diketik tidak terhapus | ✅ |
+| 5 | Buka pixel di Worker → chip berubah | ✅ **✓✓ Dibaca** |
+| 6 | Buka halaman konfirmasi → chip berubah | ✅ **✓ Dikonfirmasi** |
+| 7 | Tombol **Bersihkan** | ✅ baris hilang, daftar jadi 0 |
+| 8 | Pratinjau email + tombolnya | ✅ |
+| 9 | Periksa sebelum kirim + tombolnya | ✅ |
+| 10 | Halaman donor → **Riwayat Surat** | ✅ |
+| 11 | Semua halaman lain tetap jalan | ✅ 8 halaman diperiksa |
+
 ---

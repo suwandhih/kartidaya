@@ -1218,7 +1218,6 @@ const PAGES = [
   { id:'surat',      label:'Tulis',      ico:'✎' },
   { id:'keuangan',   label:'Keuangan',   ico:'◫' },
   { id:'kategori',   label:'Kategori',   ico:'▤' },
-  { id:'uji',        label:'Uji',        ico:'✉' },
   { id:'pengaturan', label:'Setelan',    ico:'⚙' }
 ];
 let currentPage = 'beranda';
@@ -1270,7 +1269,6 @@ function render(){
   else if(currentPage === 'surat')      v.innerHTML = viewSurat();
   else if(currentPage === 'keuangan')   v.innerHTML = viewKeuangan();
   else if(currentPage === 'kategori')   v.innerHTML = viewKategori();
-  else if(currentPage === 'uji')        v.innerHTML = viewUji();
   else if(currentPage === 'pengaturan') v.innerHTML = viewPengaturan();
   else v.innerHTML = '<div class="empty">Halaman tidak ditemukan</div>';
   afterRender();
@@ -1825,7 +1823,8 @@ function viewSurat(){
               ' — atur di <b>Setelan → Pengaman pengiriman</b>. ' +
               'Isinya memakai penerima pertama sebagai contoh, dan <b>tidak masuk riwayat surat donor</b>.' +
             '</span>' +
-          '</div>'
+          '</div>' +
+          '<div id="wadah-uji">' + barisUji() + '</div>'
         : '') +
     '</div>' +
 
@@ -2183,14 +2182,19 @@ function openPeriksaKirim(){
   });
 }
 
-/* ---------- KOTAK UJI ---------- */
+/* ---------- SALINAN UJI ---------- */
 
-/* Salinan uji ("Kirim ke saya sendiri dulu") memakai tanda dibaca & tombol
-   konfirmasi yang sama seperti surat sungguhan, tapi TIDAK dicatat di buku
-   donor. Supaya hasilnya tetap bisa dilihat, catatannya disimpan terpisah di
-   sini — dan hanya yang masih menunggu kabar yang disimpan, jadi daftarnya
-   tidak menumpuk. */
-const UJI_MAKS = 20;
+/* Tombol "✉ Kirim ke saya sendiri dulu" mengirim satu salinan ke email sendiri
+   supaya bisa diperiksa di kotak masuk sungguhan. Salinan itu memakai tanda
+   dibaca & tombol konfirmasi yang sama seperti surat sungguhan, tetapi TIDAK
+   masuk riwayat surat donor.
+
+   Hasilnya ditampilkan sebagai SATU BARIS kecil di halaman Tulis — bukan
+   halaman/menu tersendiri. Alasannya: Pratinjau email & Periksa sebelum kirim
+   sudah cukup untuk memeriksa tampilan; yang tidak bisa dibuktikan keduanya
+   hanyalah apakah tanda dibaca & tombol konfirmasi benar-benar bekerja. Jadi
+   hanya itu yang perlu ditampilkan, sesingkat mungkin. */
+const UJI_MAKS = 5;
 
 function catatUji(rec){
   if(!state.uji) state.uji = [];
@@ -2230,116 +2234,45 @@ async function cekUji(){
       });
     }
     save('uji');
-    render();
+    segarkanBarisUji();
   }catch(e){ /* diamkan — ini hanya alat bantu uji */ }
 }
 
-function hapusUji(id){
-  state.uji = (state.uji || []).filter(function(u){ return u.id !== id; });
-  save('uji');
-  render();
-}
-
 function hapusSemuaUji(){
-  if(!(state.uji || []).length){ toast('Kotak uji sudah kosong'); return; }
   state.uji = [];
   save('uji');
-  render();
-  toast('Semua catatan uji dihapus');
+  segarkanBarisUji();
 }
 
-/* Lihat isi salinan uji. Ditampilkan di jendela pratinjau di dalam aplikasi —
-   bukan tab baru, karena tab baru sering diblokir browser. */
-function bukaUji(id){
-  const u = (state.uji || []).filter(function(x){ return x.id === id; })[0];
-  if(!u){ toast('Catatan uji tidak ditemukan', true); return; }
-  if(!u.html){ toast('Isi salinan ini tidak tersimpan — tekan “Kirim ulang” untuk melihatnya', true); return; }
-  openModal({
-    title:'Isi salinan uji — ' + (u.subjek || '(tanpa subjek)'),
-    body:'<p class="tiny muted" style="margin:0 0 8px">Dikirim ke <b>' + esc(u.tujuan) + '</b> · ' +
-      esc(fmtDateTime(u.tanggal)) + '</p>' +
-      '<iframe class="pj-iframe" id="uji-iframe" sandbox="allow-same-origin" ' +
-        'title="Isi salinan uji" style="height:60vh"></iframe>',
-    wide:true,
-    footer:'<span class="tiny muted" style="margin-right:auto">Ini salinan yang benar-benar terkirim.</span>' +
-      '<button class="btn" data-close>Tutup</button>',
-    onOpen:function(root){
-      const f = root.querySelector('#uji-iframe');
-      if(f) f.srcdoc = u.html;
-    }
-  });
-}
-
-/* Kirim ulang salinan uji dengan isi surat yang sekarang. Berguna kalau surat
-   sudah diubah dan ingin memeriksa hasil terbarunya. */
-async function ulangUji(id){
-  const u = (state.uji || []).filter(function(x){ return x.id === id; })[0];
-  if(!u){ toast('Catatan uji tidak ditemukan', true); return; }
-  if(u.donorId) suratState.selected = (function(){ const o = {}; o[u.donorId] = true; return o; })();
-  await kirimKeSendiri();
-}
-
-function viewUji(){
-  setTitle('Kotak Uji', 'Salinan percobaan yang dikirim ke email Anda sendiri');
-  const list = state.uji || [];
-  const tujuan = emailUji();
-
-  const kartu = list.map(function(u){
-    const d = findDonor(u.donorId);
-    const chipDibaca = u.pixelId
-      ? (u.dibaca
-          ? '<span class="chip st-dibaca" title="Dibuka ' + esc(fmtDateTime(u.dibaca)) + '">✓✓ Dibaca</span>'
-          : '<span class="chip plain">✓✓ Belum dibaca</span>')
-      : '<span class="chip plain">tanpa tanda dibaca</span>';
-    const chipTerima = u.terimaId
-      ? (u.dikonfirmasi
-          ? '<span class="chip ok" title="Dikonfirmasi ' + esc(fmtDateTime(u.dikonfirmasi)) + '">✓ Dikonfirmasi</span>'
-          : '<span class="chip plain">belum dikonfirmasi</span>')
-      : '';
-    return '<article class="mail">' +
-      '<div class="mail-top">' +
-        '<span class="mail-who">' + esc(u.subjek || '(tanpa subjek)') + '</span>' +
-        '<span class="mail-time">' + relTime(u.tanggal) + '</span>' +
-      '</div>' +
-      '<div class="mail-prev">Dikirim ke <b>' + esc(u.tujuan) + '</b>' +
-        (d ? ' · contoh penerima: ' + esc(donorName(d)) : '') + '</div>' +
-      '<div class="mail-foot">' + chipDibaca + chipTerima +
-        '<span class="chip plain">tidak masuk riwayat donor</span>' +
-      '</div>' +
-      '<div class="btn-row" style="margin-top:8px">' +
-        '<button class="btn sm" data-action="uji-buka" data-id="' + esc(u.id) + '"' +
-          (u.html ? '' : ' disabled') + '>👁 Lihat isi salinan</button>' +
-        '<button class="btn sm" data-action="uji-ulang" data-id="' + esc(u.id) + '">↻ Kirim ulang</button>' +
-        '<button class="btn sm ghost" data-action="uji-hapus" data-id="' + esc(u.id) + '">Hapus</button>' +
-      '</div>' +
-    '</article>';
-  }).join('');
-
-  return '<div class="card">' +
-    '<div class="card-head"><h2>Kotak Uji</h2>' +
-      '<span class="hint">' + list.length + ' salinan terakhir</span></div>' +
-    '<p class="small muted" style="margin:0 0 10px">Salinan dari tombol <b>✉ Kirim ke saya sendiri dulu</b>. ' +
-      'Isinya sama persis dengan yang akan diterima donor — termasuk tanda dibaca dan tombol konfirmasi — ' +
-      'tetapi <b>tidak masuk riwayat surat donor</b>.</p>' +
-    '<div class="row" style="justify-content:space-between;align-items:center">' +
-      '<span class="small">Salinan dikirim ke <b>' + esc(tujuan || '(belum diisi)') + '</b></span>' +
-      '<button class="btn sm" data-go="pengaturan">⚙ Ubah alamat</button>' +
-    '</div>' +
-    '<div class="sep"></div>' +
-    '<p class="small" style="margin:0 0 8px"><b>Apa yang harus dilakukan di sini?</b></p>' +
-    '<ol class="small muted" style="margin:0 0 12px;padding-left:20px;line-height:1.7">' +
-      '<li>Buka kotak masuk <b>' + esc(tujuan || 'email uji') + '</b> — periksa tampilan surat, kwitansi, dan majalahnya.</li>' +
-      '<li>Kembali ke sini. Kalau chip <b>✓✓ Dibaca</b> sudah menyala, berarti tanda dibaca bekerja.</li>' +
-      '<li>Di email itu, tekan tombol <b>Konfirmasi sudah menerima</b>. Chip <b>✓ Dikonfirmasi</b> akan menyala.</li>' +
-      '<li>Kalau sudah yakin, hapus catatannya — atau biarkan, maksimal 20 yang disimpan.</li>' +
-    '</ol>' +
-    (list.length
-      ? '<div class="mail-list">' + kartu + '</div>' +
-        '<div class="sep"></div>' +
-        '<button class="btn danger" data-action="uji-hapus-semua">Hapus semua catatan uji</button>'
-      : '<div class="empty"><span class="big">✉</span><p>Belum ada salinan uji.<br>' +
-        'Buka <b>Tulis</b>, pilih penerima, lalu tekan <b>✉ Kirim ke saya sendiri dulu</b>.</p></div>') +
+/* Satu baris ringkas di halaman Tulis: salinan uji terakhir + hasilnya.
+   Sengaja hanya menampilkan yang TERAKHIR supaya tidak jadi daftar panjang. */
+function barisUji(){
+  const u = (state.uji || [])[0];
+  if(!u) return '';
+  const chipDibaca = u.pixelId
+    ? (u.dibaca
+        ? '<span class="chip st-dibaca" title="Dibuka ' + esc(fmtDateTime(u.dibaca)) + '">✓✓ Dibaca</span>'
+        : '<span class="chip plain">✓✓ Belum dibaca</span>')
+    : '';
+  const chipTerima = u.terimaId
+    ? (u.dikonfirmasi
+        ? '<span class="chip ok" title="Dikonfirmasi ' + esc(fmtDateTime(u.dikonfirmasi)) + '">✓ Dikonfirmasi</span>'
+        : '<span class="chip plain">belum dikonfirmasi</span>')
+    : '';
+  return '<div class="row" style="margin-top:8px;align-items:center;gap:8px">' +
+    '<span class="tiny muted">Salinan terakhir ' + relTime(u.tanggal) + ' ke <b>' +
+      esc(u.tujuan) + '</b>:</span>' +
+    chipDibaca + chipTerima +
+    '<button class="btn sm ghost" data-action="uji-bersihkan">Bersihkan</button>' +
   '</div>';
+}
+
+/* Perbarui HANYA baris uji, tanpa menggambar ulang seluruh halaman Tulis.
+   Kalau memakai render(), isi surat yang sedang diketik ikut terhapus. */
+function segarkanBarisUji(){
+  const wadah = document.getElementById('wadah-uji');
+  if(!wadah) return;
+  wadah.innerHTML = barisUji();
 }
 
 /* Kotak 5 isian serba guna di halaman Tulis. Diisi SEKALI, lalu dipakai di
@@ -3375,7 +3308,7 @@ function viewPengaturan(){
         ? 'Salinan uji dikirim ke <b>' + esc(state.settings.emailUji) + '</b>.'
         : 'Dikosongkan berarti salinan uji dikirim ke <b>' +
           esc(Gmail.email || 'email Gmail yang tersambung') + '</b>.') +
-      ' Salinan uji <b>tidak masuk riwayat surat donor</b> — hasilnya bisa dilihat di halaman <b>Uji</b>.</p>' +
+      ' Salinan uji <b>tidak masuk riwayat surat donor</b>.</p>' +
     '<div class="sep"></div>' +
     '<div class="field"><label>Alamat untuk koreksi kwitansi ' +
       '<span class="hint">— dicetak di kwitansi</span></label>' +
@@ -4232,6 +4165,7 @@ async function kirimKeSendiri(){
       html: html.length > 400000 ? '' : html
     });
     toast('Salinan uji terkirim ke ' + tujuan + ' — periksa kotak masuk Anda');
+    segarkanBarisUji();
   }catch(e){
     toast('Gagal kirim salinan uji: ' + (e.message || e), true);
   }finally{
@@ -5108,10 +5042,7 @@ document.addEventListener('click', function(e){
     case 'kirim': kirimSurat(false); break;
     case 'kirim-sendiri': kirimKeSendiri(); break;
     case 'kirim-sendiri-dari-pratinjau': closeModal(); kirimKeSendiri(); break;
-    case 'uji-hapus': hapusUji(e.target.dataset.id); break;
-    case 'uji-hapus-semua': hapusSemuaUji(); break;
-    case 'uji-buka': bukaUji(e.target.dataset.id); break;
-    case 'uji-ulang': ulangUji(e.target.dataset.id); break;
+    case 'uji-bersihkan': hapusSemuaUji(); break;
     case 'kirim-sendiri-dari-periksa': closeModal(); kirimKeSendiri(); break;
     case 'simpan-draft': kirimSurat(true); break;
     case 'sel-all':
