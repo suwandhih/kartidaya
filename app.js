@@ -1566,6 +1566,11 @@ function setTitle(t, s){
 function layarMasuk(){
   const salah = (window._loginGalat || '');
   const alamatDaftar = Akun.alamatDaftar();
+  /* Pada pemakaian pertama di sebuah browser, kunci aplikasi belum ada.
+     Kalau kolomnya disembunyikan, pengguna hanya melihat "Kunci aplikasi
+     salah" tanpa tahu apa yang harus diisi. Jadi blok server dibuka sendiri
+     sampai kuncinya terisi. */
+  const perluServer = window._loginServer || !WhatsApp.appKey;
   return '<div class="masuk">' +
     '<div class="masuk-kotak">' +
       '<div class="masuk-merek">' +
@@ -1589,10 +1594,14 @@ function layarMasuk(){
           ? '<a href="' + esc(alamatDaftar) + '" target="_blank" rel="noopener">Buat akun di halaman pendaftaran</a>'
           : 'Minta admin membuatkan akun') +
       '</p>' +
-            (window._loginServer
+            (perluServer
               ? '<div class="sep"></div>' +
-                '<p class="tiny muted">Alamat server aplikasi ini. Hanya perlu diubah kalau ' +
-                  'alamat Worker berubah atau baru dipasang.</p>' +
+                '<p class="tiny muted">' +
+                  (WhatsApp.appKey
+                    ? 'Alamat server aplikasi ini. Hanya perlu diubah kalau alamat Worker berubah atau baru dipasang.'
+                    : '<b>Pertama kali di browser ini.</b> Tempel <b>Kunci aplikasi</b> yang sama ' +
+                      'seperti di komputer lain. Alamat Worker sudah terisi otomatis.') +
+                '</p>' +
                 '<div class="field"><label>Alamat Worker</label>' +
                   '<input type="text" id="login-endpoint" class="mono" value="' +
                     esc(WhatsApp.endpoint || state.settings.waEndpoint || DEFAULT_WORKER) + '"></div>' +
@@ -1601,7 +1610,9 @@ function layarMasuk(){
                     esc(WhatsApp.appKey || '') + '"></div>' +
                 '<div class="btn-row">' +
                   '<button class="btn sm primary" data-action="masuk-server-simpan">Simpan</button>' +
-                  '<button class="btn sm ghost" data-action="masuk-server-batal">Batal</button>' +
+                  (WhatsApp.appKey
+                    ? '<button class="btn sm ghost" data-action="masuk-server-batal">Batal</button>'
+                    : '') +
                 '</div>'
               : '<p class="tiny muted" style="margin-top:10px;text-align:center">' +
                   'Server: <span class="mono">' + esc(workerBase() || 'belum diisi') + '</span> · ' +
@@ -1625,6 +1636,7 @@ function layarMasuk(){
           toast('Alamat harus diawali https:// (atau http://localhost untuk uji)', true);
           return;
         }
+        if(!appKey){ toast('Kunci aplikasi belum diisi', true); return; }
         WhatsApp.endpoint = endpoint;
         WhatsApp.appKey = appKey;
         state.settings.waEndpoint = endpoint;
