@@ -3364,4 +3364,61 @@ sungguhan**.
 **Catatan:** §22.1 dan §22.2 saya sarankan dikerjakan **lebih dulu** — keduanya
 kecil, tetapi melindungi data yang sudah ada.
 
+### 22.13 Pemeriksaan ulang isi Cloudflare — 12 Nov 2026, 21:15 WIB
+
+*Menjawab pertanyaan Anda: "apakah data sekarang sudah di cloudflare?"*
+
+**Jawaban singkat: TIDAK — dan memang begitu seharusnya.** Data donor, surat,
+keuangan, dan template **tidak pernah** dikirim ke Cloudflare. Yang ada di
+Cloudflare hanya **berkas sementara untuk pengiriman**.
+
+**Isi KV `WA_INBOX` yang diperiksa langsung dari dashboard:**
+
+| Awalan kunci | Jumlah | Isinya | Perlu? |
+|---|---|---|---|
+| `majalah:` | **32** | gambar halaman majalah (2 edisi × 16 halaman) | ✅ ya |
+| `majalah-meta:` | 2 | info majalah (judul, jumlah halaman) | ✅ ya |
+| `majalah-pdf:` | 2 | berkas PDF majalah (untuk lampiran WhatsApp) | ✅ ya |
+| `majalah-pdf-meta:` | 2 | info PDF | ✅ ya |
+| `pixel:` | 10 | catatan email dibuka | ✅ ya |
+| `terima:` | 8 | catatan tombol konfirmasi ditekan | ✅ ya |
+| `status` | 1 | status kirim WhatsApp (2 data uji lama) | ⚠️ sisa uji |
+| `kwitansi:` | **0** | — | belum ada yang dikirim |
+| `inbox` | **0** | antrean WhatsApp masuk | kosong (WhatsApp ditunda) |
+
+**Total: 57 kunci.** Tidak ada satu pun yang berisi data donor.
+
+**Yang TIDAK ada di Cloudflare (dan tidak akan pernah ada):**
+
+| Data | Tempatnya | Ukuran |
+|---|---|---|
+| 18 donor | browser (localStorage) | 5,5 KB |
+| Surat masuk & keluar | browser | 2,9 KB |
+| Template surat | browser | 1,3 KB |
+| Data keuangan | browser | 0,7 KB |
+| Kategori, program, isian | browser | 0,5 KB |
+
+**Kesimpulan:** Cloudflare hanya menyimpan **"amplop dan perangko"** — gambar
+majalah, catatan siapa yang sudah membuka email, dan catatan konfirmasi. Isi
+suratnya sendiri tidak pernah dikirim ke sana.
+
+**Dua temuan kecil dari pemeriksaan ini:**
+
+| # | Temuan | Akibat | Tindakan |
+|---|---|---|---|
+| 1 | **Ada 2 edisi majalah tersimpan** (`mj-mwd7dkpbnl69qa` = "Majalah Kartidaya" tanpa judul, dan `mj-mwd84jp2m3akwg` = "Firman Hidup Edisi Oktober 2026") | 32 gambar halaman menumpuk di KV, padahal aplikasi hanya memakai **satu** | hapus yang tidak dipakai lewat tombol **Hapus majalah** |
+| 2 | Kunci `status` masih memuat **2 data uji lama** dari 5 Nov 2026 (`TESTWAMID123`, `TESTWAMID999`) | tidak mengganggu, hanya sisa uji | bisa dihapus manual dari dashboard |
+
+**Catatan penting soal temuan 1:** aplikasi **hanya menyimpan satu majalah** di
+`localStorage` (`state.settings.majalah`). Jadi kalau Anda mengunggah majalah
+baru, yang lama **tetap tinggal di Cloudflare** tetapi **tidak bisa dipakai
+lagi** — hanya memakan tempat. Ini alasan tambahan untuk mengerjakan §22.3
+(daftar edisi) atau setidaknya menghapus majalah lama sebelum mengunggah yang
+baru.
+
+**Cara memastikan sendiri kapan saja:** buka
+`https://dash.cloudflare.com` → **Workers & Pages** → **KV** → **WA_INBOX**.
+Semua kunci yang ada di sana berawalan `majalah`, `pixel`, `terima`, atau
+`kwitansi` — tidak akan ada nama donor.
+
 ---
