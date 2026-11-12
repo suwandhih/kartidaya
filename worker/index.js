@@ -360,6 +360,63 @@ function halamanBaca(meta, base, id){
 }
 
 /* ============================================================
+   KONFIRMASI PENERIMAAN — /terima/<id>
+
+   Tanda "sudah dibaca" (pixel) hanya petunjuk: kalau penerima
+   memakai Gmail yang memblokir gambar, kita tidak tahu apa-apa.
+   Tombol ini memberi kepastian — penerima menekannya sendiri,
+   dan kita tahu suratnya benar-benar sampai.
+
+   Halaman ini juga menampilkan ringkasan surat (nomor kwitansi,
+   jumlah) supaya penerima bisa memastikan yang diterima benar.
+   ============================================================ */
+
+function halamanTerima(info, sudah){
+  const judul = info.judul || 'Kartidaya Sahabat Indonesia';
+  const baris = [];
+  if (info.kwitansi) baris.push(['Nomor kwitansi', info.kwitansi]);
+  if (info.jumlah) baris.push(['Jumlah', info.jumlah]);
+  if (info.donor) baris.push(['Nama', info.donor]);
+  if (info.dikirim) baris.push(['Dikirim', info.dikirim]);
+
+  const tabel = baris.length
+    ? '<table>' + baris.map(function (b) {
+        return '<tr><td>' + escHtml(b[0]) + '</td><td><b>' + escHtml(b[1]) + '</b></td></tr>';
+      }).join('') + '</table>'
+    : '';
+
+  return '<!DOCTYPE html><html lang="id"><head>' +
+    '<meta charset="utf-8">' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<meta name="robots" content="noindex,nofollow">' +
+    '<title>' + (sudah ? 'Sudah dikonfirmasi' : 'Konfirmasi penerimaan') + '</title>' +
+    '<style>' +
+      '*{box-sizing:border-box}' +
+      'body{margin:0;padding:32px 18px;background:#f4f4f0;color:#111;' +
+        'font-family:Arial,Helvetica,sans-serif;line-height:1.6}' +
+      '.kotak{max-width:520px;margin:0 auto;background:#fff;border:1px solid #e0e0d8;' +
+        'border-radius:10px;padding:26px 24px;text-align:center}' +
+      '.tanda{font-size:44px;line-height:1;margin:0 0 10px}' +
+      'h1{font-size:19px;margin:0 0 8px}' +
+      'p{margin:0 0 14px;font-size:14px;color:#444}' +
+      'table{width:100%;border-collapse:collapse;margin:16px 0 4px;text-align:left;font-size:13.5px}' +
+      'td{padding:8px 0;border-bottom:1px solid #eee}' +
+      'td:first-child{color:#666;width:44%}' +
+      '.kaki{margin:18px 0 0;font-size:11.5px;color:#888}' +
+    '</style></head><body><div class="kotak">' +
+    (sudah
+      ? '<div class="tanda">✓</div><h1>Sudah dikonfirmasi</h1>' +
+        '<p>Terima kasih — konfirmasi Anda sudah tercatat sebelumnya.</p>'
+      : '<div class="tanda">✓</div><h1>Terima kasih!</h1>' +
+        '<p>Konfirmasi Anda sudah kami terima. Ini membantu kami memastikan ' +
+        'surat dan kwitansi sampai dengan benar.</p>') +
+    tabel +
+    '<p class="kaki">' + escHtml(judul) + '<br>' +
+      'Halaman ini tidak menyimpan data pribadi apa pun.</p>' +
+    '</div></body></html>';
+}
+
+/* ============================================================
    TANDA DIBACA — pixel 1×1 yang dicatat saat email dibuka.
 
    Klien email memuat gambar dari alamat publik, jadi satu
@@ -369,6 +426,7 @@ function halamanBaca(meta, base, id){
 const PIXEL_GIF = 'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
 function pixelKey(id){ return 'pixel:' + id; }
+function terimaKey(id){ return 'terima:' + id; }
 
 async function catatDibaca(env, id){
   try{
@@ -379,6 +437,24 @@ async function catatDibaca(env, id){
     rec.terakhir = now;
     await env.WA_INBOX.put(pixelKey(id), JSON.stringify(rec));
   }catch(e){ /* pencatatan gagal tidak boleh menggagalkan gambar */ }
+}
+
+/* Catat konfirmasi penerimaan. Kalau sudah pernah, kembalikan yang lama
+   supaya waktu konfirmasi pertama tidak tertimpa. */
+async function catatTerima(env, id, info){
+  const raw = await env.WA_INBOX.get(terimaKey(id));
+  if(raw) return JSON.parse(raw);
+  const rec = {
+    id: id,
+    waktu: new Date().toISOString(),
+    judul: String((info && info.judul) || '').slice(0, 120),
+    kwitansi: String((info && info.kwitansi) || '').slice(0, 60),
+    jumlah: String((info && info.jumlah) || '').slice(0, 60),
+    donor: String((info && info.donor) || '').slice(0, 120),
+    dikirim: String((info && info.dikirim) || '').slice(0, 60)
+  };
+  await env.WA_INBOX.put(terimaKey(id), JSON.stringify(rec));
+  return rec;
 }
 
 /* ---------- router ---------- */
@@ -450,6 +526,29 @@ export default {
             'Content-Length': String(gif.length),
             'Cache-Control': 'no-store, no-cache, must-revalidate, private',
             'Pragma': 'no-cache'
+          }
+        });
+      }
+
+      /* --- konfirmasi penerimaan (tanpa X-App-Key) ---
+         Penerima menekan tombol di email; halaman ini mencatatnya.
+         Info surat dikirim lewat query supaya tidak perlu kunci. */
+      const tr = path.match(/^\/terima\/([A-Za-z0-9_-]{4,64})$/);
+      if (tr && req.method === 'GET') {
+        const info = {
+          judul: url.searchParams.get('j') || '',
+          kwitansi: url.searchParams.get('k') || '',
+          jumlah: url.searchParams.get('n') || '',
+          donor: url.searchParams.get('d') || '',
+          dikirim: url.searchParams.get('w') || ''
+        };
+        const lama = await env.WA_INBOX.get(terimaKey(tr[1]));
+        const rec = await catatTerima(env, tr[1], info);
+        return new Response(halamanTerima(rec, !!lama), {
+          status: 200,
+          headers: {
+            'Content-Type': 'text/html; charset=utf-8',
+            'Cache-Control': 'no-store'
           }
         });
       }
@@ -647,6 +746,21 @@ export default {
           if (raw) hasil[id] = JSON.parse(raw);
         }
         return withCors(json({ ok: true, dibaca: hasil }), req);
+      }
+
+      /* Baca status konfirmasi penerimaan untuk sekumpulan ID. */
+      if (path === '/terima/status' && req.method === 'POST') {
+        const body = await req.json().catch(function () { return null; });
+        const ids = (body && body.ids) || [];
+        if (!Array.isArray(ids) || !ids.length) {
+          return withCors(json({ ok: true, terima: {} }), req);
+        }
+        const hasil = {};
+        for (const id of ids.slice(0, 200)) {
+          const raw = await env.WA_INBOX.get(terimaKey(String(id)));
+          if (raw) hasil[id] = JSON.parse(raw);
+        }
+        return withCors(json({ ok: true, terima: hasil }), req);
       }
 
       return withCors(json({ ok: false, error: 'Endpoint tidak dikenal: ' + path }, 404), req);

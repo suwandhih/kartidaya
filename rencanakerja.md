@@ -1081,8 +1081,7 @@ lalu menampilkan tanda **✓✓ Dibaca** di Kotak Keluar.
 - [x] `gmail.js`: dukung `multipart/alternative` (teks + HTML)
 - [x] `worker/index.js`: `GET /pixel/<id>` (pixel) + `POST /pixel/status`
 - [x] `app.js`: sisipkan pixel saat kirim, `cekTandaDibaca()`, chip **✓✓ Dibaca**
-- [ ] Tombol **Konfirmasi sudah menerima** di dalam email — belum, menunggu
-      keputusan Anda
+- [x] Tombol **Konfirmasi sudah menerima** di dalam email — ✅ SELESAI (12 Nov 2026)
 - [ ] `PANDUAN-GMAIL.md`: dokumentasi + tabel batasan — belum
 - [x] Uji: kirim → Worker melaporkan dibuka → chip berubah jadi **Dibaca**
 
@@ -1108,10 +1107,44 @@ lalu menampilkan tanda **✓✓ Dibaca** di Kotak Keluar.
 | Email masuk folder spam | biasanya tetap **Belum dibaca** |
 
 Jadi tanda ini **petunjuk, bukan kepastian**. Kalau ingin kepastian, perlu
-tombol **Konfirmasi sudah menerima** di dalam email — itu belum dibuat.
+tombol **Konfirmasi sudah menerima** di dalam email — ✅ **sudah dibuat
+12 Nov 2026** (lihat di bawah).
 
 **Syarat:** **Alamat Worker** harus terisi di **Setelan**. Tanpa Worker, email
 tetap terkirim tapi tanpa tanda dibaca.
+
+#### Fase 5b — tombol "Konfirmasi sudah menerima" — ✅ SELESAI (12 Nov 2026)
+
+**Kenapa perlu:** tanda dibaca (pixel) bisa gagal — Gmail & Outlook sering
+memblokir gambar, jadi kita tidak pernah tahu emailnya dibuka. Tombol ini
+memberi **kepastian**: penerima menekannya sendiri.
+
+| Bagian | Hasil |
+|---|---|
+| Tombol di email | **✓ Konfirmasi sudah menerima** — kotak abu-abu di bawah kwitansi |
+| Halaman konfirmasi | `https://kartidaya-wa.suwandhih.workers.dev/terima/<id>` |
+| Ringkasan di halaman | nomor kwitansi, jumlah, nama, waktu kirim — supaya penerima bisa memastikan angkanya benar |
+| Sekali tekan | tidak perlu menulis apa pun, tidak perlu login |
+| Kunjungan kedua | menampilkan "Sudah dikonfirmasi" — tidak menimpa waktu pertama |
+| Chip di Kotak Keluar | **✓ Dikonfirmasi** (hijau) + waktu konfirmasi |
+| Detail surat | baris **Konfirmasi penerimaan** |
+| Tombol manual | **✓ Cek konfirmasi** di Kotak Keluar |
+| Pemeriksaan otomatis | tiap 3 menit, saat tab aktif kembali, dan 6 detik setelah aplikasi dibuka |
+| ID per surat | `tr-…` unik per penerima — tombol di email A tidak bisa mengonfirmasi surat B |
+
+**Bedanya dengan tanda dibaca:**
+
+| | Tanda dibaca (pixel) | Konfirmasi penerimaan |
+|---|---|---|
+| Siapa yang menandai | otomatis, saat gambar dimuat | **penerima sendiri** yang menekan |
+| Kalau gambar diblokir | tidak terdeteksi | tetap terdeteksi |
+| Kepastian | petunjuk | **kepastian** |
+| Perlu tindakan penerima | tidak | ya, satu tekanan |
+
+**Hasil uji:** email terkirim memuat tombol + tautan konfirmasi yang benar
+(nomor kwitansi & jumlah ikut di dalamnya). Halaman konfirmasi diuji langsung
+di browser: menampilkan ringkasan dengan benar, dan kunjungan kedua berubah
+jadi "Sudah dikonfirmasi". Chip **✓ Dikonfirmasi** muncul di Kotak Keluar.
 
 ---
 

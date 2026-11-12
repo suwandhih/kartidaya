@@ -688,6 +688,49 @@ function pixelHTML(id){
   return '<img src="' + esc(src) + '" width="1" height="1" alt="" ' +
     'style="display:block;width:1px;height:1px;border:0;outline:none">';
 }
+/* Alamat halaman konfirmasi penerimaan. Info surat ikut di query supaya
+   halaman itu bisa menampilkan ringkasan tanpa perlu kunci aplikasi. */
+function terimaURL(id, info){
+  const base = workerBase();
+  if(!base || !id) return '';
+  const q = [];
+  const t = function(k, v){ if(v) q.push(k + '=' + encodeURIComponent(String(v).slice(0, 120))); };
+  t('j', info && info.judul);
+  t('k', info && info.kwitansi);
+  t('n', info && info.jumlah);
+  t('d', info && info.donor);
+  t('w', info && info.dikirim);
+  return base + '/terima/' + id + (q.length ? '?' + q.join('&') : '');
+}
+/* Tombol "Konfirmasi sudah menerima" di badan email. Tanda dibaca (pixel)
+   hanya petunjuk — kalau penerima memakai Gmail yang memblokir gambar, kita
+   tidak tahu apa-apa. Tombol ini memberi kepastian. */
+function terimaHTML(id, info){
+  const u = terimaURL(id, info);
+  if(!u) return '';
+  return '<div style="margin:22px 0 0;padding:16px 18px;border:1px solid #d8d8d0;' +
+      'border-radius:8px;background:#fafaf6;font-family:Arial,Helvetica,sans-serif;max-width:720px">' +
+      '<div style="font-size:13.5px;color:#333;margin:0 0 12px">' +
+        'Sudah menerima surat dan kwitansi ini? Tekan tombol di bawah supaya kami tahu ' +
+        'kiriman ini sampai dengan benar.' +
+      '</div>' +
+      '<a href="' + esc(u) + '" style="display:inline-block;background:#2f6f9f;color:#fff;' +
+        'text-decoration:none;font-size:14px;font-weight:bold;padding:11px 22px;border-radius:6px">' +
+        '✓ Konfirmasi sudah menerima</a>' +
+      '<div style="font-size:11px;color:#888;margin:10px 0 0">' +
+        'Satu tekanan saja — tidak perlu menulis apa pun.' +
+      '</div>' +
+    '</div>';
+}
+/* Ringkasan jumlah kwitansi dalam satu baris teks — dipakai di halaman
+   konfirmasi penerimaan supaya penerima bisa memastikan angkanya benar. */
+function totalTransaksiRingkas(d, finId){
+  const k = dataKwitansi(d, finId);
+  if(!k.ada) return '';
+  const kode = k.kodeUang.length ? k.kodeUang : ['IDR'];
+  return kode.map(function(u){ return fmtUang(k.perUang[u] || 0, u); }).join(' + ');
+}
+
 /* Tanya Worker surat mana yang sudah dibuka penerima. */
 async function cekTandaDibaca(){
   if(!WhatsApp.isConfigured()) return;
@@ -705,6 +748,29 @@ async function cekTandaDibaca(){
     pending.forEach(function(m){
       const rec = map[m.pixelId];
       if(rec && rec.pertama){ m.dibacaPenerima = rec.pertama; n++; }
+    });
+    if(n){ save('messages'); render(); }
+  }catch(e){ /* Worker belum siap — abaikan, coba lagi nanti */ }
+}
+
+/* Tanya Worker surat mana yang sudah DIKONFIRMASI penerima. Ini yang memberi
+   kepastian — berbeda dari tanda dibaca yang bisa gagal kalau gambar diblokir. */
+async function cekKonfirmasiTerima(){
+  if(!WhatsApp.isConfigured()) return;
+  const pending = state.messages.filter(function(m){
+    return m.arah === 'keluar' && m.terimaId && !m.terimaPenerima;
+  }).slice(0, 200);
+  if(!pending.length) return;
+  try{
+    const r = await WhatsApp.api('/terima/status', {
+      method:'POST',
+      body:{ ids: pending.map(function(m){ return m.terimaId; }) }
+    });
+    const map = (r && r.terima) || {};
+    let n = 0;
+    pending.forEach(function(m){
+      const rec = map[m.terimaId];
+      if(rec && rec.waktu){ m.terimaPenerima = rec.waktu; n++; }
     });
     if(n){ save('messages'); render(); }
   }catch(e){ /* Worker belum siap — abaikan, coba lagi nanti */ }
@@ -1294,6 +1360,7 @@ function viewKotak(arah){
         '<button class="btn primary" data-action="sync">⟳ Sinkron Gmail</button>' +
         '<button class="btn" data-action="wa-sync">⟳ Sinkron WhatsApp</button>'
       : '<button class="btn" data-action="cek-dibaca">✓✓ Cek tanda dibaca</button>' +
+        '<button class="btn" data-action="cek-terima">✓ Cek konfirmasi</button>' +
         '<button class="btn primary" data-go="surat">✎ Tulis Surat</button>') +
   '</div>' +
   '<p class="tiny muted" style="margin:-6px 0 12px">' + list.length + ' surat</p>' +
@@ -1314,6 +1381,10 @@ function viewKotak(arah){
           ? (m.dibacaPenerima
               ? '<span class="chip st-dibaca" title="Dibuka ' + esc(fmtDateTime(m.dibacaPenerima)) + '">✓✓ Dibaca</span>'
               : '<span class="chip plain" title="Belum ada kabar dibuka">✓✓ Belum dibaca</span>')
+          : '') +
+        (!isMasuk && m.terimaPenerima
+          ? '<span class="chip ok" title="Dikonfirmasi ' + esc(fmtDateTime(m.terimaPenerima)) +
+            '">✓ Dikonfirmasi</span>'
           : '') +
         (d ? '<span class="chip plain mono">' + esc(d.id) + '</span>'
            : '<span class="chip warn">belum dikenal</span>') +
@@ -2998,6 +3069,11 @@ function openMessage(msgId){
             ? '✓✓ ' + fmtDateTime(m.dibacaPenerima)
             : 'belum ada kabar (penerima mungkin memblokir gambar)')
         : '') +
+      (m.arah === 'keluar' && m.terimaId
+        ? kv('Konfirmasi penerimaan', m.terimaPenerima
+            ? '✓ Dikonfirmasi ' + fmtDateTime(m.terimaPenerima)
+            : 'belum dikonfirmasi penerima')
+        : '') +
       kv('Lampiran', m.lampiran) + kv('Catatan', m.catatan) +
       (m.kodeKiriman ? kv('Kode kiriman', m.kodeKiriman) : '') +
       (m.waktuKirim ? kv('Waktu kirim', m.waktuKirim) : '') +
@@ -3473,6 +3549,7 @@ function isiHTML(d, isiTeks, bahasa, finId, opts){
     (opts.kwitansi === false ? '' : kwitansiHTML(d, bahasa, finId,
       { kodeKiriman: opts.kodeKiriman, waktuKirim: opts.waktuKirim })) +
     (opts.majalah ? majalahHTML({ tautan: true }) : '') +
+    (opts.terimaId ? terimaHTML(opts.terimaId, opts.terimaInfo) : '') +
     (opts.pixelId ? pixelHTML(opts.pixelId) : '');
 }
 
@@ -3574,6 +3651,11 @@ async function kirimSurat(asDraft){
     const pixelId = (kanal === 'email' && !asDraft && workerBase())
       ? ('px-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10))
       : '';
+    /* ID konfirmasi juga per surat — supaya tombol di email satu penerima
+       tidak bisa mengonfirmasi surat penerima lain. */
+    const terimaId = (kanal === 'email' && !asDraft && workerBase())
+      ? ('tr-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10))
+      : '';
 
     if(useGmail){
       if(!d.email){
@@ -3584,14 +3666,22 @@ async function kirimSurat(asDraft){
         try{
           /* Kwitansi & majalah dikirim sebagai bagian HTML email, bukan
              lampiran, supaya penerima langsung melihatnya di badan surat. */
-          const pakaiHTML = suratState.kwitansi || suratState.majalah || pixelId;
+          const pakaiHTML = suratState.kwitansi || suratState.majalah || pixelId || terimaId;
           const html = pakaiHTML
             ? isiHTML(d, isi, suratState.kwitansiBahasa, suratState.kwitansiFinId, {
                 kwitansi: !!suratState.kwitansi,
                 majalah: !!suratState.majalah,
                 pixelId: pixelId,
                 kodeKiriman: kodeKrm,
-                waktuKirim: waktuKrm
+                waktuKirim: waktuKrm,
+                terimaId: terimaId,
+                terimaInfo: {
+                  judul: 'Kartidaya Sahabat Indonesia',
+                  kwitansi: suratState.kwitansi ? dataKwitansi(d, suratState.kwitansiFinId).kode : '',
+                  jumlah: suratState.kwitansi ? totalTransaksiRingkas(d, suratState.kwitansiFinId) : '',
+                  donor: donorName(d),
+                  dikirim: waktuKrm
+                }
               })
             : '';
           /* Salinan kwitansi disimpan apa adanya. Kalau nanti data keuangan
@@ -3641,6 +3731,7 @@ async function kirimSurat(asDraft){
       to: tujuan,
       gmailId:gmailId, threadId:threadId, waId:waId, dibaca:true,
       pixelId: pixelId, dibacaPenerima: '',
+      terimaId: terimaId, terimaPenerima: '',
       kodeKiriman: kodeKrm, waktuKirim: waktuKrm,
       kwitansiHTML: kwitansiSalinan, kwitansiBahasa: kwitansiBahasaSalinan,
       kwitansiFinId: suratState.kwitansi ? (dataKwitansi(d, suratState.kwitansiFinId).finId || '') : '',
@@ -4540,6 +4631,7 @@ document.addEventListener('click', function(e){
       break;
     }
     case 'cek-dibaca': cekTandaDibaca(); break;
+    case 'cek-terima': cekKonfirmasiTerima(); break;
     case 'auto-sync-toggle':
       state.settings.autoSync = !state.settings.autoSync;
       save('settings');
@@ -4728,15 +4820,18 @@ jagaSesiGmail();
 /* Fungsi sinkronOtomatis() ada di bagian 11 bersama gmailSync(). */
 setInterval(sinkronOtomatis, 60 * 1000);
 setInterval(waSinkronOtomatis, 60 * 1000);
-/* Tanda dibaca ikut diperiksa berkala — tidak perlu menekan tombol. */
-setInterval(cekTandaDibaca, 3 * 60 * 1000);
+/* Tanda dibaca & konfirmasi penerimaan ikut diperiksa berkala — tidak perlu
+   menekan tombol. */
+setInterval(function(){ cekTandaDibaca(); cekKonfirmasiTerima(); }, 3 * 60 * 1000);
 document.addEventListener('visibilitychange', function(){
-  if(!document.hidden){ sinkronOtomatis(); waSinkronOtomatis(); cekTandaDibaca(); }
+  if(!document.hidden){
+    sinkronOtomatis(); waSinkronOtomatis(); cekTandaDibaca(); cekKonfirmasiTerima();
+  }
 });
 /* Beri jeda sedikit supaya token sempat dipulihkan lebih dulu. */
 setTimeout(sinkronOtomatis, 3000);
 setTimeout(waSinkronOtomatis, 4000);
-setTimeout(cekTandaDibaca, 6000);
+setTimeout(function(){ cekTandaDibaca(); cekKonfirmasiTerima(); }, 6000);
 
 function cycleTheme(){
   const order = ['light','dark','auto'];

@@ -259,6 +259,8 @@ dibaca**. Tidak perlu Worker kedua.
 | `DELETE /majalah/<id>` | ya | hapus majalah beserta halamannya |
 | `GET /majalah/<id>/<n>` | **tidak** | gambar halaman ke-n — dipanggil klien email |
 | `GET /baca/<id>` | **tidak** | **halaman pembaca majalah** — satu halaman per layar, dibuka penerima |
+| `GET /terima/<id>` | **tidak** | **halaman konfirmasi penerimaan** — dibuka penerima saat menekan tombol di email |
+| `POST /terima/status` | ya | cek surat mana yang sudah dikonfirmasi penerima |
 | `GET /pixel/<id>` | **tidak** | gambar 1×1 — dipanggil klien email, sekaligus mencatat dibuka |
 | `POST /pixel/status` | ya | cek ID mana yang sudah dibuka |
 
@@ -301,6 +303,7 @@ lama belum punya endpoint-nya.
 | 3 | Majalah dari PDF | Tulis → **Unggah majalah** → pilih berkas PDF | Muncul "N halaman majalah tersimpan" |
 | 4 | Halaman pembaca | Tulis → **👁 Buka halaman pembaca** | Terbuka tab baru, satu halaman per layar |
 | 5 | Halaman pembaca tanpa majalah | Buka `https://<worker>/baca/tidakada` | Muncul "Majalah tidak ditemukan" (bukan error mentah) |
+| 6 | Konfirmasi penerimaan | Buka `https://<worker>/terima/uji123?k=KWT-1&n=Rp%20100.000` | Muncul "Terima kasih!" + ringkasan; buka lagi → "Sudah dikonfirmasi" |
 
 ---
 
