@@ -574,6 +574,40 @@ Ini berguna untuk demo dan pelatihan tanpa menyentuh email sungguhan.
 
 ---
 
+## Tanda dibaca & konfirmasi penerimaan
+
+Dua cara mengetahui surat sudah sampai. Keduanya **butuh Alamat Worker**
+terisi di **Setelan** — tanpa itu email tetap terkirim, tapi tanpa kabar apa pun.
+
+| | Tanda dibaca (pixel) | Konfirmasi penerimaan |
+|---|---|---|
+| Cara kerja | gambar 1×1 tak terlihat dimuat saat email dibuka | penerima menekan tombol **✓ Konfirmasi sudah menerima** |
+| Siapa yang menandai | otomatis | penerima sendiri |
+| Kalau gambar diblokir | tidak terdeteksi | tetap terdeteksi |
+| Kepastian | petunjuk | **kepastian** |
+| Perlu tindakan penerima | tidak | ya, satu tekanan |
+| Tampil di aplikasi | chip **✓✓ Dibaca** | chip **✓ Dikonfirmasi** |
+
+**Cara memeriksa:** buka **Kotak Keluar** → tombol **✓✓ Cek tanda dibaca** atau
+**✓ Cek konfirmasi**. Pemeriksaan juga berjalan sendiri tiap 3 menit, saat tab
+kembali aktif, dan 6 detik setelah aplikasi dibuka.
+
+**Batasan tanda dibaca — jangan kaget:**
+
+| Keadaan | Yang terlihat |
+|---|---|
+| Penerima membuka email, gambar dimuat | **✓✓ Dibaca** + waktu buka |
+| Gmail/Outlook memblokir gambar | tetap **Belum dibaca** — bukan berarti tidak dibaca |
+| Penerima membaca mode teks saja | tetap **Belum dibaca** |
+| Email masuk folder spam | biasanya tetap **Belum dibaca** |
+| Apple Mail *Privacy Protection* | bisa **salah positif** — gambar dimuat walau belum dibuka |
+
+Karena itu tombol **Konfirmasi sudah menerima** lebih dapat dipercaya. Halaman
+konfirmasinya juga menampilkan nomor kwitansi, jumlah, nama, dan waktu kirim —
+supaya penerima bisa memastikan angkanya benar.
+
+---
+
 ## Lampiran: UI lama
 
 Kalau Google Cloud Console Anda masih menampilkan halaman **OAuth consent screen**

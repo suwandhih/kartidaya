@@ -1082,7 +1082,7 @@ lalu menampilkan tanda **✓✓ Dibaca** di Kotak Keluar.
 - [x] `worker/index.js`: `GET /pixel/<id>` (pixel) + `POST /pixel/status`
 - [x] `app.js`: sisipkan pixel saat kirim, `cekTandaDibaca()`, chip **✓✓ Dibaca**
 - [x] Tombol **Konfirmasi sudah menerima** di dalam email — ✅ SELESAI (12 Nov 2026)
-- [ ] `PANDUAN-GMAIL.md`: dokumentasi + tabel batasan — belum
+- [x] `PANDUAN-GMAIL.md`: dokumentasi + tabel batasan — ✅ SELESAI (12 Nov 2026)
 - [x] Uji: kirim → Worker melaporkan dibuka → chip berubah jadi **Dibaca**
 
 **Yang sudah jadi:**
