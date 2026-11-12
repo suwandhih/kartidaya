@@ -258,6 +258,11 @@ dibaca**. Tidak perlu Worker kedua.
 | `GET /majalah/<id>` | ya | info majalah (jumlah halaman, judul) |
 | `DELETE /majalah/<id>` | ya | hapus majalah beserta halamannya |
 | `GET /majalah/<id>/<n>` | **tidak** | gambar halaman ke-n — dipanggil klien email |
+| `GET /majalah-pdf/<id>.pdf` | **tidak** | PDF majalah asli — diambil WhatsApp untuk lampiran |
+| `POST /majalah-pdf` | ya | simpan PDF majalah asli |
+| `GET /kwitansi/<id>.png` | **tidak** | gambar kwitansi — diambil WhatsApp untuk dikirim |
+| `POST /kwitansi` | ya | simpan gambar kwitansi (kedaluwarsa 30 hari) |
+| `POST /wa/send-media` | ya | kirim gambar (`image`) atau PDF (`document`) lewat WhatsApp |
 | `GET /baca/<id>` | **tidak** | **halaman pembaca majalah** — satu halaman per layar, dibuka penerima |
 | `GET /terima/<id>` | **tidak** | **halaman konfirmasi penerimaan** — dibuka penerima saat menekan tombol di email |
 | `POST /terima/status` | ya | cek surat mana yang sudah dikonfirmasi penerima |
@@ -304,6 +309,22 @@ lama belum punya endpoint-nya.
 | 4 | Halaman pembaca | Tulis → **👁 Buka halaman pembaca** | Terbuka tab baru, satu halaman per layar |
 | 5 | Halaman pembaca tanpa majalah | Buka `https://<worker>/baca/tidakada` | Muncul "Majalah tidak ditemukan" (bukan error mentah) |
 | 6 | Konfirmasi penerimaan | Buka `https://<worker>/terima/uji123?k=KWT-1&n=Rp%20100.000` | Muncul "Terima kasih!" + ringkasan; buka lagi → "Sudah dikonfirmasi" |
+| 7 | Gambar kwitansi | Buka `https://<worker>/kwitansi/tidakada.png` | Muncul 404 (bukan error mentah) |
+| 8 | PDF majalah | Buka `https://<worker>/majalah-pdf/tidakada.pdf` | Muncul 404 |
+
+**Cara kirim kwitansi & majalah lewat WhatsApp:**
+
+| Langkah | Yang terjadi |
+|---|---|
+| 1 | Aplikasi menggambar kwitansi jadi PNG di browser |
+| 2 | PNG disimpan di Worker → dapat alamat `https://<worker>/kwitansi/<id>.png` |
+| 3 | WhatsApp mengambil gambar itu dari alamat tersebut, lalu mengirimnya |
+| 4 | Kalau majalah ikut dicentang, PDF-nya dikirim sebagai lampiran dokumen |
+| 5 | Teks surat dikirim terakhir — supaya penerima tetap bisa membaca isinya |
+
+Tidak ada langkah unggah manual: WhatsApp mengambil berkasnya sendiri dari
+alamat publik. Berkasnya tetap di server kita (Cloudflare KV), bukan di pihak
+ketiga.
 
 ---
 

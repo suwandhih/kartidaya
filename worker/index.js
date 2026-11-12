@@ -89,7 +89,46 @@ function normalizePhone(v) {
 
 /* ---------- Meta Graph API ---------- */
 
+/* Kirim pesan WhatsApp berisi teks saja. */
 async function waSend(env, to, text) {
+  return waPost(env, {
+    messaging_product: 'whatsapp',
+    recipient_type: 'individual',
+    to: to,
+    type: 'text',
+    text: { preview_url: false, body: text }
+  });
+}
+
+/* Kirim pesan WhatsApp berisi gambar atau dokumen.
+   WhatsApp Cloud API bisa mengambil berkas langsung dari alamat publik
+   (`link`), jadi tidak perlu langkah unggah terpisah. Ini lebih sederhana
+   dan lebih cepat daripada Media API. */
+async function waSendMedia(env, to, media) {
+  const jenis = media.jenis === 'document' ? 'document' : 'image';
+  const link = String(media.link || '');
+  if (!/^https:\/\//i.test(link)) {
+    const e = new Error('Alamat berkas harus https://');
+    e.code = 'LINK_TIDAK_SAH';
+    throw e;
+  }
+  const isi = { link: link };
+  if (media.caption) isi.caption = String(media.caption).slice(0, 1000);
+  if (jenis === 'document') {
+    isi.filename = String(media.filename || 'berkas.pdf').slice(0, 120);
+  }
+  const body = {
+    messaging_product: 'whatsapp',
+    recipient_type: 'individual',
+    to: to,
+    type: jenis
+  };
+  body[jenis] = isi;
+  return waPost(env, body);
+}
+
+/* Satu tempat untuk memanggil Graph API supaya penanganan galat seragam. */
+async function waPost(env, body) {
   const url = GRAPH + '/' + env.WA_PHONE_ID + '/messages';
   const res = await fetch(url, {
     method: 'POST',
@@ -97,13 +136,7 @@ async function waSend(env, to, text) {
       'Authorization': 'Bearer ' + env.WA_TOKEN,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({
-      messaging_product: 'whatsapp',
-      recipient_type: 'individual',
-      to: to,
-      type: 'text',
-      text: { preview_url: false, body: text }
-    })
+    body: JSON.stringify(body)
   });
   const data = await res.json().catch(function () { return {}; });
   if (!res.ok) {
@@ -274,6 +307,19 @@ const MAJALAH_MAX_BYTE = 4 * 1024 * 1024;   /* per halaman */
 
 function majalahMetaKey(id){ return 'majalah-meta:' + id; }
 function majalahPageKey(id, n){ return 'majalah:' + id + ':' + n; }
+function majalahPdfKey(id){ return 'majalah-pdf:' + id; }
+
+/* Batas KV Cloudflare 25 MiB per key — sisakan sedikit ruang. */
+const MAJALAH_PDF_MAX_BYTE = 24 * 1024 * 1024;
+
+/* ---------- kwitansi PNG ----------
+   WhatsApp mengambil berkas dari alamat publik, jadi gambar kwitansi harus
+   punya alamat yang bisa diakses tanpa kunci. Disimpan sebentar saja
+   (kedaluwarsa 30 hari) karena hanya dipakai untuk satu kali kirim. */
+const KWT_MAX_BYTE = 4 * 1024 * 1024;
+const KWT_SIMPAN_MS = 30 * 24 * 60 * 60 * 1000;
+
+function kwitansiKey(id){ return 'kwt:' + id; }
 
 /* Ubah base64 (boleh berawalan data:…) menjadi byte siap simpan. */
 function b64ToBytes(b64){
@@ -553,6 +599,38 @@ export default {
         });
       }
 
+      /* --- PDF majalah (tanpa X-App-Key) ---
+         WhatsApp mengambil berkas ini dari alamat publik saat mengirim
+         sebagai lampiran dokumen. */
+      const mp = path.match(/^\/majalah-pdf\/([A-Za-z0-9_-]{4,64})\.pdf$/);
+      if (mp && req.method === 'GET') {
+        const raw = await env.WA_INBOX.get(majalahPdfKey(mp[1]), { type: 'arrayBuffer' });
+        if (!raw) return new Response('Not Found', { status: 404 });
+        return new Response(raw, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': 'inline; filename="majalah.pdf"',
+            'Cache-Control': 'public, max-age=86400'
+          }
+        });
+      }
+
+      /* --- gambar kwitansi (tanpa X-App-Key) ---
+         WhatsApp mengambil gambar ini dari alamat publik saat mengirim. */
+      const kw = path.match(/^\/kwitansi\/([A-Za-z0-9_-]{4,64})\.png$/);
+      if (kw && req.method === 'GET') {
+        const raw = await env.WA_INBOX.get(kwitansiKey(kw[1]), { type: 'arrayBuffer' });
+        if (!raw) return new Response('Not Found', { status: 404 });
+        return new Response(raw, {
+          status: 200,
+          headers: {
+            'Content-Type': 'image/png',
+            'Cache-Control': 'public, max-age=86400'
+          }
+        });
+      }
+
       /* --- halaman pembaca majalah (tanpa X-App-Key) ---
          Email hanya memuat sampul + tombol; halaman penuh dibuka di sini
          supaya email tetap ringan dan tidak dianggap spam. */
@@ -637,6 +715,31 @@ export default {
         }
       }
 
+      /* Kirim gambar (kwitansi PNG) atau dokumen (majalah PDF).
+         WhatsApp mengambil berkasnya sendiri dari alamat publik, jadi
+         aplikasi cukup mengirim tautannya. */
+      if (path === '/wa/send-media' && req.method === 'POST') {
+        const body = await req.json().catch(function () { return null; });
+        if (!body) return withCors(json({ ok: false, error: 'Body bukan JSON' }, 400), req);
+        const to = normalizePhone(body.to);
+        if (!to) return withCors(json({ ok: false, error: 'Nomor tujuan kosong' }, 400), req);
+        if (!body.link) return withCors(json({ ok: false, error: 'Alamat berkas kosong' }, 400), req);
+        if (!env.WA_TOKEN || !env.WA_PHONE_ID) {
+          return withCors(json({ ok: false, error: 'WA_TOKEN / WA_PHONE_ID belum diisi di Worker' }, 500), req);
+        }
+        try {
+          const r = await waSendMedia(env, to, {
+            jenis: body.jenis,
+            link: body.link,
+            caption: body.caption,
+            filename: body.filename
+          });
+          return withCors(json({ ok: true, id: r.id, to: to, jenis: body.jenis || 'image' }), req);
+        } catch (e) {
+          return withCors(json({ ok: false, error: e.message, code: e.code, subcode: e.subcode }, 502), req);
+        }
+      }
+
       if (path === '/wa/inbox' && req.method === 'GET') {
         const queue = await readQueue(env);
         return withCors(json({ ok: true, messages: queue }), req);
@@ -668,6 +771,27 @@ export default {
         const sisa = queue.filter(function (q) { return !buang[q.waId]; });
         await writeQueue(env, sisa);
         return withCors(json({ ok: true, removed: queue.length - sisa.length }), req);
+      }
+
+      /* ---------- kwitansi PNG ---------- */
+
+      /* Simpan gambar kwitansi supaya WhatsApp bisa mengambilnya.
+         Aplikasi mengirim PNG sebagai base64; Worker menyimpannya dan
+         mengembalikan alamat publiknya. */
+      if (path === '/kwitansi' && req.method === 'POST') {
+        const body = await req.json().catch(function () { return null; });
+        if (!body) return withCors(json({ ok: false, error: 'Body bukan JSON' }, 400), req);
+        const id = String(body.id || '').replace(/[^A-Za-z0-9_-]/g, '');
+        if (id.length < 4) return withCors(json({ ok: false, error: 'ID kwitansi tidak sah' }, 400), req);
+        let bytes;
+        try { bytes = b64ToBytes(body.data); }
+        catch (e) { return withCors(json({ ok: false, error: 'Data gambar tidak sah' }, 400), req); }
+        if (!bytes.length) return withCors(json({ ok: false, error: 'Gambar kosong' }, 400), req);
+        if (bytes.length > KWT_MAX_BYTE) {
+          return withCors(json({ ok: false, error: 'Gambar kwitansi maksimal 4 MB' }, 413), req);
+        }
+        await env.WA_INBOX.put(kwitansiKey(id), bytes, { expirationTtl: Math.floor(KWT_SIMPAN_MS / 1000) });
+        return withCors(json({ ok: true, id: id, url: url.origin + '/kwitansi/' + id + '.png' }), req);
       }
 
       /* ---------- majalah ---------- */
@@ -713,8 +837,25 @@ export default {
         return withCors(json({ ok: true, id: id, halaman: n, total: total }), req);
       }
 
-      const mjMeta = path.match(/^\/majalah\/([A-Za-z0-9_-]{4,64})$/);
-      if (mjMeta && req.method === 'GET') {
+      /* Simpan berkas PDF majalah — dipakai untuk lampiran WhatsApp.
+         Halaman-halamannya sudah disimpan terpisah sebagai gambar. */
+      if (path === '/majalah-pdf' && req.method === 'POST') {
+        const body = await req.json().catch(function () { return null; });
+        if (!body) return withCors(json({ ok: false, error: 'Body bukan JSON' }, 400), req);
+        const id = String(body.id || '').replace(/[^A-Za-z0-9_-]/g, '');
+        if (id.length < 4) return withCors(json({ ok: false, error: 'ID majalah tidak sah' }, 400), req);
+        let bytes;
+        try { bytes = b64ToBytes(body.data); }
+        catch (e) { return withCors(json({ ok: false, error: 'Data PDF tidak sah' }, 400), req); }
+        if (!bytes.length) return withCors(json({ ok: false, error: 'PDF kosong' }, 400), req);
+        if (bytes.length > MAJALAH_PDF_MAX_BYTE) {
+          return withCors(json({ ok: false, error: 'PDF maksimal 24 MB' }, 413), req);
+        }
+        await env.WA_INBOX.put(majalahPdfKey(id), bytes);
+        return withCors(json({ ok: true, id: id, url: url.origin + '/majalah-pdf/' + id + '.pdf' }), req);
+      }
+
+      const mjMeta = path.match(/^\/majalah\/([A-Za-z0-9_-]{4,64})$/);      if (mjMeta && req.method === 'GET') {
         const raw = await env.WA_INBOX.get(majalahMetaKey(mjMeta[1]));
         if (!raw) return withCors(json({ ok: false, error: 'Majalah tidak ditemukan' }, 404), req);
         return withCors(json(Object.assign({ ok: true }, JSON.parse(raw))), req);
@@ -728,6 +869,7 @@ export default {
           }
           await env.WA_INBOX.delete(majalahMetaKey(mjMeta[1]));
         }
+        await env.WA_INBOX.delete(majalahPdfKey(mjMeta[1]));
         return withCors(json({ ok: true }), req);
       }
 

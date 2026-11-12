@@ -1629,6 +1629,7 @@ tanggal, total per program, tombol **+ Tambah**.
 - [x] Unggah & host gambar majalah
 - [x] Pixel tanda dibaca + chip **✓✓ Dibaca**
 - [x] Uji kirim ke Gmail sendiri (kwitansi diterima ✅, majalah & tanda dibaca diuji lokal)
+- [x] Tombol **Konfirmasi sudah menerima** + halaman `/terima/<id>` (12 Nov 2026)
 - [ ] Uji majalah & tanda dibaca lewat email sungguhan — **menunggu berkas majalah dari Anda**
 
 ### 17.9 Logo — ✅ SELESAI (11 Nov 2026)
@@ -1835,7 +1836,7 @@ sebagai gambar WhatsApp dengan teks surat sebagai keterangan.
 | Desain | mengikuti template: logo, judul KWITANSI / FUND RECEIPT, garis, nama, program, total, terbilang, nomor | ✅ |
 | Dua bahasa | sama seperti email — Indonesia & Inggris | ✅ |
 | Pembuat gambar | digambar di aplikasi (Canvas) dari data kwitansi yang sudah ada | ✅ |
-| Pengiriman | Worker: `/wa/send` ditambah dukungan media (unggah gambar → kirim `type: image`) | ⏸ menunggu Meta |
+| Pengiriman | Worker: `/wa/send` ditambah dukungan media (unggah gambar → kirim `type: image`) | ✅ `/wa/send-media` |
 | Pratinjau | muncul di **Periksa sebelum kirim** dan di buku surat, sama seperti email | ✅ tombol 🖼 Kwitansi PNG |
 | Salinan | disimpan seperti kwitansi email, supaya bisa diperiksa ulang | ✅ |
 
@@ -1877,9 +1878,35 @@ menghasilkan banyak warna. Masih **jauh di bawah** batas gambar WhatsApp
 | Gambar tidak bisa "dipilih teks" | penerima tidak bisa menyalin angkanya — solusinya teks surat tetap memuat ringkasan angka |
 | PDF harus diunggah dulu ke WhatsApp | perlu langkah unggah ke Media API sebelum kirim |
 
-**Sisa pekerjaan:** hanya jalur kirim di Worker (`/wa/send` dengan media).
-Perkiraan ±1,5 jam. **Menunggu verifikasi bisnis Meta selesai**, supaya bisa
-langsung diuji ke nomor sungguhan.
+**Sisa pekerjaan:** tidak ada lagi dari sisi kode. Yang tersisa hanya **uji ke
+nomor sungguhan**, dan itu **menunggu verifikasi bisnis Meta selesai** (akun
+masih `BLOCKED`, kirim ke nomor Indonesia ditolak `130497`).
+
+#### 18.1.1 Yang sudah dikerjakan (12 Nov 2026)
+
+| Bagian | Hasil |
+|---|---|
+| Gambar kwitansi | dibuat di browser (Canvas), lebar 720 px, skala 2× |
+| Simpan gambar | `POST /kwitansi` → disimpan di KV, kedaluwarsa 30 hari |
+| Alamat publik gambar | `GET /kwitansi/<id>.png` (tanpa kunci) |
+| Kirim gambar | `POST /wa/send-media` dengan `jenis: "image"` |
+| PDF majalah | PDF asli ikut disimpan saat unggah → `GET /majalah-pdf/<id>.pdf` |
+| Kirim PDF | `POST /wa/send-media` dengan `jenis: "document"` |
+| Urutan kirim | 1) gambar kwitansi → 2) PDF majalah → 3) teks surat |
+| Teks selalu dikirim | supaya penerima tetap bisa membaca & menyalin isinya walau gambarnya tidak dibuka |
+| Kalau media gagal | surat tetap terkirim, dan alasannya dicatat di pesan |
+
+**Kenapa WhatsApp mengambil berkas dari alamat publik, bukan diunggah dulu?**
+WhatsApp Cloud API bisa mengambil berkas langsung dari `link` https. Ini
+menghilangkan satu langkah (Media API) dan satu tempat gagal. Berkasnya tetap
+di server kita sendiri (Cloudflare KV), jadi tidak ada pihak ketiga.
+
+**Hasil uji:** alur kirim WhatsApp diuji dengan API tiruan — urutannya benar
+(simpan gambar → kirim gambar → kirim PDF → kirim teks), kwitansi PNG 139 KB,
+nama berkas PDF benar (`Kabar Kartidaya.pdf`), dan pesan tercatat
+**Terkirim** di buku donor. Endpoint baru sudah aktif di Worker
+(`/kwitansi/<id>.png` → 404 kalau belum ada, `/majalah-pdf/<id>.pdf` → 404,
+`/wa/send-media` → 401 tanpa kunci).
 
 ---
 
@@ -1987,7 +2014,7 @@ Ketiganya memakai **satu berkas PDF yang sama** — user hanya unggah sekali.
 | 2 | Halaman pembaca di `/baca/<id>` (satu halaman per layar) | ±2 jam | ✅ |
 | 3 | Sampul + tombol "Baca majalah" di email | ±1 jam | ✅ |
 | 4 | Kompres otomatis + peringatan ukuran | ±45 menit | ✅ (lebar 1240 px, 64 KB/halaman) |
-| 5 | Jalur PDF untuk WhatsApp (setelah Meta beres) | ±30 menit | ⏸ menunggu Meta |
+| 5 | ~~Jalur PDF untuk WhatsApp (setelah Meta beres)~~ | ~~±30 menit~~ | ✅ **SELESAI 12 Nov 2026** |
 
 #### F.1 Hasil yang sudah jadi (12 Nov 2026)
 
@@ -2098,7 +2125,7 @@ tombol **"Buat gambar PNG"**. Gambar itu yang dipakai untuk WhatsApp.
 | Pembuat | digambar di browser (Canvas) dari data kwitansi yang sudah ada | ✅ Canvas, tanpa aplikasi tambahan |
 | Ukuran | lebar 720 px — hasil ukur **12 KB** (12 baris isi) | ✅ 720 px, **139–162 KB** (lihat catatan) |
 | Dua bahasa | Indonesia & Inggris, sama seperti email | ✅ |
-| Pemakaian | WhatsApp kirim `type: image`; email tetap pakai HTML (lebih tajam) | ⏸ menunggu Meta |
+| Pemakaian | WhatsApp kirim `type: image`; email tetap pakai HTML (lebih tajam) | ✅ `/wa/send-media` |
 | Pratinjau | gambar PNG bisa dilihat langsung sebelum dikirim | ✅ + tombol ⤓ Unduh PNG |
 
 **Kenapa email tetap HTML, bukan PNG:** teks HTML bisa diperbesar tanpa pecah,
@@ -2249,11 +2276,11 @@ yang sama.
 | 4 | ~~**Terima PDF majalah** + PNG otomatis (§19.1)~~ | ~~±1,5 jam~~ | ✅ **SELESAI 12 Nov 2026** |
 | 5 | ~~**Halaman pembaca** `/baca/<id>` (§18.2)~~ | ~~±2 jam~~ | ✅ **SELESAI 12 Nov 2026** |
 | 6 | ~~**Sampul + tombol Baca majalah di email** (§18.2)~~ | ~~±1 jam~~ | ✅ **SELESAI 12 Nov 2026** |
-| 7 | **WhatsApp: kirim PNG & PDF** (§18.1) | ±2,5 jam | akun Meta tidak BLOCKED |
+| 7 | ~~**WhatsApp: kirim PNG & PDF** (§18.1)~~ | ~~±2,5 jam~~ | ✅ **SELESAI 12 Nov 2026** (uji ke nomor sungguhan menunggu Meta) |
 
-**Bisa dikerjakan sekarang (tidak menunggu apa pun): tidak ada lagi.**
-Langkah 7 menunggu Meta. Yang tersisa hanya **uji dengan berkas majalah
-sungguhan** dari Anda.
+**Semua langkah sudah dikerjakan.** Yang tersisa hanya **uji dengan berkas
+majalah sungguhan** dari Anda, dan **uji WhatsApp ke nomor sungguhan** setelah
+verifikasi bisnis Meta selesai.
 
 ---
 

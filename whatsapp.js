@@ -97,6 +97,31 @@ const WhatsApp = {
     return { id: r.id || '', to: r.to || '' };
   },
 
+  /* Simpan gambar kwitansi di Worker, kembalikan alamat publiknya.
+     WhatsApp mengambil gambar dari alamat itu saat mengirim — jadi tidak
+     perlu mengunggah lewat Media API. */
+  async simpanKwitansi(id, dataUrl){
+    const data = String(dataUrl || '').replace(/^data:[^,]*,/, '');
+    if(!data) throw new Error('Gambar kwitansi kosong');
+    const r = await this.api('/kwitansi', { method:'POST', body:{ id: id, data: data } });
+    return r.url || '';
+  },
+
+  /* Kirim gambar (kwitansi PNG) atau dokumen (majalah PDF).
+     `link` harus alamat https:// yang bisa diakses publik. */
+  async sendMedia(o){
+    const r = await this.api('/wa/send-media', {
+      method:'POST',
+      body:{
+        to: o.to,
+        jenis: o.jenis === 'document' ? 'document' : 'image',
+        link: o.link,
+        caption: o.caption || '',
+        filename: o.filename || ''
+      }
+    });
+    return { id: r.id || '', to: r.to || '', jenis: r.jenis || 'image' };
+  },
   /* ---------- terima ---------- */
 
   async fetchInbox(){

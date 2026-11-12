@@ -636,6 +636,13 @@ function majalahBacaURL(){
   if(!m || !base) return '';
   return base + '/baca/' + m.id;
 }
+/* Alamat PDF majalah — dipakai untuk lampiran WhatsApp. */
+function majalahPDFURL(){
+  const m = majalahInfo();
+  const base = workerBase();
+  if(!m || !base || !m.pdf) return '';
+  return base + '/majalah-pdf/' + m.id + '.pdf';
+}
 /* Majalah di badan email: hanya SAMPUL + tombol "Baca majalah".
    Kenapa bukan semua halaman? Mengirim 10 gambar sekaligus membuat email
    berat dan sering dianggap spam. Dengan cara ini email tetap ringan, dan
@@ -3428,11 +3435,14 @@ async function unggahMajalah(){
 
   /* Siapkan daftar halaman: dari PDF (diubah dulu) atau dari gambar langsung. */
   let halaman = [];
+  let pdfBase64 = '';
   try{
     if(pakaiPdf){
       const f = pdfEl.files[0];
       if(f.size > 25 * 1024 * 1024){ toast('Berkas PDF lebih dari 25 MB', true); return; }
       if(prog) prog.textContent = 'Membaca PDF…';
+      /* PDF aslinya disimpan juga — dipakai untuk lampiran WhatsApp. */
+      pdfBase64 = await fileKeBase64(f);
       const gambar = await pdfKeGambar(f, function(i, total){
         if(prog) prog.textContent = 'Mengubah halaman ' + i + ' dari ' + total + ' jadi gambar…';
       });
@@ -3476,8 +3486,26 @@ async function unggahMajalah(){
   }
 
   state.settings.majalah = { id:id, halaman:halaman.length, judul:judul || 'Majalah Kartidaya',
-    dariPdf: !!pakaiPdf, diunggah: new Date().toISOString() };
+    dariPdf: !!pakaiPdf, pdf: !!pdfBase64, diunggah: new Date().toISOString() };
   save('settings');
+
+  /* Simpan PDF aslinya di Worker — dipakai untuk lampiran WhatsApp.
+     Kalau gagal, majalah tetap tersimpan; hanya lampiran WhatsApp yang
+     tidak tersedia, dan itu diberitahukan. */
+  if(pdfBase64){
+    if(prog) prog.textContent = 'Menyimpan berkas PDF untuk WhatsApp…';
+    try{
+      await WhatsApp.api('/majalah-pdf', {
+        method:'POST',
+        body:{ id:id, judul:judul || 'Majalah Kartidaya', data:pdfBase64 }
+      });
+    }catch(e){
+      state.settings.majalah.pdf = false;
+      save('settings');
+      toast('Halaman majalah tersimpan, tapi PDF untuk WhatsApp gagal disimpan: ' + (e.message || e), true);
+    }
+  }
+
   if(prog) prog.textContent = '';
   closeModal();
   toast(halaman.length + ' halaman majalah tersimpan');
@@ -3711,8 +3739,48 @@ async function kirimSurat(asDraft){
         gagal++;
       }else{
         try{
+          /* WhatsApp tidak bisa menampilkan tabel HTML, jadi kwitansi dikirim
+             sebagai GAMBAR. Gambar disimpan dulu di Worker supaya WhatsApp
+             bisa mengambilnya dari alamat publik. */
+          let kwitansiTerkirim = false;
+          if(suratState.kwitansi){
+            const png = await kwitansiPNG(d, suratState.kwitansiBahasa, suratState.kwitansiFinId,
+              { kodeKiriman: kodeKrm, waktuKirim: waktuKrm });
+            const kwId = 'kw-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+            const urlKw = await WhatsApp.simpanKwitansi(kwId, png);
+            if(urlKw){
+              const rk = await WhatsApp.sendMedia({
+                to: tujuan, jenis:'image', link: urlKw,
+                caption: 'Kwitansi ' + donorName(d) + ' — ' + kodeKrm
+              });
+              waId = (rk && rk.id) || waId;
+              kwitansiTerkirim = true;
+            }
+          }
+          /* Majalah dikirim sebagai lampiran PDF — sesuai keputusan Anda. */
+          let majalahTerkirim = false;
+          if(suratState.majalah && majalahInfo()){
+            const urlPdf = majalahPDFURL();
+            if(urlPdf){
+              const rm = await WhatsApp.sendMedia({
+                to: tujuan, jenis:'document', link: urlPdf,
+                filename: (majalahInfo().judul || 'Majalah Kartidaya') + '.pdf',
+                caption: majalahInfo().judul || 'Majalah Kartidaya'
+              });
+              waId = (rm && rm.id) || waId;
+              majalahTerkirim = true;
+            }
+          }
+          /* Teks surat selalu dikirim — supaya penerima tetap bisa membaca
+             dan menyalin isinya walau gambarnya tidak dibuka. */
           const r = await WhatsApp.send({ to: tujuan, text: isi });
-          waId = (r && r.id) || '';
+          waId = (r && r.id) || waId;
+          if(suratState.kwitansi && !kwitansiTerkirim){
+            errMsg = 'Kwitansi tidak ikut terkirim (gambar gagal disimpan)';
+          }
+          if(suratState.majalah && !majalahTerkirim){
+            errMsg = 'Majalah tidak ikut terkirim (PDF belum tersedia)';
+          }
           ok++;
         }catch(e){
           status = 'Gagal';
