@@ -1694,6 +1694,9 @@ async function loginKirim(){
   }catch(e){
     window._loginGalat = e.message || 'Gagal masuk';
     if(e.status === 429) window._loginTerkunci = e.message || '';
+      /* Kalau yang salah kuncinya, buka blok server supaya bisa langsung
+         diperbaiki di layar ini — bukan dibiarkan mencari tautan "ubah". */
+      if(/kunci aplikasi/i.test(e.message || '')) window._loginServer = true;
     render();
   }
 }
