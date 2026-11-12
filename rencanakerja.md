@@ -3191,3 +3191,177 @@ mengganti isi satu elemen — **bukan** `render()` seluruh halaman. Kalau memaka
 | 11 | Semua halaman lain tetap jalan | ✅ 8 halaman diperiksa |
 
 ---
+
+## 22. Sisa pekerjaan di luar WhatsApp — 12 November 2026
+
+*Ditulis menjawab pertanyaan Anda: "di rencanakerja apa lagi yg perlu direvisi
+atau ada penambahan selain whatsapp". Semua di bawah ini **bukan** WhatsApp.*
+
+### 22.1 🔴 MENDESAK — data pribadi donor ter-publish di internet
+
+**Ini yang paling perlu ditangani, dan bukan soal WhatsApp.**
+
+Repo `suwandhih/kartidaya` berstatus **PUBLIK**, dan `app.js` memuat **18 donor
+asli** sebagai data contoh. Artinya **siapa pun di internet** bisa membuka
+`https://suwandhih.github.io/kartidaya/app.js` dan membaca:
+
+| Yang ter-publish | Jumlah |
+|---|---|
+| Alamat email asli | **27** |
+| Nomor HP asli | **14** |
+| Nama orang & instansi | 18 donor |
+
+**Kenapa ini penting:** ini data pribadi orang lain (nama, email, nomor HP).
+Mereka tidak pernah memberi izin datanya dipasang di halaman publik. Selain itu
+**mesin pencari & pengumpul spam** rutin memanen alamat email dari halaman
+publik — jadi donor bisa mulai menerima spam.
+
+**Catatan:** `.gitignore` sudah mencegah `data.xlsx` ikut ter-commit, tetapi
+**data yang sama sudah disalin ke dalam `app.js`** — dan `app.js` memang harus
+ikut terbit supaya aplikasi jalan. Jadi `.gitignore` tidak menolong di sini.
+
+**Tiga pilihan penyelesaian:**
+
+| # | Cara | Kelebihan | Kekurangan |
+|---|---|---|---|
+| A | **Kosongkan data contoh** — ganti 18 donor asli dengan 3–5 donor karangan | paling aman, sekali kerja | data asli harus diimpor ulang lewat **Impor JSON** |
+| B | **Pindahkan ke `seed.js`** yang di-gitignore | data asli tetap ada di komputer Anda | aplikasi yang dibuka orang lain akan kosong; perlu berkas terpisah |
+| C | **Jadikan repo privat** | paling cepat | GitHub Pages gratis **tidak jalan** di repo privat — aplikasi tidak bisa dibuka dari HP |
+
+**Saran saya: pilihan A.** Data asli tetap aman di komputer Anda (sudah ada di
+`data.xlsx` dan bisa diekspor lewat **Ekspor JSON**), sementara yang terbit di
+internet hanya data karangan. Aplikasi tetap jalan penuh.
+
+**Yang perlu Anda lakukan sebelum saya kerjakan:** ekspor dulu data asli lewat
+**Setelan → Ekspor JSON**, simpan berkasnya. Setelah itu saya kosongkan data
+contoh, dan Anda impor kembali berkas itu di komputer Anda sendiri.
+
+### 22.2 🟠 Belum ada peringatan mencadangkan data
+
+**Masalahnya:** semua data (donor, surat, keuangan, template) hanya tersimpan di
+**localStorage browser**. Kalau Anda menekan **Hapus semua data**, atau memakai
+mode Incognito, atau browser dibersihkan, atau berganti komputer —
+**semuanya hilang tanpa bisa dikembalikan.**
+
+Sekarang tidak ada peringatan apa pun. Tombol **Ekspor JSON** ada, tetapi tidak
+ada yang mengingatkan untuk memakainya.
+
+**Usulan:** tampilkan pengingat kecil di **Beranda** kalau sudah lebih dari
+**7 hari** tidak mencadangkan:
+
+> *"Terakhir mencadangkan: 5 hari lalu. Sebaiknya ekspor JSON sekarang."* + tombol **Ekspor sekarang**
+
+**Perkiraan:** ±30 menit. **Risiko kalau tidak dikerjakan:** kehilangan seluruh
+data secara mendadak.
+
+### 22.3 🟠 Majalah hanya bisa satu edisi
+
+Sekarang mengunggah majalah baru **mengganti** edisi lama. Kalau nanti Anda
+ingin mengirim **edisi Oktober** ke sebagian donor dan **edisi November** ke
+donor lain, itu belum bisa.
+
+**Usulan:** simpan daftar edisi (judul + tanggal unggah), lalu di **Tulis Surat**
+ada pilihan *"Majalah yang dilampirkan: [edisi ▾]"*.
+
+**Perkiraan:** ±2 jam. **Belum mendesak** — kerjakan kalau memang akan ada lebih
+dari satu edisi.
+
+### 22.4 🟡 Halaman pembaca majalah bisa dibuka siapa saja
+
+`https://kartidaya-wa.suwandhih.workers.dev/baca/<id>` **tidak memakai kata
+sandi**. Siapa pun yang punya tautannya bisa membaca majalah. Tautan itu juga
+ikut terkirim di setiap email donor, jadi bisa diteruskan ke orang lain.
+
+Sudah ada `noindex,nofollow` (tidak didaftarkan mesin pencari), tetapi itu
+**bukan** pengaman.
+
+**Usulan:** tambahkan kata sandi sederhana, atau batasi masa berlaku tautan
+(mis. 90 hari). **Perkiraan:** ±1 jam. **Tergantung keputusan Anda** — kalau
+majalah memang untuk umum, tidak perlu diubah.
+
+### 22.5 🟡 Belum ada penghitung pembaca majalah
+
+Tidak ada cara mengetahui **berapa orang** membuka majalah, atau halaman mana
+yang paling dibaca. Padahal tanda dibaca email sudah ada — jadi ini tinggal
+menambahkan pencatatan serupa di halaman pembaca.
+
+**Usulan:** catat pembukaan per halaman, tampilkan ringkasannya di halaman
+majalah. **Perkiraan:** ±1,5 jam. **Nilai tambah**, bukan kebutuhan.
+
+### 22.6 🟡 Belum ada "Balas semua" & "Teruskan"
+
+Sekarang hanya ada tombol **Balas**. Untuk surat masuk dari satu donor ini sudah
+cukup. **Balas semua** baru perlu kalau nanti surat dikirim ke beberapa alamat
+sekaligus (Cc). **Teruskan** berguna untuk meneruskan surat donor ke pihak lain.
+
+**Perkiraan:** ±1 jam untuk keduanya. **Belum mendesak.**
+
+### 22.7 🟡 Belum ada lampiran berkas sungguhan
+
+Sekarang "lampiran" hanya **catatan nama berkas** — berkasnya tidak ikut
+tersimpan atau terkirim. Kalau donor mengirim dokumen lewat email, dokumen itu
+tidak bisa dibuka dari aplikasi.
+
+**Perkiraan:** ±2 jam (perlu menyimpan berkas di Worker). **Belum mendesak.**
+
+### 22.8 🟡 Belum ada template berformat (tebal/miring)
+
+Isi surat sekarang **teks biasa**. Tidak bisa menebalkan, memiringkan, atau
+membuat daftar bernomor. Untuk surat resmi biasanya cukup, tetapi undangan
+kegiatan kadang perlu penekanan.
+
+**Perkiraan:** ±3 jam (perlu editor berformat + penyaring keamanan HTML).
+**Belum mendesak.**
+
+### 22.9 🟡 Belum ada login / multi-user
+
+Aplikasi tidak memakai login. Siapa pun yang membuka alamatnya di komputer itu
+bisa melihat semua data donor. Untuk pemakaian satu orang di satu komputer ini
+aman; kalau nanti dipakai beberapa staf, perlu login.
+
+**Perkiraan:** besar (±1–2 hari, perlu server). **Tergantung rencana hosting.**
+
+### 22.10 🟡 Verifikasi OAuth Google belum diajukan
+
+Sekarang aplikasi masih berstatus **Testing** di Google Cloud. Akibatnya:
+
+| Batas | Akibat |
+|---|---|
+| Maksimal **100 test user** | hanya akun yang didaftarkan bisa menghubungkan Gmail |
+| Token kedaluwarsa **7 hari** | perlu menghubungkan ulang Gmail setiap minggu |
+
+**Usulan:** ajukan verifikasi OAuth (butuh video demo + kebijakan privasi).
+Setelah lulus, batas 7 hari hilang. **Perkiraan proses Google:** 1–4 minggu.
+**Belum mendesak** selama masih dipakai sendiri.
+
+### 22.11 🟡 Data Keuangan & Alamat Lengkap masih kosong
+
+| Data | Keadaan | Akibat |
+|---|---|---|
+| Transaksi Keuangan | **0 baris** | kwitansi tercetak **Rp 0** |
+| Alamat Lengkap donor | **0 dari 18** | tombol **Cetak Alamat** tidak berguna |
+
+Ini **bukan pekerjaan kode** — hanya perlu diisi. Tapi tanpa ini, kwitansi yang
+dikirim ke donor akan berisi angka nol, jadi sebaiknya diisi **sebelum kirim
+sungguhan**.
+
+### 22.12 Ringkasan prioritas
+
+| Prioritas | Pekerjaan | Perkiraan | Perlu keputusan Anda? |
+|---|---|---|---|
+| 🔴 1 | **Kosongkan data donor asli dari repo publik** (§22.1) | ±30 menit | **ya** — pilih A / B / C |
+| 🟠 2 | Pengingat mencadangkan data (§22.2) | ±30 menit | tidak |
+| 🟠 3 | Isi data Keuangan & Alamat Lengkap (§22.11) | — | **ya** — data dari Anda |
+| 🟡 4 | Daftar edisi majalah (§22.3) | ±2 jam | **ya** — perlu lebih dari 1 edisi? |
+| 🟡 5 | Kata sandi halaman pembaca (§22.4) | ±1 jam | **ya** — majalah untuk umum? |
+| 🟡 6 | Penghitung pembaca majalah (§22.5) | ±1,5 jam | tidak |
+| 🟡 7 | Balas semua & Teruskan (§22.6) | ±1 jam | tidak |
+| 🟡 8 | Lampiran berkas sungguhan (§22.7) | ±2 jam | tidak |
+| 🟡 9 | Template berformat (§22.8) | ±3 jam | tidak |
+| 🟡 10 | Verifikasi OAuth Google (§22.10) | proses 1–4 minggu | **ya** — kapan diajukan? |
+| 🟡 11 | Login / multi-user (§22.9) | ±1–2 hari | **ya** — rencana hosting? |
+
+**Catatan:** §22.1 dan §22.2 saya sarankan dikerjakan **lebih dulu** — keduanya
+kecil, tetapi melindungi data yang sudah ada.
+
+---
