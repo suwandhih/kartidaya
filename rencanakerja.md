@@ -3085,4 +3085,50 @@ gagal tanpa penjelasan.
 | 11 | Tombol di pratinjau email | ✅ ada & berfungsi, modal tertutup sendiri |
 | 12 | Semua halaman lain tetap jalan | ✅ 9 halaman diperiksa |
 
+### 21.5 Istilah "buku donor" diganti "riwayat surat" (12 Nov 2026)
+
+**Pertanyaan Anda:** *"tidak masuk buku donor itu apaan?"*
+
+**Jawaban jujur: itu istilah saya sendiri yang tidak jelas.** Tidak ada
+"buku" dalam arti harfiah di aplikasi ini. Yang saya maksud adalah **daftar
+surat yang pernah dikirim ke satu donor** — yang muncul kalau Anda klik satu
+nama di halaman **Donor**.
+
+**Kenapa istilah itu muncul:** di awal proyek saya memakai kata "buku" karena
+tiap donor punya daftar suratnya sendiri (mirip buku catatan per donor). Itu
+masuk akal bagi saya, tetapi **tidak bagi orang yang baru membuka aplikasi** —
+dan itu kesalahan saya.
+
+**Yang diganti:**
+
+| Tempat | Sebelum | Sesudah |
+|---|---|---|
+| Halaman donor → judul kartu | *"Buku Surat"* | *"Riwayat Surat"* |
+| Halaman donor → subjudul | *"Buku surat — A00023R"* | *"Riwayat surat — A00023R"* |
+| Halaman donor → saat kosong | *"Buku masih kosong."* | *"Belum ada surat untuk donor ini."* |
+| Tombol di modal donor | *"Buka Buku"* | *"Buka Riwayat"* |
+| Halaman Donor → subjudul | *"Setiap donor punya buku surat sendiri"* | *"Setiap donor punya riwayat surat sendiri"* |
+| Beranda → subjudul | *"Ringkasan buku surat & email"* | *"Ringkasan surat & email donor"* |
+| Kotak Uji → chip | *"tidak masuk buku donor"* | *"tidak masuk riwayat donor"* |
+| Kotak Uji → penjelasan | *"tidak dicatat di buku donor"* | *"tidak masuk riwayat surat donor"* |
+| Tulis → keterangan tombol | *"tidak dicatat di buku donor"* | *"tidak masuk riwayat surat donor"* |
+| Tulis → keterangan kanal | *"tercatat di buku masing-masing donor"* | *"tercatat di riwayat surat masing-masing donor"* |
+| Konfirmasi hapus surat | *"Hapus surat ini dari buku?"* | *"Hapus surat ini dari riwayat?"* |
+| Konfirmasi hapus donor | *"surat di bukunya juga akan dihapus"* | *"surat di riwayatnya juga akan dihapus"* |
+| Toast gagal WhatsApp | *"cek buku donor"* | *"cek riwayat surat donor"* |
+
+**Kata "buku" tidak dipakai lagi di layar.** Sisa 4 kemunculan hanya ada di
+komentar kode (tidak terlihat pengguna).
+
+**Arti kalimat "tidak masuk riwayat surat donor" dalam bahasa sehari-hari:**
+salinan uji itu **hanya dikirim ke email Anda sendiri** dan **tidak dihitung
+sebagai surat yang pernah dikirim ke donor**. Jadi kalau nanti Anda membuka
+halaman donor itu, daftar suratnya **tidak bertambah** — karena memang belum
+ada surat sungguhan yang dikirim ke dia. Ini disengaja: supaya percobaan tidak
+mengotori catatan resmi.
+
+**Uji:** diperiksa di browser (`?v=48`) — halaman donor menampilkan
+**"Riwayat Surat"**, saat kosong menampilkan *"Belum ada surat untuk donor
+ini."*, dan kata "buku" tidak muncul lagi di 9 halaman yang diperiksa.
+
 ---

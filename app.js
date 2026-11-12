@@ -1305,7 +1305,7 @@ function refreshKeuangan(){
 
 /* ---------- BERANDA ---------- */
 function viewBeranda(){
-  setTitle('Beranda','Ringkasan buku surat & email');
+  setTitle('Beranda','Ringkasan surat & email donor');
   const unread = unreadCount();
   const keluar = outboxList().length;
   const masuk = inboxList().length;
@@ -1549,7 +1549,7 @@ function viewKotak(arah){
 let donorFilter = { q:'', kategori:'', sort:'id' };
 
 function viewDonor(){
-  setTitle('Donor','Setiap donor punya buku surat sendiri');
+  setTitle('Donor','Setiap donor punya riwayat surat sendiri');
   const q = donorFilter.q.toLowerCase();
   let list = state.donors.filter(function(d){
     if(donorFilter.kategori && d.kategori !== donorFilter.kategori) return false;
@@ -1623,7 +1623,7 @@ function donorCard(d){
 function viewBuku(donorId){
   const d = findDonor(donorId);
   if(!d){ go('donor'); return ''; }
-  setTitle(donorName(d), 'Buku surat — ' + d.id);
+  setTitle(donorName(d), 'Riwayat surat — ' + d.id);
   const book = bookOf(donorId);
   const p = idParts(d.id);
 
@@ -1652,7 +1652,7 @@ function viewBuku(donorId){
   '</div>' +
 
   '<div class="card">' +
-    '<div class="card-head"><h2>Buku Surat</h2>' +
+    '<div class="card-head"><h2>Riwayat Surat</h2>' +
       '<span class="chip plain">↑' + countMsg(donorId,'keluar') + ' keluar</span>' +
       '<span class="chip plain">↓' + countMsg(donorId,'masuk') + ' masuk</span></div>' +
     (book.length ? '<div class="thread">' + book.map(function(m){
@@ -1669,7 +1669,7 @@ function viewBuku(donorId){
         '<div class="b-body">' + esc(String(m.isi || '').slice(0, 220)) + '</div>' +
       '</div>';
     }).join('') + '</div>'
-      : '<div class="empty"><span class="big">✉</span>Buku masih kosong.<br>' +
+      : '<div class="empty"><span class="big">✉</span>Belum ada surat untuk donor ini.<br>' +
         '<button class="btn primary" style="margin-top:12px" data-action="balas" data-id="' + esc(d.id) + '">Tulis surat pertama</button></div>') +
   '</div>';
 }
@@ -1793,12 +1793,12 @@ function viewSurat(){
             : (gmailOk ? 'Gmail aktif' : 'Mode simulasi')) + '</span></div>' +
       '<p class="small muted">' + (siap
         ? (kanal === 'whatsapp'
-            ? 'Pesan akan dikirim lewat WhatsApp Cloud API dan otomatis tercatat di buku masing-masing donor.'
-            : 'Surat akan dikirim lewat Gmail API dan otomatis tercatat di buku masing-masing donor.')
+            ? 'Pesan akan dikirim lewat WhatsApp Cloud API dan otomatis tercatat di riwayat surat masing-masing donor.'
+            : 'Surat akan dikirim lewat Gmail API dan otomatis tercatat di riwayat surat masing-masing donor.')
         : (kanal === 'whatsapp'
             ? 'WhatsApp belum siap. Isi alamat Worker dan kunci aplikasi di <b>Setelan</b> untuk kirim sungguhan. ' +
               'Tanpa itu pesan hanya dicatat sebagai <b>Terkirim</b> (mode simulasi).'
-            : 'Gmail belum terhubung. Surat akan dicatat sebagai <b>Terkirim</b> di buku donor (mode simulasi). ' +
+            : 'Gmail belum terhubung. Surat akan dicatat sebagai <b>Terkirim</b> di riwayat surat donor (mode simulasi). ' +
               'Hubungkan Gmail di <b>Setelan</b> untuk kirim sungguhan.')) + '</p>' +
       (nTanpaAlamat
         ? '<div class="warnbox">' + nTanpaAlamat + ' penerima belum punya ' +
@@ -1823,7 +1823,7 @@ function viewSurat(){
             '<span class="tiny muted" style="align-self:center">' +
               'Salinan dikirim ke <b>' + esc(emailUji() || 'alamat email uji (belum diisi)') + '</b>' +
               ' — atur di <b>Setelan → Pengaman pengiriman</b>. ' +
-              'Isinya memakai penerima pertama sebagai contoh, dan <b>tidak dicatat</b> di buku donor.' +
+              'Isinya memakai penerima pertama sebagai contoh, dan <b>tidak masuk riwayat surat donor</b>.' +
             '</span>' +
           '</div>'
         : '') +
@@ -2304,7 +2304,7 @@ function viewUji(){
       '<div class="mail-prev">Dikirim ke <b>' + esc(u.tujuan) + '</b>' +
         (d ? ' · contoh penerima: ' + esc(donorName(d)) : '') + '</div>' +
       '<div class="mail-foot">' + chipDibaca + chipTerima +
-        '<span class="chip plain">tidak masuk buku donor</span>' +
+        '<span class="chip plain">tidak masuk riwayat donor</span>' +
       '</div>' +
       '<div class="btn-row" style="margin-top:8px">' +
         '<button class="btn sm" data-action="uji-buka" data-id="' + esc(u.id) + '"' +
@@ -2320,7 +2320,7 @@ function viewUji(){
       '<span class="hint">' + list.length + ' salinan terakhir</span></div>' +
     '<p class="small muted" style="margin:0 0 10px">Salinan dari tombol <b>✉ Kirim ke saya sendiri dulu</b>. ' +
       'Isinya sama persis dengan yang akan diterima donor — termasuk tanda dibaca dan tombol konfirmasi — ' +
-      'tetapi <b>tidak dicatat</b> di buku donor.</p>' +
+      'tetapi <b>tidak masuk riwayat surat donor</b>.</p>' +
     '<div class="row" style="justify-content:space-between;align-items:center">' +
       '<span class="small">Salinan dikirim ke <b>' + esc(tujuan || '(belum diisi)') + '</b></span>' +
       '<button class="btn sm" data-go="pengaturan">⚙ Ubah alamat</button>' +
@@ -3375,7 +3375,7 @@ function viewPengaturan(){
         ? 'Salinan uji dikirim ke <b>' + esc(state.settings.emailUji) + '</b>.'
         : 'Dikosongkan berarti salinan uji dikirim ke <b>' +
           esc(Gmail.email || 'email Gmail yang tersambung') + '</b>.') +
-      ' Salinan uji <b>tidak dicatat</b> di buku donor — hasilnya bisa dilihat di halaman <b>Uji</b>.</p>' +
+      ' Salinan uji <b>tidak masuk riwayat surat donor</b> — hasilnya bisa dilihat di halaman <b>Uji</b>.</p>' +
     '<div class="sep"></div>' +
     '<div class="field"><label>Alamat untuk koreksi kwitansi ' +
       '<span class="hint">— dicetak di kwitansi</span></label>' +
@@ -3596,7 +3596,7 @@ function openMessage(msgId){
 
   const footer = '<button class="btn danger" data-action="msg-hapus" data-id="' + esc(m.id) + '">Hapus</button>' +
     '<button class="btn" data-close>Tutup</button>' +
-    (d ? '<button class="btn" data-action="buku" data-id="' + esc(d.id) + '">Buka Buku</button>' +
+    (d ? '<button class="btn" data-action="buku" data-id="' + esc(d.id) + '">Buka Riwayat</button>' +
          '<button class="btn primary" data-action="balas" data-id="' + esc(d.id) + '">✎ Balas</button>'
        : '<button class="btn primary" data-action="tautkan" data-id="' + esc(m.id) + '">Tautkan ke Donor</button>');
 
@@ -4137,7 +4137,7 @@ function deleteDonor(id){
   if(!d) return;
   const n = state.messages.filter(function(m){ return m.donorId === id; }).length;
   if(!confirm('Hapus donor ' + donorName(d) + ' (' + id + ')?' +
-      (n ? '\n' + n + ' surat di bukunya juga akan dihapus.' : ''))) return;
+      (n ? '\n' + n + ' surat di riwayatnya juga akan dihapus.' : ''))) return;
   state.donors = state.donors.filter(function(x){ return x.id !== id; });
   state.messages = state.messages.filter(function(m){ return m.donorId !== id; });
   save('donors'); save('messages');
@@ -4168,7 +4168,7 @@ function emailUji(){
 
 /* Kirim satu salinan ke email sendiri dulu. Tujuannya supaya user bisa
    memeriksa hasil sungguhan di kotak masuknya sendiri sebelum dikirim ke
-   donor. Salinan ini TIDAK dicatat di buku donor — ini hanya uji coba.
+   donor. Salinan ini TIDAK masuk riwayat surat donor — ini hanya uji coba.
 
    Salinan uji memakai tanda dibaca & tombol konfirmasi yang SAMA seperti surat
    sungguhan, supaya yang diuji benar-benar sama dengan yang akan diterima
@@ -4269,7 +4269,7 @@ async function kirimSurat(asDraft){
     const apa = kanal === 'whatsapp' ? 'WhatsApp' : 'Gmail';
     const lanjut = confirm(
       apa + ' belum terhubung, jadi pesan TIDAK akan benar-benar terkirim.\n\n' +
-      'Pesan hanya akan dicatat sebagai "Terkirim" di buku donor (mode simulasi).\n\n' +
+      'Pesan hanya akan dicatat sebagai "Terkirim" di riwayat surat donor (mode simulasi).\n\n' +
       'Hubungkan ' + apa + ' di halaman Setelan kalau ingin kirim sungguhan.\n\n' +
       'Lanjutkan mencatat sebagai simulasi?');
     if(!lanjut) return;
@@ -4762,7 +4762,7 @@ async function waSync(opts){
     if(baru){
       toast(baru + ' pesan WhatsApp baru' + (takDikenal ? ' (' + takDikenal + ' belum dikenal)' : ''));
     }else if(gagal){
-      toast(gagal + ' pesan WhatsApp gagal terkirim — cek buku donor', true);
+      toast(gagal + ' pesan WhatsApp gagal terkirim — cek riwayat surat donor', true);
     }else if(cocok){
       toast(cocok + ' pesan lama dicocokkan ke donor');
     }else if(!senyap){
@@ -5078,7 +5078,7 @@ document.addEventListener('click', function(e){
       break;
     }
     case 'msg-hapus':
-      if(confirm('Hapus surat ini dari buku?')){
+      if(confirm('Hapus surat ini dari riwayat?')){
         state.messages = state.messages.filter(function(m){ return m.id !== id; });
         save('messages'); closeModal(); toast('Surat dihapus'); render();
       }
