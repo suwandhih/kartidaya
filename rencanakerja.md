@@ -2599,4 +2599,31 @@ menghapus apa pun di Cloudflare.
 dimatikan, tombol Lupakan bekerja, dan tanda hilang dibersihkan saat majalah
 ditemukan lagi. Galat 401 (kunci salah) terbukti **tidak** memicu peringatan.
 
+### Tombol Unggah yang "mati" — diperbaiki (12 Nov 2026)
+
+**Laporan Anda:** setelah memilih PDF, tombol **↑ Unggah** tidak bisa diklik.
+
+**Sebabnya:** tombol itu dimatikan kalau **Alamat Worker** belum terisi. Di
+browser Anda, alamat Worker **sudah** terisi — tapi **Kunci aplikasi belum**.
+Karena tombolnya hanya memeriksa alamat Worker, tombolnya **tidak** dimatikan,
+lalu saat ditekan muncul kabar *"Alamat Worker / kunci aplikasi belum diisi"* —
+tanpa menyebut mana yang kurang. Membingungkan.
+
+**Yang diperbaiki:**
+
+| Sebelum | Sesudah |
+|---|---|
+| Tombol mati tanpa penjelasan | Tombol **selalu bisa ditekan** |
+| Peringatan hanya menyebut "Alamat Worker" | Daftar centang: ✅ Alamat Worker · ❌ Kunci aplikasi |
+| Tidak ada jalan pintas ke Setelan | Tombol **⚙ Buka Setelan** langsung di dalam form |
+| Kabar galat tidak menyebut mana yang kurang | Kabar menyebut persis: *"Kunci aplikasi belum diisi"* |
+
+**Uji:** 3 pemeriksaan lulus — daftar centang menampilkan keadaan sebenarnya
+(alamat ✅, kunci ❌), tombol Unggah bisa ditekan, dan menekannya tanpa berkas
+memberi kabar *"Pilih berkas PDF atau gambar halaman dulu"*.
+
+**Yang perlu Anda lakukan:** buka **Setelan → WhatsApp**, isi **Kunci
+aplikasi** (sama dengan `APP_KEY` di Worker), tekan **Simpan & uji sambungan**.
+Setelah itu unggah majalahnya.
+
 ---

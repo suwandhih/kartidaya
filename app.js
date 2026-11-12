@@ -3576,13 +3576,39 @@ function simpanTplForm(id){
 /* ---------- Kelola Majalah ---------- */
 /* Halaman majalah diunggah satu per satu ke Worker. Setelah tersimpan,
    alamatnya dipakai lagi di setiap email — jadi tidak perlu unggah ulang. */
+/* Apa saja yang masih kurang untuk menyimpan majalah ke Worker. Dipakai di
+   form majalah supaya user tahu persis apa yang harus diisi — bukan sekadar
+   tombol mati tanpa penjelasan. */
+function waSiapInfo(){
+  const endpoint = workerBase();
+  const key = String(WhatsApp.appKey || '');
+  return {
+    endpoint: endpoint,
+    adaEndpoint: !!endpoint,
+    adaKey: !!key,
+    siap: !!(endpoint && key)
+  };
+}
+
 function openMajalahForm(){
   const m = majalahInfo();
-  const base = workerBase();
+  const s = waSiapInfo();
+  const baris = function(ok, label, nilai){
+    return '<li>' + (ok ? '✅' : '❌') + ' <b>' + esc(label) + '</b> — ' +
+      (ok ? esc(nilai) : '<b>belum diisi</b>') + '</li>';
+  };
   const body =
-    (base ? '' :
-      '<div class="warnbox">Isi <b>Alamat Worker</b> di halaman <b>Setelan</b> dulu. ' +
-      'Majalah disimpan di Worker supaya bisa tampil di email penerima.</div>') +
+    (s.siap ? '' :
+      '<div class="warnbox"><b>Belum bisa mengunggah.</b> Lengkapi dulu di halaman ' +
+      '<b>Setelan → WhatsApp</b>:<ul style="margin:8px 0 0;padding-left:20px">' +
+        baris(s.adaEndpoint, 'Alamat Worker', s.endpoint) +
+        baris(s.adaKey, 'Kunci aplikasi', 'terisi') +
+      '</ul>' +
+      '<p style="margin:8px 0 0">Majalah disimpan di Worker supaya bisa tampil di email ' +
+      'penerima dan dikirim lewat WhatsApp.</p>' +
+      '<div class="btn-row" style="margin-top:10px">' +
+        '<button class="btn sm primary" data-action="mj-ke-setelan">⚙ Buka Setelan</button>' +
+      '</div></div>') +
     '<div class="field"><label>Judul majalah</label>' +
       '<input type="text" id="mj-judul" placeholder="Majalah Kartidaya — Edisi …" value="' +
         esc(m ? (m.judul || '') : '') + '"></div>' +
@@ -3610,8 +3636,11 @@ function openMajalahForm(){
       : '') +
     '<div id="mj-progress" class="small muted"></div>';
 
+  /* Tombol sengaja TIDAK dimatikan. Tombol mati membuat user bingung karena
+     tidak ada penjelasan; lebih baik bisa ditekan lalu diberi tahu apa yang
+     kurang. */
   const footer = '<button class="btn" data-close>Tutup</button>' +
-    '<button class="btn primary" data-action="mj-unggah"' + (base ? '' : ' disabled') + '>↑ Unggah</button>';
+    '<button class="btn primary" data-action="mj-unggah">↑ Unggah</button>';
 
   openModal({ title:'Kelola Majalah', body:body, footer:footer, wide:true });
 }
@@ -3724,7 +3753,12 @@ async function unggahMajalah(){
   const files = imgEl && imgEl.files ? Array.prototype.slice.call(imgEl.files) : [];
 
   if(!pakaiPdf && !files.length){ toast('Pilih berkas PDF atau gambar halaman dulu', true); return; }
-  if(!WhatsApp.isConfigured()){ toast('Alamat Worker / kunci aplikasi belum diisi', true); return; }
+  const siap = waSiapInfo();
+  if(!siap.siap){
+    toast('Belum bisa mengunggah — ' + (siap.adaEndpoint ? '' : 'Alamat Worker belum diisi. ') +
+      (siap.adaKey ? '' : 'Kunci aplikasi belum diisi. ') + 'Isi dulu di Setelan → WhatsApp', true);
+    return;
+  }
 
   const id = 'mj-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   const judul = judulEl ? judulEl.value.trim() : '';
@@ -5003,6 +5037,7 @@ document.addEventListener('click', function(e){
       break;
     case 'mj-kelola': openMajalahForm(); break;
     case 'mj-hapus': hapusMajalah(); break;
+    case 'mj-ke-setelan': closeModal(); go('pengaturan'); break;
     case 'mj-lupakan':
       delete state.settings.majalah;
       suratState.majalah = false;
