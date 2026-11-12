@@ -3712,3 +3712,78 @@ sekarang** — karena memberi rasa aman yang palsu. Jadi harus lengkap: password
 diacak, batas percobaan login, dan token yang kedaluwarsa.
 
 ---
+
+## 25. Arahan tingkat urgensi — fase tes (12 Nov 2026) ⭐ PENTING
+
+**Arahan Anda:**
+
+> *"untuk masa tes client selama masih pakai akun saya.. buat sederhana dulu..
+> hanya konsep sampai.. teknik di belakang tidak perlu detail.. karena ini masih
+> pakai data tes.. jadi tidak perlu kuatir.. nanti mungkin akan diperlukan jika
+> aplikasi sudah mandiri pada perusahaan client.. selama masih 'nebeng' akun
+> saya.. tidak perlu ketat.. tujuannya memudahkan pengetesan.. tidak disibuk
+> dengan hal2 yg masih kurang penting.. ini lebih ke inti.. aplikasi ini berguna
+> di setiap bagian tujuannya itu"*
+
+### 25.1 Aturan yang saya pegang mulai sekarang
+
+| Fase | Keadaan | Sikap |
+|---|---|---|
+| **SEKARANG — fase tes** | Masih pakai akun Cloudflare & Gmail Anda. Data masih data tes | **Sederhana dulu.** Cukup konsepnya jalan. Jangan sibuk dengan pengamanan ketat, hal teknis di belakang, atau hal yang belum perlu |
+| **NANTI — aplikasi mandiri** | Sudah punya akun sendiri di perusahaan client. Data sungguhan | Baru dipikirkan yang ketat: login lengkap, password diacak, batas percobaan, verifikasi OAuth, dll |
+
+**Yang jadi patokan:** *"aplikasi ini berguna di setiap bagian"* — jadi yang
+didahulukan adalah **bagian-bagian aplikasi yang berguna dan bisa dipakai**,
+bukan pengamanan yang belum perlu.
+
+### 25.2 Apa artinya untuk pekerjaan yang sudah direncanakan
+
+| # | Pekerjaan | Sebelumnya | **Sekarang** |
+|---|---|---|---|
+| §22.1 | Kosongkan data donor asli dari repo publik | 🔴 mendesak | 🟡 **turun** — masih data tes, tidak perlu kuatir. Tetap dicatat untuk nanti |
+| §22.9 / §24 | Login & akun pengguna | 🟡 perlu keputusan | ⬇️ **DITUNDA** — cukup konsepnya (§24 sudah ditulis). Dikerjakan saat aplikasi sudah mandiri |
+| §22.10 | Verifikasi OAuth Google | 🟡 proses 1–4 minggu | ⬇️ **DITUNDA** — selama masih pakai akun Anda, tidak perlu |
+| §22.4 | Kata sandi halaman pembaca majalah | 🟡 | ⬇️ **DITUNDA** — belum perlu |
+| §22.2 | Pengingat mencadangkan data | 🟠 | ➡️ tetap, kecil & berguna |
+| §22.11 | Isi data Keuangan & Alamat Lengkap | 🟠 | ⬆️ **NAIK** — tanpa ini kwitansi berisi Rp 0, jadi bagian Keuangan belum "berguna" |
+| §22.3 | Daftar edisi majalah | 🟡 | ➡️ tetap — bagian majalah |
+| §22.5 | Penghitung pembaca majalah | 🟡 | ➡️ tetap, kecil |
+| §22.6 | Balas semua & Teruskan | 🟡 | ➡️ tetap — bagian surat |
+| §22.7 | Lampiran berkas sungguhan | 🟡 | ➡️ tetap — bagian surat |
+| §22.8 | Template berformat | 🟡 | ➡️ tetap — bagian surat |
+
+### 25.3 Prioritas baru — yang mendahulukan "berguna di setiap bagian"
+
+| Prioritas | Pekerjaan | Kenapa | Perkiraan |
+|---|---|---|---|
+| 🔴 1 | **Isi data Keuangan & Alamat Lengkap** (§22.11) | Tanpa ini kwitansi berisi **Rp 0** dan tombol **Cetak Alamat** tidak berguna. Bagian Keuangan belum bisa dinilai | — (data dari Anda) |
+| 🟠 2 | **Pengingat mencadangkan data** (§22.2) | Kecil, tapi melindungi pekerjaan tes | ±30 menit |
+| 🟠 3 | **Balas semua & Teruskan** (§22.6) | Melengkapi bagian surat supaya terasa utuh saat dites | ±1 jam |
+| 🟠 4 | **Lampiran berkas sungguhan** (§22.7) | Sering dipakai saat kirim surat ke donor | ±2 jam |
+| 🟡 5 | **Daftar edisi majalah** (§22.3) | Bagian majalah | ±2 jam |
+| 🟡 6 | **Template berformat** (§22.8) | Membuat surat lebih rapi | ±3 jam |
+| 🟡 7 | **Penghitung pembaca majalah** (§22.5) | Kecil, menambah informasi | ±1,5 jam |
+| ⬇️ | ~~Login, OAuth, kata sandi majalah, data asli~~ | **Ditunda** sampai aplikasi mandiri | — |
+
+### 25.4 Yang tetap saya kerjakan walaupun fase tes
+
+Ada beberapa hal yang **tetap** saya kerjakan walaupun sederhana, karena
+kalau tidak, pengetesan jadi tidak nyaman atau data tes bisa hilang:
+
+| Hal | Kenapa tetap |
+|---|---|
+| **Data tidak hilang saat internet putus** | Sudah selesai (§23.7b). Kalau tidak, hasil tes bisa hilang dan tes jadi sia-sia |
+| **Pekerjaan rekan tidak terhapus** | Sudah selesai (§23.7b). Ini bukan soal keamanan, tapi soal tes 2 orang bisa jalan |
+| **Pengingat mencadangkan data** | Data tes pun sayang kalau hilang |
+| **Pesan galat yang jelas** | Supaya Anda tahu apa yang salah saat mengetes |
+
+### 25.5 Cara saya akan menjawab mulai sekarang
+
+Kalau ada pilihan antara **"lebih aman"** dan **"lebih sederhana"**, dan ini
+masih fase tes → saya pilih **lebih sederhana**, lalu **catat** yang lebih aman
+di rencanakerja untuk nanti.
+
+Kalau ada hal yang bisa **menghilangkan data** atau **membuat tes gagal** →
+saya kerjakan walaupun sederhana.
+
+---
