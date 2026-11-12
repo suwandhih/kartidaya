@@ -1235,7 +1235,7 @@ Setelah ketiganya beres → tambahkan **nomor WhatsApp Business sungguhan**
 
 | Item | Keputusan |
 |---|---|
-| **WhatsApp** | ⏸ **DITUNDA** — menunggu nomor resmi kantor. Kode yang ada disimpan, tidak dihapus, tidak dikembangkan lebih jauh dulu. |
+| **WhatsApp** | ⏸ **DITUNDA** — menunggu nomor resmi kantor. Kode yang ada disimpan, tidak dihapus, tidak dikembangkan lebih jauh dulu. **Catatan 12 Nov 2026:** jalur kirim media (kwitansi PNG & majalah PDF) sudah disiapkan (§18.1) — tinggal diuji setelah akun Meta tidak `BLOCKED`. |
 | **Email** | ▶ **Tetap `fotohotono03@gmail.com`** untuk keperluan develop |
 | **Email resmi kantor** | ⏳ Menyusul. Saat tersedia: ganti Client ID + login ulang di Setelan. **Tidak perlu ubah kode.** |
 | **Fase 5 (email dibaca)** | ✅ **SELESAI** 11 Nov 2026 — pixel di Worker + chip **✓✓ Dibaca** |
@@ -1631,6 +1631,8 @@ tanggal, total per program, tombol **+ Tambah**.
 - [x] Uji kirim ke Gmail sendiri (kwitansi diterima ✅, majalah & tanda dibaca diuji lokal)
 - [x] Tombol **Konfirmasi sudah menerima** + halaman `/terima/<id>` (12 Nov 2026)
 - [ ] Uji majalah & tanda dibaca lewat email sungguhan — **menunggu berkas majalah dari Anda**
+- [x] Halaman pembaca majalah `/baca/<id>` + PDF → PNG otomatis (12 Nov 2026)
+- [x] Tombol **Konfirmasi sudah menerima** + halaman `/terima/<id>` (12 Nov 2026)
 
 ### 17.9 Logo — ✅ SELESAI (11 Nov 2026)
 
