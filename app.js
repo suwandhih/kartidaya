@@ -383,6 +383,234 @@ function kwitansiHTML(d, bahasa, finId, opsi){
   '</table>';
 }
 
+/* ---------- KWITANSI SEBAGAI GAMBAR (PNG) ----------
+   WhatsApp tidak bisa menampilkan tabel HTML, jadi kwitansi digambar sebagai
+   gambar. Digambar langsung di browser dengan Canvas — tidak perlu aplikasi
+   atau layanan tambahan. Email tetap memakai HTML karena lebih tajam dan
+   teksnya bisa disalin penerima. */
+
+const PNG_LEBAR = 720;
+
+function muatGambar(src){
+  return new Promise(function(resolve){
+    const img = new Image();
+    img.onload = function(){ resolve(img); };
+    img.onerror = function(){ resolve(null); };
+    img.src = src;
+  });
+}
+
+/* Menggambar kwitansi ke canvas. Dipanggil dua kali: sekali dengan `ukurSaja`
+   untuk menghitung tinggi, sekali untuk menggambar sungguhan. */
+function gambarKwitansi(ctx, d, bahasa, finId, opsi, ukurSaja){
+  const L = KWITANSI_LABEL[bahasa] || KWITANSI_LABEL.id;
+  const k = dataKwitansi(d, finId);
+  const W = PNG_LEBAR, pad = 26;
+  const x0 = pad, x1 = W - pad;
+  const xNilai = x0 + 164;
+  const lebarNilai = x1 - xNilai;
+  const GARIS = '#333';
+  let y = pad;
+
+  const font = function(size, tebal, serif){
+    ctx.font = (tebal ? 'bold ' : '') + size + 'px ' +
+      (serif ? 'Georgia,"Times New Roman",serif' : 'Arial,Helvetica,sans-serif');
+  };
+  const teks = function(t, x, yy, size, tebal, warna, align, serif){
+    font(size, tebal, serif);
+    if(ukurSaja) return;
+    ctx.fillStyle = warna || '#111';
+    ctx.textAlign = align || 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(t, x, yy);
+  };
+  const garis = function(xa, ya, xb, yb, warna, lebar){
+    if(ukurSaja) return;
+    ctx.strokeStyle = warna || GARIS;
+    ctx.lineWidth = lebar || 1;
+    ctx.beginPath(); ctx.moveTo(xa, ya); ctx.lineTo(xb, yb); ctx.stroke();
+  };
+  /* Bungkus teks panjang jadi beberapa baris sesuai lebar kolom nilai. */
+  const bungkus = function(t, lebar, size, tebal){
+    font(size, tebal);
+    const kata = String(t || '').split(/\s+/).filter(Boolean);
+    const baris = [];
+    let kini = '';
+    kata.forEach(function(w){
+      const coba = kini ? kini + ' ' + w : w;
+      if(ctx.measureText(coba).width > lebar && kini){ baris.push(kini); kini = w; }
+      else kini = coba;
+    });
+    if(kini) baris.push(kini);
+    return baris.length ? baris : [''];
+  };
+
+  /* --- Kepala: logo kiri, nama lembaga & judul di tengah --- */
+  const logoW = 140;
+  const logoH = (opsi.logo && opsi.logo.width)
+    ? Math.round(logoW * opsi.logo.height / opsi.logo.width) : 0;
+  if(opsi.logo && !ukurSaja) ctx.drawImage(opsi.logo, x0, y, logoW, logoH);
+  teks('KARTIDAYA SAHABAT INDONESIA', W / 2, y + 22, 19, true, '#111', 'center', true);
+  teks(L.judul, W / 2, y + 44, 15, true, '#111', 'center');
+  y += Math.max(logoH, 48) + 16;
+
+  /* --- Baris isi: label · titik dua · nilai, dengan garis bawah --- */
+  const barisIsi = function(label, nilai, tebal){
+    const baris = bungkus(nilai, lebarNilai, 13, tebal);
+    const tinggi = Math.max(30, baris.length * 19 + 12);
+    teks(label, x0, y + 19, 13, true);
+    teks(':', x0 + 150, y + 19, 13, false);
+    baris.forEach(function(b, i){ teks(b, xNilai, y + 19 + i * 19, 13, tebal); });
+    garis(x0, y + tinggi - 1, x1, y + tinggi - 1, GARIS, 1);
+    y += tinggi;
+  };
+  const barisKosong = function(){ y += 30; };
+
+  const namaPenerima = donorName(d);
+  const instansi = (d.instansi && d.instansi !== namaPenerima) ? ' — ' + d.instansi : '';
+  barisIsi(L.dari, namaPenerima + instansi);
+  /* Satu baris per mata uang — tidak digabung, karena kursnya berbeda. */
+  const kode = k.kodeUang.length ? k.kodeUang : ['IDR'];
+  kode.forEach(function(u){ barisIsi(L.jumlah, terbilang(k.perUang[u] || 0, u), true); });
+  barisKosong();
+  barisIsi(L.untuk, k.program || 'Pelayanan Kartidaya Sahabat');
+  barisKosong();
+
+  /* --- Tempat & tanggal, lalu tanda tangan --- */
+  teks(L.kota + ', ' + tanggalKwitansi(k.tanggal), x1, y + 16, 13, false, '#111', 'right');
+  y += 30;
+  teks('kartidaya', x1, y + 20, 19, true, '#2f6f9f', 'right', true);
+  teks('Lidya Tambunan', x1, y + 38, 12, true, '#111', 'right');
+  teks('Head of Finance, Accounting & Tax', x1, y + 53, 11, false, '#444', 'right');
+  y += 66;
+
+  /* --- Terbilang: satu baris per mata uang, angka di dalam kotak garis --- */
+  kode.forEach(function(u){
+    teks(L.terbilang + (kode.length > 1 ? ' (' + u + ')' : ''), x0, y + 18, 13, true);
+    teks(':', x0 + 150, y + 18, 13, false);
+    const simbol = uangInfo(u).simbol;
+    const angka = angkaUang(k.perUang[u] || 0, u);
+    font(13, true);
+    const wSimbol = ctx.measureText(simbol).width + 12;
+    const wAngka = Math.max(ctx.measureText(angka).width + 20, 150);
+    if(!ukurSaja){
+      ctx.fillStyle = '#111';
+      ctx.textAlign = 'left';
+      ctx.fillText(simbol, xNilai + 6, y + 18);
+      ctx.fillText(angka, xNilai + wSimbol + 10, y + 18);
+    }
+    garis(xNilai, y + 24, xNilai + wSimbol, y + 24, GARIS, 1);
+    garis(xNilai + wSimbol, y + 24, xNilai + wSimbol + wAngka, y + 24, GARIS, 1);
+    y += 30;
+  });
+
+  /* --- Kaki: nomor, kode, dan cara menghubungi kalau ada kekeliruan --- */
+  y += 4;
+  const kaki = [];
+  kaki.push('No. ' + k.nomor + (k.ada ? '' : ' — belum ada transaksi keuangan untuk donor ini'));
+  if(k.kode) kaki.push('Kode kwitansi: ' + k.kode);
+  if(opsi.kodeKiriman){
+    kaki.push('Kode kiriman: ' + opsi.kodeKiriman +
+      (opsi.waktuKirim ? ' · dikirim ' + opsi.waktuKirim : ''));
+  }
+  kaki.push('Ada yang perlu diperbaiki? Hubungi ' +
+    (state.settings.kontakKoreksi || 'finance@kartidaya.org') + ' dengan menyebut kode di atas.');
+  kaki.forEach(function(t){
+    bungkus(t, x1 - x0, 10.5, false).forEach(function(b){
+      teks(b, x0, y + 12, 10.5, false, '#666');
+      y += 14;
+    });
+  });
+
+  y += pad - 6;
+  /* Bingkai luar digambar paling akhir karena tingginya baru diketahui kini. */
+  if(!ukurSaja){
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(1, 1, W - 2, y - 2);
+  }
+  return y;
+}
+
+/* Hasilkan canvas kwitansi. `skala` 2 membuat gambar tajam di layar HP. */
+async function kwitansiCanvas(d, bahasa, finId, opsi){
+  opsi = opsi || {};
+  const logo = state.settings.logoUrl || 'vendor/kartidaya-logo.png';
+  const logoAbs = /^https?:/i.test(logo) ? logo : new URL(logo, location.href).href;
+  const img = await muatGambar(logoAbs);
+  const S = opsi.skala || 2;
+  const ukur = document.createElement('canvas').getContext('2d');
+  const tinggi = Math.ceil(gambarKwitansi(ukur, d, bahasa, finId, { logo:img }, true));
+  const cv = document.createElement('canvas');
+  cv.width = PNG_LEBAR * S;
+  cv.height = tinggi * S;
+  const ctx = cv.getContext('2d');
+  ctx.scale(S, S);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, PNG_LEBAR, tinggi);
+  gambarKwitansi(ctx, d, bahasa, finId, { logo:img }, false);
+  return cv;
+}
+
+/* Data URL PNG — dipakai untuk pratinjau di layar dan untuk diunduh. */
+async function kwitansiPNG(d, bahasa, finId, opsi){
+  const cv = await kwitansiCanvas(d, bahasa, finId, opsi);
+  return cv.toDataURL('image/png');
+}
+
+/* Blob PNG — dipakai kalau nanti dikirim lewat WhatsApp. */
+async function kwitansiPNGBlob(d, bahasa, finId, opsi){
+  const cv = await kwitansiCanvas(d, bahasa, finId, opsi);
+  return new Promise(function(resolve){ cv.toBlob(resolve, 'image/png'); });
+}
+
+/* Pratinjau gambar kwitansi + tombol unduh. */
+async function openKwitansiPNG(donorId){
+  const d = findDonor(donorId) || findDonor(suratState.previewId) ||
+    findDonor(Object.keys(suratState.selected).filter(function(k){ return suratState.selected[k]; })[0]);
+  if(!d){ toast('Pilih penerima dulu', true); return; }
+  const bahasa = suratState.kwitansiBahasa;
+  const finId = suratState.kwitansiFinId;
+  const kodeKrm = kodeKiriman();
+  const waktuKrm = waktuKirim();
+
+  openModal({
+    title:'Kwitansi sebagai gambar (PNG)',
+    body:'<div id="png-root"><p class="muted small">Menggambar…</p></div>',
+    footer:'<span class="tiny muted" style="margin-right:auto">' +
+        'Gambar ini yang dipakai untuk WhatsApp. Email tetap memakai versi HTML.</span>' +
+      '<button class="btn" data-close>Tutup</button>' +
+      '<button class="btn primary" id="png-unduh" disabled>⤓ Unduh PNG</button>',
+    wide:true
+  });
+
+  const root = document.getElementById('png-root');
+  try{
+    const url = await kwitansiPNG(d, bahasa, finId, { kodeKiriman:kodeKrm, waktuKirim:waktuKrm });
+    const kb = Math.round((url.length - 'data:image/png;base64,'.length) * 3 / 4 / 1024);
+    root.innerHTML =
+      '<p class="small muted" style="margin:0 0 8px">' + esc(donorName(d)) + ' · ' +
+        esc(KWITANSI_NAMA_BAHASA[bahasa] || 'Indonesia') + ' · ' +
+        '<b>' + kb + ' KB</b> · lebar ' + PNG_LEBAR + ' px</p>' +
+      '<div class="png-preview"><img src="' + url + '" alt="Kwitansi"></div>' +
+      '<p class="tiny muted" style="margin:8px 0 0">Kode kiriman <b>' + esc(kodeKrm) +
+        '</b> · dikirim ' + esc(waktuKrm) + '</p>';
+    const btn = document.getElementById('png-unduh');
+    if(btn){
+      btn.disabled = false;
+      btn.addEventListener('click', function(){
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'kwitansi-' + d.id + '-' + kodeKrm + '.png';
+        a.click();
+        toast('Gambar kwitansi diunduh');
+      });
+    }
+  }catch(e){
+    root.innerHTML = '<div class="warnbox">Gagal menggambar kwitansi: ' + esc(e.message || e) + '</div>';
+  }
+}
+
 /* ---------- MAJALAH ---------- */
 /* Halaman majalah disimpan sekali di Worker, lalu ditampilkan di badan email
    lewat alamat publik. Jadi penerima langsung melihat halamannya tanpa perlu
@@ -1376,6 +1604,9 @@ function previewHTML(d){
     '<div class="btn-row" style="margin-top:12px">' +
       '<button class="btn primary" data-action="pratinjau-email" data-id="' + esc(d.id) + '">👁 Pratinjau email</button>' +
       '<button class="btn" data-action="periksa-kirim">🔍 Periksa sebelum kirim</button>' +
+      (pakaiKwitansi
+        ? '<button class="btn" data-action="kwitansi-png" data-id="' + esc(d.id) + '">🖼 Kwitansi PNG</button>'
+        : '') +
       '<button class="btn" data-action="print-one" data-id="' + esc(d.id) + '">⎙ Cetak</button>' +
     '</div>';
 }
@@ -3983,6 +4214,7 @@ document.addEventListener('click', function(e){
     }
     case 'periksa-kirim': openPeriksaKirim(); break;
     case 'riwayat-kirim': openRiwayatKirim(); break;
+    case 'kwitansi-png': openKwitansiPNG(id); break;
     case 'buka-pesan': closeModal(); openMessage(id); break;
     case 'pratinjau-email': openPratinjauEmail(id); break;
     case 'pj-lebar':

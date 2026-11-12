@@ -449,6 +449,13 @@ tbody tr:last-child td{border-bottom:0}
   font-variant-numeric:tabular-nums;
 }
 
+/* Pratinjau kwitansi sebagai gambar PNG (untuk WhatsApp). */
+.png-preview{
+  border:1px solid var(--line);border-radius:var(--radius-sm);
+  background:#fff;padding:10px;overflow:auto;max-height:60vh;
+}
+.png-preview img{display:block;width:100%;max-width:720px;height:auto;margin:0 auto}
+
 /* ---------- MODAL ---------- */
 .modal-back{
   position:fixed;inset:0;z-index:100;

@@ -2027,22 +2027,33 @@ selesai.
 
 ---
 
-### 19.2 Kwitansi diubah jadi PNG di menu Tulis Surat — ⏸ BELUM
+### 19.2 Kwitansi diubah jadi PNG di menu Tulis Surat — ✅ SELESAI (12 Nov 2026)
 
 **Rencana:** di halaman **Tulis Surat**, saat kwitansi diaktifkan, tersedia
 tombol **"Buat gambar PNG"**. Gambar itu yang dipakai untuk WhatsApp.
 
-| Aspek | Rencana |
-|---|---|
-| Pembuat | digambar di browser (Canvas) dari data kwitansi yang sudah ada |
-| Ukuran | lebar 720 px — hasil ukur **12 KB** (12 baris isi) |
-| Dua bahasa | Indonesia & Inggris, sama seperti email |
-| Pemakaian | WhatsApp kirim `type: image`; email tetap pakai HTML (lebih tajam) |
-| Pratinjau | gambar PNG bisa dilihat langsung sebelum dikirim |
+| Aspek | Rencana | Hasil |
+|---|---|---|
+| Pembuat | digambar di browser (Canvas) dari data kwitansi yang sudah ada | ✅ Canvas, tanpa aplikasi tambahan |
+| Ukuran | lebar 720 px — hasil ukur **12 KB** (12 baris isi) | ✅ 720 px, **139–162 KB** (lihat catatan) |
+| Dua bahasa | Indonesia & Inggris, sama seperti email | ✅ |
+| Pemakaian | WhatsApp kirim `type: image`; email tetap pakai HTML (lebih tajam) | ⏸ menunggu Meta |
+| Pratinjau | gambar PNG bisa dilihat langsung sebelum dikirim | ✅ + tombol ⤓ Unduh PNG |
 
 **Kenapa email tetap HTML, bukan PNG:** teks HTML bisa diperbesar tanpa pecah,
 bisa dicari, dan bisa dipilih/disalin penerima. PNG hanya dipakai kalau
 memang tidak ada pilihan lain (WhatsApp).
+
+**Catatan ukuran berkas.** Perkiraan 12 KB di atas ternyata terlalu optimistis.
+Hasil ukur sungguhan: **139 KB** (satu mata uang) sampai **162 KB** (dua mata
+uang), pada skala 2× (1440 px) supaya tajam di layar HP. Penyebabnya: logo
+berwarna + teks anti-alias menghasilkan banyak warna, berbeda dengan kwitansi
+polos hitam-putih yang diukur sebelumnya. 139–162 KB masih **jauh di bawah**
+batas gambar WhatsApp (5 MB), jadi tidak masalah.
+
+**Yang ditambahkan di luar rencana:** kode kiriman + tanggal kirim ikut
+tercetak di gambar PNG, sama seperti di kwitansi HTML — supaya versi WhatsApp
+dan versi email bisa dicocokkan.
 
 ---
 
@@ -2167,7 +2178,7 @@ dilewati). Menunggu keputusan Anda — kalau diwajibkan, setiap kali menekan
 
 | Urutan | Pekerjaan | Perkiraan | Tergantung |
 |---|---|---|---|
-| 1 | **Kwitansi PNG** di Tulis Surat (§19.2) | ±1 jam | — |
+| 1 | ~~**Kwitansi PNG** di Tulis Surat (§19.2)~~ | ~~±1 jam~~ | ✅ **SELESAI 12 Nov 2026** |
 | 2 | ~~**Kode kiriman + tanggal kirim + daftar per pengiriman** (§19.3)~~ | ~~±2 jam~~ | ✅ **SELESAI 12 Nov 2026** |
 | 3 | **Pratinjau wajib** (§19.3) — tombol "kirim ke diri sendiri" sudah selesai | ±30 menit | keputusan Anda |
 | 4 | **Terima PDF majalah** + PNG otomatis (§19.1) | ±1,5 jam | berkas PDF dari user |
@@ -2175,7 +2186,7 @@ dilewati). Menunggu keputusan Anda — kalau diwajibkan, setiap kali menekan
 | 6 | **Sampul + tombol Baca majalah di email** (§18.2) | ±1 jam | langkah 5 |
 | 7 | **WhatsApp: kirim PNG & PDF** (§18.1) | ±2,5 jam | akun Meta tidak BLOCKED |
 
-**Bisa dikerjakan sekarang (tidak menunggu apa pun): langkah 1 dan 3.**
+**Bisa dikerjakan sekarang (tidak menunggu apa pun): langkah 3.**
 Langkah 4–6 menunggu berkas PDF majalah. Langkah 7 menunggu Meta.
 
 ---
