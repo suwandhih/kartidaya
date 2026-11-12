@@ -2883,4 +2883,92 @@ butuh ±1 menit.
 *"Majalah Kartidaya"*, bukan kosong. Sebelumnya halaman pembaca bisa tampil
 tanpa judul.
 
+### 21.1 Jawaban: apakah WhatsApp butuh akun Facebook resmi Kartidaya?
+
+**Pertanyaan Anda:** *"untuk mengaktifkan WhatsApp seperti harus ada akun FB
+official Kartidaya ya?"*
+
+**Jawaban singkat: ya, benar.** WhatsApp Business API (jalur yang dipakai
+aplikasi ini) **tidak bisa** dijalankan tanpa akun Meta/Facebook. Tidak ada
+jalan pintas.
+
+**Kenapa harus begitu?** WhatsApp itu milik Meta. Untuk mengirim pesan
+**otomatis** dari sistem (bukan dari HP orang), Meta mewajibkan pengirim
+terdaftar sebagai **bisnis** yang bisa ditelusuri. Jadi yang dibutuhkan
+sebenarnya bukan "akun Facebook" untuk bersosial media, melainkan:
+
+| Yang dibutuhkan | Gunanya | Sudah ada? |
+|---|---|---|
+| **Meta Business Portfolio** (dulu "Business Manager") | "KTP" bisnis di mata Meta — nama legal, negara, situs web | ⏳ belum lengkap |
+| **Aplikasi Meta** (App) | pintu teknis ke WhatsApp API | ✅ ada — App `Kartidaya` (`1919651829397502`) |
+| **WhatsApp Business Account (WABA)** | wadah nomor & template pesan | ✅ ada |
+| **Nomor WhatsApp Business** | nomor pengirim | ⚠️ masih nomor uji gratis `+1 (555) 173-4967` |
+| **Verifikasi bisnis** | membuka izin kirim ke nomor Indonesia | ❌ belum |
+| **Metode pembayaran** | membuka percakapan yang dimulai bisnis | ❌ belum |
+
+**Penting — akun Facebook pribadi Anda tidak dipakai.** Yang dipakai adalah
+**Meta Business Portfolio** (halaman bisnis), bukan profil Facebook pribadi.
+Profil pribadi hanya dipakai sekali untuk **membuat** dan **mengelola** portofolio
+itu. Setelah jadi, pengiriman WhatsApp berjalan atas nama **bisnis Kartidaya**,
+bukan atas nama akun pribadi. Jadi kekhawatiran Anda sebelumnya — *"jangan pakai
+akun FB saya"* — **tidak terjadi**: yang tampil di penerima adalah nama bisnis
+Kartidaya.
+
+**Yang perlu disiapkan Kartidaya (dokumen):**
+
+| Dokumen | Keterangan |
+|---|---|
+| Nama legal organisasi | harus sama dengan dokumen resmi (akta/SK) |
+| Alamat & negara | Indonesia |
+| Situs web | boleh GitHub Pages Kartidaya, atau situs resmi kalau ada |
+| Nomor telepon bisnis | nomor kantor |
+| Bukti badan hukum | akta pendirian / SK Kemenkumham / NPWP organisasi |
+
+**Perkiraan waktu:** pengajuan verifikasi bisnis Meta biasanya **2–10 hari kerja**
+setelah dokumen lengkap. Ini proses Meta, bukan proses kita — tidak bisa
+dipercepat dari sisi aplikasi.
+
+**Kesimpulan:** WhatsApp **memang menunggu akun bisnis resmi Kartidaya**. Itu
+sebabnya WhatsApp ditunda (`WA_DITUNDA = true`) dan email tetap jalan. Semua
+kode WhatsApp sudah siap dan tidak perlu ditulis ulang — begitu verifikasi
+lulus dan nomor resmi dipasang, cukup ubah satu baris.
+
+### 21.2 Temuan baru: token WhatsApp sudah kedaluwarsa (12 Nov 2026)
+
+Waktu saya cek status akun Meta hari ini, jawabannya berubah:
+
+```json
+{ "ok": false, "error": "Authentication Error", "code": 190 }
+```
+
+**Artinya:** token WhatsApp (`WA_TOKEN`) yang tersimpan di Worker **sudah tidak
+berlaku lagi**. Ini **berbeda** dari masalah `130497` yang lama.
+
+| Masalah | Kode | Arti |
+|---|---|---|
+| Lama | `130497` | Token masih sah, tapi **akun bisnis diblokir** kirim ke Indonesia |
+| **Baru** | `190` | **Token-nya sendiri sudah mati** |
+
+**Sebabnya:** token yang dipakai sekarang adalah token **sementara** yang hanya
+berlaku **24 jam** (sudah tercatat di rencana kerja §14 langkah 9). Token itu
+sudah lewat masa berlakunya.
+
+**Akibatnya:** sekarang **tidak bisa** lagi memeriksa status akun Meta dari
+aplikasi — bukan karena akunnya berubah, tetapi karena "kuncinya" sudah mati.
+Status `130497` yang lama **belum tentu masih berlaku**; perlu token baru untuk
+memastikan.
+
+**Tidak perlu dikerjakan sekarang.** Karena WhatsApp memang sedang ditunda,
+token mati tidak mengganggu apa pun — **email, majalah, kwitansi, dan tanda
+dibaca semuanya tetap jalan normal** (tidak satu pun memakai token WhatsApp).
+
+**Nanti saat WhatsApp diaktifkan**, urutannya:
+
+| # | Langkah |
+|---|---|
+| 1 | Buat **System User** di Meta Business Suite → buat token **permanen** (tidak kedaluwarsa) |
+| 2 | `cd worker` → `npx wrangler secret put WA_TOKEN` → tempel token baru |
+| 3 | Cek ulang `health_status` untuk memastikan `130497` sudah hilang |
+| 4 | Ubah `WA_DITUNDA` jadi `false` di `app.js` |
+
 ---
