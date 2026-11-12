@@ -2191,7 +2191,10 @@ function refreshRecipients(){
   const c = document.getElementById('sel-count');
   if(c) c.textContent = ids.length + ' dipilih';
   const kb = document.getElementById('kirim-btn');
-  if(kb){ kb.disabled = !ids.length; kb.textContent = '➤ Kirim (' + ids.length + ')'; }
+  if(kb){
+    kb.disabled = !ids.length;
+    kb.textContent = (state.settings.wajibPeriksa ? '🔍 Periksa & Kirim (' : '➤ Kirim (') + ids.length + ')';
+  }
   const db = document.getElementById('draft-btn');
   if(db) db.disabled = !ids.length;
 }
