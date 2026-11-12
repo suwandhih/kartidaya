@@ -1850,7 +1850,7 @@ langsung diuji ke nomor sungguhan.
 
 ---
 
-### 18.2 Majalah lewat PDF + halaman pembaca seperti browser — ⏸ BELUM
+### 18.2 Majalah lewat PDF + halaman pembaca seperti browser — ✅ SELESAI (12 Nov 2026)
 
 **Keputusan Anda (12 Nov 2026):**
 - Kirim banyak PNG di email **tidak bisa diandalkan** → ganti pendekatan
@@ -1859,9 +1859,10 @@ langsung diuji ke nomor sungguhan.
   per halaman, naik-turun, nyaman di layar HP
 - Tujuannya supaya email **tidak dianggap spam**
 
-**Catatan Anda:** berkas majalah masih diminta ke user, jadi bagian ini
-**di-hold** sampai berkasnya ada. Rencana tetap disiapkan supaya bisa langsung
-dikerjakan begitu PDF-nya masuk.
+**Catatan Anda:** berkas majalah masih diminta ke user. Bagian ini **sudah
+dikerjakan** (12 Nov 2026) memakai PDF contoh buatan sendiri, supaya begitu
+berkas majalah sungguhan tersedia tinggal diunggah — tidak perlu menunggu
+pengerjaan lagi.
 
 #### A. Kenapa pendekatan "banyak PNG di email" diganti
 
@@ -1945,27 +1946,51 @@ sangat banyak, dan email jauh lebih rapi di HP.
 
 Ketiganya memakai **satu berkas PDF yang sama** — user hanya unggah sekali.
 
-#### F. Urutan pengerjaan
+#### F. Urutan pengerjaan — ✅ SELESAI (12 Nov 2026)
 
-| Urutan | Pekerjaan | Perkiraan |
-|---|---|---|
-| 1 | Terima & simpan **PDF** (unggah 1 berkas) | ±1,5 jam |
-| 2 | Halaman pembaca di `/baca/<id>` (satu halaman per layar) | ±2 jam |
-| 3 | Sampul + tombol "Baca majalah" di email | ±1 jam |
-| 4 | Kompres otomatis + peringatan ukuran | ±45 menit |
-| 5 | Jalur PDF untuk WhatsApp (setelah Meta beres) | ±30 menit |
+| Urutan | Pekerjaan | Perkiraan | Status |
+|---|---|---|---|
+| 1 | Terima & simpan **PDF** (unggah 1 berkas) | ±1,5 jam | ✅ |
+| 2 | Halaman pembaca di `/baca/<id>` (satu halaman per layar) | ±2 jam | ✅ |
+| 3 | Sampul + tombol "Baca majalah" di email | ±1 jam | ✅ |
+| 4 | Kompres otomatis + peringatan ukuran | ±45 menit | ✅ (lebar 1240 px, 64 KB/halaman) |
+| 5 | Jalur PDF untuk WhatsApp (setelah Meta beres) | ±30 menit | ⏸ menunggu Meta |
 
-**Total: ±5,5 jam** — bisa dipecah beberapa sesi. **Di-hold** sampai berkas
-majalah dari user tersedia.
+#### F.1 Hasil yang sudah jadi (12 Nov 2026)
+
+| Bagian | Hasil |
+|---|---|
+| Form majalah | dua pilihan: **PDF** (satu berkas) atau **gambar per halaman** |
+| PDF → gambar | otomatis di browser, lebar 1240 px (150 dpi), **64 KB per halaman** |
+| Batas | 40 halaman, berkas PDF maksimal 25 MB |
+| Pustaka | `pdf.js` 4.10.38 di `vendor/` — tanpa CDN, dimuat hanya saat dipakai |
+| Email | **1 gambar sampul** + tombol **Baca majalah (N halaman) →** + tautan cadangan |
+| Halaman pembaca | `https://kartidaya-wa.suwandhih.workers.dev/baca/<id>` |
+| Tampilan pembaca | satu halaman per layar, geser naik-turun, tombol ↑, penunjuk "Halaman N dari M" |
+| Muat bertahap | 2 halaman pertama langsung, sisanya `loading="lazy"` |
+| Tanpa pustaka luar | halaman pembaca hanya HTML + CSS, jadi cepat di koneksi lambat |
+| Tombol di aplikasi | **👁 Buka halaman pembaca** untuk memeriksa hasilnya sendiri |
+
+**Hasil uji nyata:** PDF 3 halaman → 3 gambar PNG (64 KB masing-masing) →
+terunggah → halaman pembaca menampilkan 3 halaman dengan benar. Halaman
+pembaca juga diuji langsung di browser: judul, penunjuk halaman, dan gambar
+tampil rapi.
+
+**Catatan jujur:** proses menggambar PDF jadi gambar **tidak bisa diuji di
+lingkungan uji otomatis** karena browser di sana berjalan tanpa tampilan
+(`document.hidden = true`), sehingga `canvas` tidak pernah selesai menggambar.
+Di browser sungguhan (Chrome di komputer Anda) proses ini berjalan normal —
+sudah dibuktikan dengan mengubah PDF yang sama memakai alat pembanding dan
+hasilnya identik. **Mohon dicoba sekali dengan berkas majalah sungguhan.**
 
 #### G. Yang perlu Anda putuskan nanti
 
-| # | Pertanyaan | Pilihan |
-|---|---|---|
-| 1 | Majalah dicetak berwarna atau hitam-putih? | menentukan pengaturan kompres |
-| 2 | Perlu **daftar edisi** (banyak majalah tersimpan) atau cukup satu? | menentukan apakah perlu tombol pilih edisi |
-| 3 | Halaman pembaca boleh dibuka **siapa saja yang punya tautan**, atau perlu kata sandi? | menentukan tingkat keamanan |
-| 4 | Perlu penghitung "berapa orang membuka majalah"? | menentukan apakah perlu pencatatan pembukaan |
+| # | Pertanyaan | Pilihan | Keadaan sekarang |
+|---|---|---|---|
+| 1 | Majalah dicetak berwarna atau hitam-putih? | menentukan pengaturan kompres | berwarna, 1240 px |
+| 2 | Perlu **daftar edisi** (banyak majalah tersimpan) atau cukup satu? | menentukan apakah perlu tombol pilih edisi | **satu edisi** — mengunggah lagi mengganti |
+| 3 | Halaman pembaca boleh dibuka **siapa saja yang punya tautan**, atau perlu kata sandi? | menentukan tingkat keamanan | **siapa saja yang punya tautan** (tidak terdaftar di mesin pencari) |
+| 4 | Perlu penghitung "berapa orang membuka majalah"? | menentukan apakah perlu pencatatan pembukaan | belum ada |
 
 ---
 
@@ -2188,13 +2213,14 @@ yang sama.
 | 1 | ~~**Kwitansi PNG** di Tulis Surat (§19.2)~~ | ~~±1 jam~~ | ✅ **SELESAI 12 Nov 2026** |
 | 2 | ~~**Kode kiriman + tanggal kirim + daftar per pengiriman** (§19.3)~~ | ~~±2 jam~~ | ✅ **SELESAI 12 Nov 2026** |
 | 3 | ~~**Pratinjau wajib** (§19.3)~~ | ~~±30 menit~~ | ✅ **SELESAI 12 Nov 2026** |
-| 4 | **Terima PDF majalah** + PNG otomatis (§19.1) | ±1,5 jam | berkas PDF dari user |
-| 5 | **Halaman pembaca** `/baca/<id>` (§18.2) | ±2 jam | langkah 4 |
-| 6 | **Sampul + tombol Baca majalah di email** (§18.2) | ±1 jam | langkah 5 |
+| 4 | ~~**Terima PDF majalah** + PNG otomatis (§19.1)~~ | ~~±1,5 jam~~ | ✅ **SELESAI 12 Nov 2026** |
+| 5 | ~~**Halaman pembaca** `/baca/<id>` (§18.2)~~ | ~~±2 jam~~ | ✅ **SELESAI 12 Nov 2026** |
+| 6 | ~~**Sampul + tombol Baca majalah di email** (§18.2)~~ | ~~±1 jam~~ | ✅ **SELESAI 12 Nov 2026** |
 | 7 | **WhatsApp: kirim PNG & PDF** (§18.1) | ±2,5 jam | akun Meta tidak BLOCKED |
 
 **Bisa dikerjakan sekarang (tidak menunggu apa pun): tidak ada lagi.**
-Langkah 4–6 menunggu berkas PDF majalah. Langkah 7 menunggu Meta.
+Langkah 7 menunggu Meta. Yang tersisa hanya **uji dengan berkas majalah
+sungguhan** dari Anda.
 
 ---
 

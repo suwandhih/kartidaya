@@ -258,11 +258,29 @@ dibaca**. Tidak perlu Worker kedua.
 | `GET /majalah/<id>` | ya | info majalah (jumlah halaman, judul) |
 | `DELETE /majalah/<id>` | ya | hapus majalah beserta halamannya |
 | `GET /majalah/<id>/<n>` | **tidak** | gambar halaman ke-n — dipanggil klien email |
+| `GET /baca/<id>` | **tidak** | **halaman pembaca majalah** — satu halaman per layar, dibuka penerima |
 | `GET /pixel/<id>` | **tidak** | gambar 1×1 — dipanggil klien email, sekaligus mencatat dibuka |
 | `POST /pixel/status` | ya | cek ID mana yang sudah dibuka |
 
 Tiga endpoint bertanda **tidak** memang harus terbuka: klien email penerima
 tidak punya kunci aplikasi. Yang dilindungi hanya unggah/hapus/cek status.
+
+**Halaman pembaca `/baca/<id>`** — inilah yang dibuka penerima saat menekan
+tombol **Baca majalah** di email. Isinya:
+
+| Bagian | Keterangan |
+|---|---|
+| Satu halaman per layar | gambar menyesuaikan lebar layar HP, tidak perlu zoom |
+| Geser naik-turun | pindah halaman; ada tombol ↑ untuk kembali ke atas |
+| Penunjuk halaman | "Halaman 3 dari 10" di bawah setiap halaman |
+| Muat bertahap | 2 halaman pertama langsung, sisanya baru diunduh saat digeser |
+| Tanpa pustaka luar | hanya HTML + CSS, jadi cepat walau koneksi lambat |
+| Tidak terdaftar mesin pencari | ada `<meta name="robots" content="noindex,nofollow">` |
+| Bisa dicetak | tekan Ctrl+P — header dan tombol otomatis disembunyikan |
+
+Halaman ini **tidak menyimpan data pribadi apa pun** dan tidak memerlukan
+login. Siapa pun yang punya tautannya bisa membuka — sama seperti lampiran PDF
+yang dikirim lewat email.
 
 **Setelah memperbarui `worker/index.js`, deploy ulang:**
 
@@ -280,7 +298,9 @@ lama belum punya endpoint-nya.
 |---|---|---|---|
 | 1 | Pixel hidup | Buka `https://<worker>/pixel/uji123` | Muncul gambar kosong kecil, bukan error |
 | 2 | Pixel tercatat | Setelan → Kotak Keluar → **✓✓ Cek tanda dibaca** | Chip berubah jadi **✓✓ Dibaca** |
-| 3 | Majalah | Tulis → **Unggah majalah** → pilih gambar | Muncul "N halaman majalah tersimpan" |
+| 3 | Majalah dari PDF | Tulis → **Unggah majalah** → pilih berkas PDF | Muncul "N halaman majalah tersimpan" |
+| 4 | Halaman pembaca | Tulis → **👁 Buka halaman pembaca** | Terbuka tab baru, satu halaman per layar |
+| 5 | Halaman pembaca tanpa majalah | Buka `https://<worker>/baca/tidakada` | Muncul "Majalah tidak ditemukan" (bukan error mentah) |
 
 ---
 
