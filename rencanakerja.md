@@ -1963,3 +1963,185 @@ majalah dari user tersedia.
 | 2 | Perlu **daftar edisi** (banyak majalah tersimpan) atau cukup satu? | menentukan apakah perlu tombol pilih edisi |
 | 3 | Halaman pembaca boleh dibuka **siapa saja yang punya tautan**, atau perlu kata sandi? | menentukan tingkat keamanan |
 | 4 | Perlu penghitung "berapa orang membuka majalah"? | menentukan apakah perlu pencatatan pembukaan |
+
+---
+
+## 19. Tanggapan & rencana — 12 November 2026 (BELUM dikerjakan)
+
+*Dicatat: 12 November 2026, 07:40 WIB. Menjawab tiga pertanyaan Anda. Angka di
+bawah **hasil ukur langsung**, bukan perkiraan.*
+
+### 19.1 Bisakah PDF diubah ke PNG? — ✅ BISA
+
+**Pertanyaan:** apakah JSON atau Python sudah bisa convert PDF ke PNG sesuai
+ukuran file?
+
+**Jawaban singkat:**
+
+| Bahasa | Bisa? | Catatan |
+|---|---|---|
+| **JavaScript** (di browser) | **BISA** | pakai `pdf.js` — ini yang dipakai aplikasi |
+| **Python** (di server/komputer) | BISA | pakai `PyMuPDF` atau `pdf2image` |
+| JSON | ✗ | JSON hanya format data, tidak bisa mengubah gambar |
+
+**PENTING — aplikasi Kartidaya tidak memakai server.** Semua proses harus
+jalan di browser user. Jadi pilihannya **JavaScript (`pdf.js`)**, bukan Python.
+Python hanya berguna kalau Anda ingin mengubah PDF di komputer sendiri sebelum
+diunggah — tapi itu berarti user tetap harus punya Python, dan itu tidak
+realistis.
+
+**Hasil ukur nyata — PDF 10 halaman A4 diubah ke PNG:**
+
+| Lebar render | Setara DPI | PNG per halaman | 10 halaman | Waktu |
+|---|---|---|---|---|
+| 620 px | 75 | 5,0 KB | 50 KB | 0,13 s |
+| 800 px | 97 | 6,3 KB | 63 KB | 0,17 s |
+| 1080 px | 131 | 9,4 KB | 94 KB | 0,26 s |
+| **1240 px** | **150** | **10,8 KB** | **108 KB** | **0,33 s** |
+| 1600 px | 194 | 16,3 KB | 163 KB | 0,60 s |
+
+Pembanding JPEG pada PDF yang sama:
+
+| Lebar | JPEG q80 per halaman | 10 halaman |
+|---|---|---|
+| 1080 px | 48,5 KB | 485 KB |
+| 1240 px | 56,0 KB | 560 KB |
+
+**Kesimpulan penting:** untuk PDF yang isinya **teks & gambar vektor**, PNG
+**5× lebih kecil** daripada JPEG (108 KB vs 560 KB). Ini kebalikan dari foto
+biasa. Sebabnya teks & bidang warna datar sangat efisien disimpan PNG.
+
+Jadi rencana "kwitansi jadi PNG" dan "majalah dari PDF jadi PNG" **tepat**.
+
+**Uji di browser sungguhan:** `pdf.js` versi 4.10.38 sudah saya coba langsung
+di aplikasi — berhasil membuka PDF 10 halaman dan membaca isinya:
+`"Kabar Kartidaya - Halaman 1"`. Ukuran berkas: `pdf.min.mjs` 344 KB +
+`pdf.worker.min.mjs` 1,3 MB. Dimuat **hanya saat menu majalah dibuka**, jadi
+tidak memperlambat aplikasi sehari-hari.
+
+**Catatan jujur:** di lingkungan uji otomatis saya, proses menggambar halaman
+menjadi PNG sempat menggantung. Itu **kelanjutan alat uji otomatis**, bukan
+bukti `pdf.js` gagal — pembacaan PDF lewat jalur yang sama berhasil. Tetap perlu
+diuji sekali di browser sungguhan (Chrome di komputer Anda) sebelum dianggap
+selesai.
+
+---
+
+### 19.2 Kwitansi diubah jadi PNG di menu Tulis Surat — ⏸ BELUM
+
+**Rencana:** di halaman **Tulis Surat**, saat kwitansi diaktifkan, tersedia
+tombol **"Buat gambar PNG"**. Gambar itu yang dipakai untuk WhatsApp.
+
+| Aspek | Rencana |
+|---|---|
+| Pembuat | digambar di browser (Canvas) dari data kwitansi yang sudah ada |
+| Ukuran | lebar 720 px — hasil ukur **12 KB** (12 baris isi) |
+| Dua bahasa | Indonesia & Inggris, sama seperti email |
+| Pemakaian | WhatsApp kirim `type: image`; email tetap pakai HTML (lebih tajam) |
+| Pratinjau | gambar PNG bisa dilihat langsung sebelum dikirim |
+
+**Kenapa email tetap HTML, bukan PNG:** teks HTML bisa diperbesar tanpa pecah,
+bisa dicari, dan bisa dipilih/disalin penerima. PNG hanya dipakai kalau
+memang tidak ada pilihan lain (WhatsApp).
+
+---
+
+### 19.3 Tanggal kirim kwitansi & majalah untuk mencegah salah data — ⭐ ID BAGUS
+
+**Ini jawaban untuk pertanyaan Anda: apakah efektif mengurangi kesalahan?**
+
+**Ya — sangat efektif, dan ini ide terbaik dari ketiga pertanyaan.** Alasannya
+begini.
+
+**Masalah yang Anda lihat benar:** jumlah kwitansi selalu berbeda tiap donor,
+dan kwitansi tidak menampilkan data pembanding apa pun. Jadi user sulit
+memastikan "yang saya kirim ini benar untuk donor ini".
+
+**Kenapa tanggal kirim saja belum cukup.** Tanggal kirim membantu, tapi
+kwitansi dengan donor yang sama bisa dikirim berkali-kali (mis. koreksi, atau
+kirim ulang ke email lain) pada tanggal yang sama. Tanggal tidak bisa
+membedakan keduanya. Karena itu saya tambahkan **4 pengaman berlapis** —
+tanggal kirim jadi salah satunya, bukan satu-satunya:
+
+| # | Pengaman | Yang mencegah |
+|---|---|---|
+| **1** | **Kode kiriman** unik per email, mis. `KRT-20261112-0431` | tidak bisa tertukar walau donor & tanggal sama |
+| **2** | **Tanggal & jam kirim** tercetak di kwitansi dan di pratinjau | user bisa mencocokkan dengan catatan sendiri |
+| **3** | **Saringan "Kwitansi menurut tanggal kirim"** di daftar | user memilih berdasarkan tanggal → memperkecil salah pilih |
+| **4** | **Kwitansi dikelompokkan per pengiriman, bukan per donor** | satu baris = satu kali kirim; tidak tercampur |
+
+**Rancangan tampilan:**
+
+Di halaman **Tulis Surat**, setelah memilih penerima dan mengaktifkan kwitansi,
+muncul daftar seperti ini:
+
+```
+Pilih kwitansi yang dikirim
+
+[ Semua tanggal ▾ ]  [ Cari donor… ]
+
+( ) 12 Nov 2026 18:05 · KRT-20261112-0431
+    Linda Lau · L00024R
+    Beasiswa Anak Pelayan            Rp 500.000
+    Pembangunan Gedung             Rp 1.000.000
+    ────────────────────────────────────────────
+    TOTAL                          Rp 1.500.000
+
+( ) 12 Nov 2026 17:52 · KRT-20261112-0428
+    Linda Lau · L00024R
+    Koreksi: Beasiswa Anak Pelayan   Rp 750.000
+    ────────────────────────────────────────────
+    TOTAL                            Rp 750.000
+```
+
+Kuncinya: **setiap baris menampilkan total + program + kode kiriman**, jadi
+mata bisa membandingkan angka sebelum mencentang. Ini yang sekarang tidak ada.
+
+**Tambahan pengaman di kwitansi yang dikirim:**
+
+| Ditambahkan | Contoh | Gunanya |
+|---|---|---|
+| Kode kiriman | `KRT-20261112-0431` | disebutkan di email juga, jadi bisa dicocokkan |
+| Tanggal & jam kirim | `Dikirim: 12 Nov 2026, 18:05 WIB` | bukti waktu |
+| Baris "Periksa" | "Bila ada kekeliruan, hubungi … dengan kode di atas" | memudahkan koreksi |
+
+**Untuk majalah:** diberi nama edisi + tanggal unggah, mis.
+`Majalah Edisi November 2026 — diunggah 12 Nov 2026`. Saat memilih majalah yang
+akan dikirim, tanggal unggah ikut tampil, jadi tidak tertukar antar edisi.
+
+**Apakah ini cukup?** Menurut saya **ya, dengan tiga syarat:**
+
+| Syarat | Alasan |
+|---|---|
+| Pratinjau **wajib** dilihat dulu, bukan opsional | kalau bisa dilewati, akan dilewati saat buru-buru |
+| Total ditampilkan **besar dan tebal** | angka adalah hal yang paling sering salah |
+| Nama donor + ID ditampilkan **berdampingan** | mencegah kirim ke donor yang benar tapi ID salah, atau sebaliknya |
+
+**Satu ide tambahan yang saya sarankan:** tombol **"Kirim ke saya sendiri
+dulu"** — kirim satu salinan ke email user sendiri sebelum dikirim ke donor.
+Ini cara paling meyakinkan untuk memastikan tampilan sudah benar. Biaya: satu
+email tambahan per pengiriman.
+
+**Perkiraan waktu:** ±2 jam (kode kiriman + kolom tanggal kirim + daftar
+per pengiriman 1 jam, pratinjau wajib 30 menit, uji 30 menit).
+
+---
+
+### 19.4 Ringkasan urutan pengerjaan (gabungan 18 & 19)
+
+| Urutan | Pekerjaan | Perkiraan | Tergantung |
+|---|---|---|---|
+| 1 | **Kwitansi PNG** di Tulis Surat (§19.2) | ±1 jam | — |
+| 2 | **Kode kiriman + tanggal kirim + daftar per pengiriman** (§19.3) | ±2 jam | — |
+| 3 | **Pratinjau wajib + kirim ke diri sendiri** (§19.3) | ±1 jam | langkah 2 |
+| 4 | **Terima PDF majalah** + PNG otomatis (§19.1) | ±1,5 jam | berkas PDF dari user |
+| 5 | **Halaman pembaca** `/baca/<id>` (§18.2) | ±2 jam | langkah 4 |
+| 6 | **Sampul + tombol Baca majalah di email** (§18.2) | ±1 jam | langkah 5 |
+| 7 | **WhatsApp: kirim PNG & PDF** (§18.1) | ±2,5 jam | akun Meta tidak BLOCKED |
+
+**Bisa dikerjakan sekarang (tidak menunggu apa pun): langkah 1, 2, 3.**
+Total ±4 jam. Langkah 4–6 menunggu berkas PDF majalah. Langkah 7 menunggu Meta.
+
+**Saran saya:** kerjakan **langkah 2 dulu** (kode kiriman + tanggal kirim),
+karena itu yang paling langsung mengurangi kesalahan user — sesuai kekhawatiran
+Anda. Kwitansi PNG bisa menyusul.
