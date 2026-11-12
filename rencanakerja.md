@@ -1770,7 +1770,7 @@ di buku surat, dan surat lama yang dibuat ulang.
 
 ---
 
-## 18. Rencana berikutnya — 11 November 2026 (BELUM dikerjakan)
+## 18. Rencana berikutnya — 11 November 2026 (sebagian sudah dikerjakan)
 
 *Dicatat: 11 November 2026, 19:15 WIB. **Diperbarui 12 Nov 2026** sesuai
 keputusan Anda. Ini **rencana saja** — belum ada kode yang diubah. Angka di
@@ -1784,7 +1784,7 @@ bawah diukur langsung, bukan perkiraan.*
 | 2 | WhatsApp: kwitansi = **PNG**, majalah = **lampiran PDF** |
 | 3 | Email: kirim banyak PNG **tidak bisa diandalkan** → ganti ke **PDF + halaman pembaca** di website |
 
-### 18.1 Kwitansi WhatsApp berupa gambar "struk" — ⏸ BELUM
+### 18.1 Kwitansi WhatsApp berupa gambar "struk" — 🟡 SEBAGIAN SELESAI (12 Nov 2026)
 
 **Keputusan Anda (12 Nov 2026):**
 - Kwitansi di WhatsApp: **format PNG** saja ✅
@@ -1796,17 +1796,17 @@ bisa tabel HTML. Selama ini kwitansi hanya ikut di email.
 **Rencana:** buat kwitansi sebagai **gambar PNG** di dalam aplikasi, lalu kirim
 sebagai gambar WhatsApp dengan teks surat sebagai keterangan.
 
-| Bagian | Rencana |
-|---|---|
-| Bentuk | gambar PNG, rasio sempit & tinggi (lebar 720 px) |
-| Desain | mengikuti template: logo, judul KWITANSI / FUND RECEIPT, garis, nama, program, total, terbilang, nomor |
-| Dua bahasa | sama seperti email — Indonesia & Inggris |
-| Pembuat gambar | digambar di aplikasi (Canvas) dari data kwitansi yang sudah ada |
-| Pengiriman | Worker: `/wa/send` ditambah dukungan media (unggah gambar → kirim `type: image`) |
-| Pratinjau | muncul di **Periksa sebelum kirim** dan di buku surat, sama seperti email |
-| Salinan | disimpan seperti kwitansi email, supaya bisa diperiksa ulang |
+| Bagian | Rencana | Status |
+|---|---|---|
+| Bentuk | gambar PNG, rasio sempit & tinggi (lebar 720 px) | ✅ |
+| Desain | mengikuti template: logo, judul KWITANSI / FUND RECEIPT, garis, nama, program, total, terbilang, nomor | ✅ |
+| Dua bahasa | sama seperti email — Indonesia & Inggris | ✅ |
+| Pembuat gambar | digambar di aplikasi (Canvas) dari data kwitansi yang sudah ada | ✅ |
+| Pengiriman | Worker: `/wa/send` ditambah dukungan media (unggah gambar → kirim `type: image`) | ⏸ menunggu Meta |
+| Pratinjau | muncul di **Periksa sebelum kirim** dan di buku surat, sama seperti email | ✅ tombol 🖼 Kwitansi PNG |
+| Salinan | disimpan seperti kwitansi email, supaya bisa diperiksa ulang | ✅ |
 
-**Ukuran berkas — hasil ukur nyata:**
+**Ukuran berkas — hasil ukur nyata (kwitansi polos, tanpa logo berwarna):**
 
 | Lebar | Isi | PNG | JPEG |
 |---|---|---|---|
@@ -1816,8 +1816,13 @@ sebagai gambar WhatsApp dengan teks surat sebagai keterangan.
 | 900 px | 12 baris | 17 KB | 49 KB |
 
 Kesimpulan: **PNG lebih kecil** untuk struk karena isinya teks bergaris tegas,
-bukan foto. Ukuran 720 px PNG ≈ 12 KB — sangat ringan, tidak masalah untuk
-WhatsApp. Ini juga sebabnya PNG pilihan yang tepat.
+bukan foto. Ini juga sebabnya PNG pilihan yang tepat.
+
+**Hasil ukur sungguhan setelah jadi (12 Nov 2026):** **139 KB** (satu mata uang)
+sampai **162 KB** (dua mata uang), pada skala 2× (1440 px) supaya tajam di layar
+HP. Lebih besar dari perkiraan 12 KB karena logo berwarna + teks anti-alias
+menghasilkan banyak warna. Masih **jauh di bawah** batas gambar WhatsApp
+(5 MB), jadi tidak masalah.
 
 **Majalah lewat WhatsApp (PDF):**
 
@@ -1839,11 +1844,9 @@ WhatsApp. Ini juga sebabnya PNG pilihan yang tepat.
 | Gambar tidak bisa "dipilih teks" | penerima tidak bisa menyalin angkanya — solusinya teks surat tetap memuat ringkasan angka |
 | PDF harus diunggah dulu ke WhatsApp | perlu langkah unggah ke Media API sebelum kirim |
 
-**Perkiraan waktu:** ±2,5 jam (gambar struk 45 menit, kirim media di Worker
-45 menit, jalur PDF WhatsApp 30 menit, pratinjau & salinan 30 menit, uji 15 menit).
-
-**Urutan yang disarankan:** kerjakan **setelah** verifikasi bisnis Meta selesai,
-supaya bisa langsung diuji ke nomor sungguhan.
+**Sisa pekerjaan:** hanya jalur kirim di Worker (`/wa/send` dengan media).
+Perkiraan ±1,5 jam. **Menunggu verifikasi bisnis Meta selesai**, supaya bisa
+langsung diuji ke nomor sungguhan.
 
 ---
 
@@ -1966,7 +1969,7 @@ majalah dari user tersedia.
 
 ---
 
-## 19. Tanggapan & rencana — 12 November 2026 (BELUM dikerjakan)
+## 19. Tanggapan & rencana — 12 November 2026 (sebagian sudah dikerjakan)
 
 *Dicatat: 12 November 2026, 07:40 WIB. Menjawab tiga pertanyaan Anda. Angka di
 bawah **hasil ukur langsung**, bukan perkiraan.*
