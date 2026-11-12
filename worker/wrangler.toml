@@ -7,6 +7,13 @@ compatibility_date = "2024-11-01"
 binding = "WA_INBOX"
 id = "f92cebc2b7724490a76c18be3f3559a1"
 
+# Database bersama — data donor, surat, keuangan, template, dll.
+# Dibuat dengan: wrangler d1 create kartidaya
+[[d1_databases]]
+binding = "DB"
+database_name = "kartidaya"
+database_id = "9080cb12-9709-408b-aed8-57dfdab449d1"
+
 # Rahasia — JANGAN ditulis di sini. Set lewat:
 #   wrangler secret put WA_TOKEN
 #   wrangler secret put WA_PHONE_ID

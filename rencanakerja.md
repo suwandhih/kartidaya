@@ -3422,3 +3422,125 @@ Semua kunci yang ada di sana berawalan `majalah`, `pixel`, `terima`, atau
 `kwitansi` — tidak akan ada nama donor.
 
 ---
+
+## 23. Data bersama — beberapa orang, satu data (12 Nov 2026) ✅ SELESAI
+
+**Pertanyaan Anda:** *"minimal ada 2 user menggunakan aplikasi ini, bagian keuangan
+perlu data donor untuk melengkapi nilai donor... intinya semua kerja dalam
+jaringan.. lalu jika menggunakan data indexedDB apa bisa pertukaran data bekerja
+didalam jaringan?"*
+
+### 23.1 Jawaban: IndexedDB TIDAK bisa
+
+**IndexedDB itu database di dalam browser.** Sifatnya:
+
+| Sifat | Akibatnya |
+|---|---|
+| Terikat pada **satu browser** di **satu komputer** | Chrome di komputer A ≠ Chrome di komputer B |
+| Tidak punya jaringan | tidak ada cara browser A "melihat" isi browser B |
+| Tidak punya server | tidak ada tempat bertemu |
+
+Jadi kalau 2 user memakai IndexedDB, **dua-duanya jalan sendiri-sendiri** — sama
+saja seperti localStorage sekarang, hanya kapasitasnya lebih besar. **Tidak ada
+pertukaran data.**
+
+**Yang dibutuhkan: database di server.** Supaya 2 user bekerja bersama, datanya
+harus pindah ke satu tempat di internet yang keduanya akses:
+
+```
+Komputer A ──┐
+             ├──►  Database di Cloudflare  ◄── satu sumber kebenaran
+Komputer B ──┘
+```
+
+### 23.2 Keputusan Anda
+
+| Pertanyaan | Pilihan Anda |
+|---|---|
+| Tempat penyimpanan | **Cloudflare D1** (database SQL sungguhan) |
+| Cara masuk | **Kunci aplikasi** yang sudah ada — tanpa layar login baru |
+| Mode luring | **Tidak perlu** — online saja, supaya sederhana |
+
+### 23.3 Yang dikerjakan
+
+| # | Bagian | Hasil |
+|---|---|---|
+| 1 | Database **D1** `kartidaya` | ✅ dibuat di region APAC, id `9080cb12-9709-408b-aed8-57dfdab449d1` |
+| 2 | Skema tabel | ✅ `worker/schema.sql` — tabel `records` + `meta` |
+| 3 | Binding D1 di Worker | ✅ `[[d1_databases]] binding = "DB"` di `wrangler.toml` |
+| 4 | Endpoint data di Worker | ✅ `GET /data`, `POST /data/<koleksi>`, `POST /data/<koleksi>/<id>/hapus`, `POST /data/meta/<kunci>` |
+| 5 | Lapisan `Server` di aplikasi | ✅ muat saat dibuka, kirim otomatis setiap menyimpan |
+| 6 | Chip keadaan di header | ✅ ☁ Memuat… / Menyimpan… / Tersimpan / Gagal |
+| 7 | Kartu **Data bersama** di Setelan | ✅ tombol **Muat ulang dari server** & **Unggah data browser ini ke server** |
+
+### 23.4 Kenapa skema tabelnya cuma dua
+
+| Tabel | Isi | Contoh |
+|---|---|---|
+| `records` | semua data berbentuk **daftar** | donor, surat, template, kategori, program, keuangan |
+| `meta` | data berbentuk **satu nilai** | 5 isian serba guna, info majalah |
+
+Kolom `data` berisi **JSON**, bukan kolom terpisah per field. Alasannya: field
+donor bisa bertambah tanpa perlu mengubah struktur database, dan aplikasi sudah
+bekerja dengan objek JavaScript — jadi JSON paling cocok.
+
+### 23.5 Yang TIDAK ikut ke server
+
+| Data | Alasan |
+|---|---|
+| `settings` | milik komputer masing-masing (tema, alamat email uji, tanda tangan) |
+| `uji` | catatan uji coba, tidak perlu dibagi |
+| Kunci aplikasi | tetap di browser, tidak pernah dikirim |
+
+### 23.6 Dua masalah yang ditemukan & diperbaiki saat uji
+
+| # | Masalah | Sebab | Perbaikan |
+|---|---|---|---|
+| 1 | Penghapusan gagal dengan *"Failed to fetch"* | Aturan CORS Worker belum mengizinkan `DELETE` | Ditambahkan `DELETE` ke `Access-Control-Allow-Methods` |
+| 2 | Masih gagal walau CORS sudah diperbaiki | Browser **menyimpan cache preflight 24 jam** (`Access-Control-Max-Age: 86400`), jadi masih memakai jawaban lama | Penghapusan dipindah ke **POST** (`/data/<koleksi>/<id>/hapus`) — POST tidak memicu preflight; `Max-Age` diturunkan ke 600 detik |
+
+**Pelajaran:** memakai `DELETE` dari browser merepotkan karena preflight-nya
+tersimpan lama. POST lebih andal.
+
+### 23.7 Hasil uji (12 Nov 2026)
+
+| # | Yang diuji | Hasil |
+|---|---|---|
+| 1 | `GET /data` tanpa kunci | 401 ✅ |
+| 2 | `GET /data` dengan kunci | daftar data ✅ |
+| 3 | Simpan donor baru | tersimpan di D1 ✅ |
+| 4 | Hapus donor | terhapus dari D1 ✅ |
+| 5 | Simpan meta (isian) | tersimpan ✅ |
+| 6 | Koleksi tidak dikenal | ditolak 400 ✅ |
+| 7 | **Browser kedua** membuka aplikasi | melihat **18 donor yang sama** ✅ |
+| 8 | Browser 2 menambah donor | muncul di server ✅ |
+| 9 | **Browser 1** membuka ulang | melihat donor dari browser 2 ✅ |
+| 10 | Browser 1 menghapus donor | hilang dari server ✅ |
+| 11 | Chip keadaan | ☁ Tersimpan ✅ |
+| 12 | Tombol **Muat ulang dari server** | berfungsi ✅ |
+| 13 | Semua 8 halaman tetap jalan | ✅ |
+
+**Uji nomor 7–10 adalah inti jawaban pertanyaan Anda:** dua browser berbeda
+benar-benar melihat dan mengubah **satu data yang sama**.
+
+### 23.8 Yang perlu Anda tahu
+
+| Hal | Keterangan |
+|---|---|
+| **Butuh internet** | Sesuai keputusan Anda: online saja. Kalau internet mati, aplikasi tetap terbuka memakai salinan di browser, tetapi perubahan tidak terkirim |
+| **Bentrok** | Kalau 2 orang mengubah **donor yang sama** dalam waktu hampir bersamaan, perubahan terakhir yang menang. Untuk 2 user jarang terjadi |
+| **Data lama** | Data yang sudah ada di browser **perlu diunggah sekali** lewat tombol **Unggah data browser ini ke server** |
+| **Gratis** | D1 gratis sampai 5 GB penyimpanan & 5 juta baris dibaca/hari — jauh lebih dari cukup |
+| **Kunci aplikasi** | Tetap dipakai sebagai pengaman. Siapa pun yang punya kunci bisa membaca & mengubah data |
+
+### 23.9 Langkah pertama kali pakai (untuk Anda)
+
+| # | Langkah |
+|---|---|
+| 1 | Buka aplikasi → **Setelan** → pastikan **Worker Cloudflare** = **Tersambung** |
+| 2 | Buka kartu **Data bersama** → tekan **↑ Unggah data browser ini ke server** |
+| 3 | Konfirmasi. Tunggu sampai chip berubah **☁ Tersimpan** |
+| 4 | Di komputer rekan: buka aplikasi, isi **Kunci aplikasi** yang sama di Setelan |
+| 5 | Data akan muncul sendiri. Selesai |
+
+---

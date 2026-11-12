@@ -25,6 +25,13 @@
      GET  /pixel/<id>         → gambar 1×1, sekaligus mencatat email dibuka
      POST /pixel/status       → cek ID mana yang sudah dibuka
 
+   Endpoint data bersama (database D1) — supaya beberapa orang bisa bekerja
+   pada data yang sama:
+     GET    /data                 → ambil semua data sekaligus
+     POST   /data/<koleksi>       → simpan satu baris { id, data }
+     DELETE /data/<koleksi>/<id>  → hapus satu baris
+     POST   /data/meta/<kunci>    → simpan data berbentuk satu nilai
+
    Semua endpoint butuh header X-App-Key, KECUALI:
      /wa/webhook, /pixel/<id>, /majalah/<id>/<n>
    — tiga itu dipanggil Meta dan klien email yang tidak punya kunci.
@@ -49,9 +56,9 @@ function corsHeaders(req) {
   const origin = req.headers.get('Origin') || '*';
   return {
     'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, X-App-Key',
-    'Access-Control-Max-Age': '86400',
+    'Access-Control-Max-Age': '600',
     'Vary': 'Origin'
   };
 }
@@ -508,6 +515,58 @@ async function catatTerima(env, id, info){
   return rec;
 }
 
+/* ---------- data bersama (D1) ---------- */
+
+/* Daftar koleksi yang boleh disimpan. Dibatasi supaya permintaan dengan nama
+   koleksi sembarangan tidak bisa menulis ke tabel. */
+const KOLEKSI = ['donors', 'messages', 'templates', 'categories', 'programs', 'finance'];
+const META_KUNCI = ['isian', 'majalah'];
+
+/* Baca semua data sekaligus. Aplikasi memanggil ini sekali saat dibuka, jadi
+   satu permintaan cukup — tidak perlu satu permintaan per koleksi. */
+async function dataBacaSemua(env) {
+  const out = { ok: true, koleksi: {}, meta: {}, waktu: new Date().toISOString() };
+  const r = await env.DB.prepare(
+    'SELECT collection, id, data, updated_at FROM records ORDER BY collection, id'
+  ).all();
+  (r.results || []).forEach(function (row) {
+    if (!out.koleksi[row.collection]) out.koleksi[row.collection] = [];
+    let isi = null;
+    try { isi = JSON.parse(row.data); } catch (e) { isi = null; }
+    if (isi !== null) out.koleksi[row.collection].push(isi);
+  });
+  const m = await env.DB.prepare('SELECT key, data FROM meta').all();
+  (m.results || []).forEach(function (row) {
+    try { out.meta[row.key] = JSON.parse(row.data); } catch (e) { /* lewati */ }
+  });
+  return out;
+}
+
+/* Simpan satu baris. Dipakai untuk menambah maupun mengubah — kalau id-nya
+   sudah ada, isinya diganti (upsert). */
+async function dataSimpan(env, koleksi, id, isi) {
+  const now = new Date().toISOString();
+  await env.DB.prepare(
+    'INSERT INTO records (collection, id, data, updated_at) VALUES (?, ?, ?, ?) ' +
+    'ON CONFLICT(collection, id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at'
+  ).bind(koleksi, String(id), JSON.stringify(isi), now).run();
+  return now;
+}
+
+async function dataHapus(env, koleksi, id) {
+  await env.DB.prepare('DELETE FROM records WHERE collection = ? AND id = ?')
+    .bind(koleksi, String(id)).run();
+}
+
+async function metaSimpan(env, kunci, isi) {
+  const now = new Date().toISOString();
+  await env.DB.prepare(
+    'INSERT INTO meta (key, data, updated_at) VALUES (?, ?, ?) ' +
+    'ON CONFLICT(key) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at'
+  ).bind(kunci, JSON.stringify(isi), now).run();
+  return now;
+}
+
 /* ---------- router ---------- */
 
 export default {
@@ -723,6 +782,86 @@ export default {
           verifiedName: info.name || '',
           pending: queue.length
         }), req);
+      }
+
+      /* ---------- data bersama ---------- */
+
+      /* Ambil semua data. Aplikasi memanggil ini sekali saat dibuka. */
+      if (path === '/data' && req.method === 'GET') {
+        if (!env.DB) {
+          return withCors(json({ ok: false, error: 'Database D1 belum dipasang di Worker' }, 500), req);
+        }
+        return withCors(json(await dataBacaSemua(env)), req);
+      }
+
+      /* Simpan satu baris: POST /data/<koleksi>  body: { id, data } */
+      const simpan = path.match(/^\/data\/([a-z]+)$/);
+      if (simpan && req.method === 'POST') {
+        if (!env.DB) {
+          return withCors(json({ ok: false, error: 'Database D1 belum dipasang di Worker' }, 500), req);
+        }
+        const koleksi = simpan[1];
+        if (KOLEKSI.indexOf(koleksi) < 0) {
+          return withCors(json({ ok: false, error: 'Koleksi tidak dikenal: ' + koleksi }, 400), req);
+        }
+        const body = await req.json().catch(function () { return null; });
+        if (!body || body.id === undefined || body.id === null || String(body.id) === '') {
+          return withCors(json({ ok: false, error: 'id wajib diisi' }, 400), req);
+        }
+        const waktu = await dataSimpan(env, koleksi, body.id, body.data);
+        return withCors(json({ ok: true, koleksi: koleksi, id: String(body.id), waktu: waktu }), req);
+      }
+
+      /* Hapus satu baris: POST /data/<koleksi>/<id>/hapus
+         Sengaja memakai POST, bukan DELETE. Alasannya: permintaan DELETE
+         memaksa browser mengirim "preflight" lebih dulu, dan hasil preflight
+         itu disimpan di cache browser sampai 24 jam. Kalau aturan CORS di
+         Worker berubah, browser masih memakai jawaban lama dan penghapusan
+         gagal tanpa penjelasan. POST tidak punya masalah itu. */
+      const hapus = path.match(/^\/data\/([a-z]+)\/(.+)\/hapus$/);
+      if (hapus && req.method === 'POST') {
+        if (!env.DB) {
+          return withCors(json({ ok: false, error: 'Database D1 belum dipasang di Worker' }, 500), req);
+        }
+        const koleksi = hapus[1];
+        if (KOLEKSI.indexOf(koleksi) < 0) {
+          return withCors(json({ ok: false, error: 'Koleksi tidak dikenal: ' + koleksi }, 400), req);
+        }
+        const id = decodeURIComponent(hapus[2]);
+        await dataHapus(env, koleksi, id);
+        return withCors(json({ ok: true, koleksi: koleksi, id: id }), req);
+      }
+
+      /* Hapus satu baris: DELETE /data/<koleksi>/<id> — tetap didukung untuk
+         pemakaian dari alat lain (mis. curl). */
+      const hapusDel = path.match(/^\/data\/([a-z]+)\/(.+)$/);
+      if (hapusDel && req.method === 'DELETE') {
+        if (!env.DB) {
+          return withCors(json({ ok: false, error: 'Database D1 belum dipasang di Worker' }, 500), req);
+        }
+        const koleksi = hapusDel[1];
+        if (KOLEKSI.indexOf(koleksi) < 0) {
+          return withCors(json({ ok: false, error: 'Koleksi tidak dikenal: ' + koleksi }, 400), req);
+        }
+        const id = decodeURIComponent(hapusDel[2]);
+        await dataHapus(env, koleksi, id);
+        return withCors(json({ ok: true, koleksi: koleksi, id: id }), req);
+      }
+
+      /* Simpan data berbentuk satu nilai: POST /data/meta/<kunci> */
+      const simpanMeta = path.match(/^\/data\/meta\/([a-z]+)$/);
+      if (simpanMeta && req.method === 'POST') {
+        if (!env.DB) {
+          return withCors(json({ ok: false, error: 'Database D1 belum dipasang di Worker' }, 500), req);
+        }
+        const kunci = simpanMeta[1];
+        if (META_KUNCI.indexOf(kunci) < 0) {
+          return withCors(json({ ok: false, error: 'Kunci meta tidak dikenal: ' + kunci }, 400), req);
+        }
+        const body = await req.json().catch(function () { return null; });
+        if (!body) return withCors(json({ ok: false, error: 'Body bukan JSON' }, 400), req);
+        const waktu = await metaSimpan(env, kunci, body.data);
+        return withCors(json({ ok: true, kunci: kunci, waktu: waktu }), req);
       }
 
       if (path === '/wa/send' && req.method === 'POST') {

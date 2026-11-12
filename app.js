@@ -971,7 +971,154 @@ function save(what){
   if(!what || what === 'finance')    writeLS(LS.finance, state.finance);
   if(!what || what === 'isian')      writeLS(LS.isian, state.isian);
   if(!what || what === 'uji')        writeLS(LS.uji, state.uji);
+  /* Kirim ke server juga, supaya pengguna lain melihat perubahannya.
+     `settings` & `uji` tidak dikirim: keduanya milik komputer ini sendiri
+     (tema, alamat email uji, catatan uji) — bukan data bersama. */
+  if(what && what !== 'settings' && what !== 'uji') Server.kirim(what);
 }
+
+/* ============================================================
+   DATA BERSAMA (Cloudflare D1 lewat Worker)
+
+   Kenapa perlu? Aplikasi ini dipakai lebih dari satu orang. Kalau data hanya
+   disimpan di browser (localStorage), tiap orang punya salinannya sendiri dan
+   tidak ada pertukaran data. Jadi data disimpan di server, dan browser hanya
+   menyimpan salinan sementara supaya tampilan tetap cepat.
+
+   Cara kerja singkat:
+   - Saat aplikasi dibuka  → ambil semua data dari server (Server.muat)
+   - Setiap kali menyimpan → kirim perubahannya ke server (Server.kirim)
+   - Kalau gagal           → beri tahu, dan data tetap aman di browser
+   ============================================================ */
+const Server = {
+  siap: false,        /* apakah alamat & kunci sudah ada */
+  online: false,      /* apakah server terakhir kali bisa dihubungi */
+  sibuk: 0,           /* berapa pengiriman sedang berjalan */
+  gagal: 0,           /* berapa pengiriman gagal sejak terakhir berhasil */
+  terakhir: '',       /* waktu sinkron terakhir berhasil */
+  pesan: '',          /* pesan galat terakhir */
+
+  /* Koleksi yang disimpan di server. `settings` & `uji` TIDAK termasuk —
+     keduanya milik komputer masing-masing. */
+  koleksi: ['donors','categories','templates','messages','programs','finance'],
+
+  bisa(){
+    return !!(workerBase() && WhatsApp.appKey);
+  },
+
+  async panggil(path, opsi){
+    const base = workerBase();
+    const res = await fetch(base + path, Object.assign({
+      headers: { 'X-App-Key': WhatsApp.appKey || '', 'Content-Type': 'application/json' }
+    }, opsi || {}));
+    const teks = await res.text();
+    let data = null;
+    try{ data = JSON.parse(teks); }catch(e){ data = null; }
+    if(!res.ok){
+      const pesan = (data && (data.error || data.petunjuk)) || ('HTTP ' + res.status);
+      throw new Error(pesan);
+    }
+    return data || {};
+  },
+
+  /* Ambil semua data dari server lalu pasang ke state. */
+  async muat(){
+    if(!this.bisa()){ this.tandai('mati', 'Data bersama belum diatur'); return false; }
+    this.tandai('muat', 'Memuat data…');
+    try{
+      const r = await this.panggil('/data');
+      const k = r.koleksi || {};
+      this.koleksi.forEach(function(nama){
+        if(Array.isArray(k[nama])) state[nama] = k[nama];
+      });
+      if(r.meta && Array.isArray(r.meta.isian)) state.isian = r.meta.isian;
+      if(r.meta && r.meta.majalah) state.settings.majalah = r.meta.majalah;
+      /* Tulis salinan ke browser supaya tampilan berikutnya cepat. */
+      this.koleksi.forEach(function(nama){ writeLS(LS[nama], state[nama]); });
+      writeLS(LS.isian, state.isian);
+      writeLS(LS.settings, state.settings);
+      this.siap = true;
+      this.online = true;
+      this.gagal = 0;
+      this.terakhir = new Date().toISOString();
+      this.tandai('ok', 'Data bersama tersambung');
+      return true;
+    }catch(e){
+      this.online = false;
+      this.pesan = e.message || String(e);
+      this.tandai('gagal', 'Gagal memuat data bersama: ' + this.pesan);
+      return false;
+    }
+  },
+
+  /* Kirim satu koleksi ke server. Dipanggil dari save(). */
+  async kirim(nama){
+    if(!this.bisa() || !this.siap) return;
+    if(this.koleksi.indexOf(nama) < 0 && nama !== 'isian' && nama !== 'majalah') return;
+    this.sibuk++;
+    this.tandai('simpan', 'Menyimpan…');
+    try{
+      if(nama === 'isian'){
+        await this.panggil('/data/meta/isian', { method:'POST', body: JSON.stringify({ data: state.isian }) });
+      }else if(nama === 'majalah'){
+        await this.panggil('/data/meta/majalah', { method:'POST', body: JSON.stringify({ data: state.settings.majalah || null }) });
+      }else{
+        /* Kirim seluruh koleksi: yang sudah ada diganti, yang baru ditambah.
+           Cara ini sederhana dan aman untuk jumlah data sekecil ini
+           (18 donor, ratusan surat) — tidak perlu melacak mana yang berubah. */
+        const daftar = state[nama] || [];
+        for(const baris of daftar){
+          const id = baris && (baris.id !== undefined ? baris.id : baris.kode);
+          if(id === undefined || id === null || String(id) === '') continue;
+          await this.panggil('/data/' + nama, {
+            method:'POST', body: JSON.stringify({ id: String(id), data: baris })
+          });
+        }
+        /* Hapus di server yang sudah tidak ada di sini. */
+        const r = await this.panggil('/data');
+        const adaDiServer = ((r.koleksi || {})[nama] || []).map(function(b){
+          return String(b && (b.id !== undefined ? b.id : b.kode));
+        });
+        const adaDiSini = daftar.map(function(b){
+          return String(b && (b.id !== undefined ? b.id : b.kode));
+        });
+        for(const id of adaDiServer){
+          if(adaDiSini.indexOf(id) < 0){
+            await this.panggil('/data/' + nama + '/' + encodeURIComponent(id) + '/hapus', { method:'POST' });
+          }
+        }
+      }
+      this.online = true;
+      this.gagal = 0;
+      this.terakhir = new Date().toISOString();
+      this.tandai('ok', 'Tersimpan di server');
+    }catch(e){
+      this.online = false;
+      this.gagal++;
+      this.pesan = e.message || String(e);
+      this.tandai('gagal', 'Gagal menyimpan ke server: ' + this.pesan);
+    }finally{
+      this.sibuk--;
+    }
+  },
+
+  /* Tampilkan keadaan di chip header. */
+  tandai(keadaan, pesan){
+    const el = document.getElementById('simpan-status');
+    if(!el) return;
+    const peta = {
+      mati:   ['plain', '☁ Belum diatur'],
+      muat:   ['plain', '☁ Memuat…'],
+      simpan: ['plain', '☁ Menyimpan…'],
+      ok:     ['ok',    '☁ Tersimpan'],
+      gagal:  ['warn',  '☁ Gagal']
+    };
+    const p = peta[keadaan] || peta.mati;
+    el.className = 'chip ' + p[0];
+    el.textContent = p[1];
+    el.title = pesan || '';
+  }
+};
 function loadState(){
   const firstRun = localStorage.getItem(LS.donors) === null;
   state.donors     = readLS(LS.donors, null) || SEED_DONORS.slice();
@@ -3329,8 +3476,30 @@ function viewPengaturan(){
   '</div>' +
 
   '<div class="card">' +
+    '<div class="card-head"><h2>Data bersama</h2>' +
+      '<span class="chip ' + (Server.online ? 'ok' : (Server.bisa() ? 'warn' : 'plain')) + '">' +
+        (Server.online ? 'Tersambung' : (Server.bisa() ? 'Tidak tersambung' : 'Belum diatur')) + '</span></div>' +
+    '<p class="small muted">Data donor, surat, keuangan, dan template disimpan di <b>server</b> ' +
+      '(Cloudflare), bukan di browser ini. Jadi kalau ada rekan yang membuka aplikasi ini, ' +
+      'dia melihat data yang sama.</p>' +
+    '<p class="tiny muted">' +
+      (Server.terakhir
+        ? 'Terakhir tersimpan: <b>' + esc(fmtDateTime(Server.terakhir)) + '</b>.'
+        : 'Belum pernah tersimpan ke server dari komputer ini.') +
+      (Server.pesan ? ' <span style="color:#a33">Galat terakhir: ' + esc(Server.pesan) + '</span>' : '') +
+    '</p>' +
+    '<div class="btn-row">' +
+      '<button class="btn" data-action="server-muat">⟳ Muat ulang dari server</button>' +
+      '<button class="btn" data-action="server-unggah">↑ Unggah data browser ini ke server</button>' +
+    '</div>' +
+    '<p class="tiny muted" style="margin-top:8px"><b>Unggah</b> dipakai sekali saja: kalau data di ' +
+      'komputer ini lebih lengkap daripada di server, tekan tombol itu untuk mengirimnya. ' +
+      'Hati-hati — data di server akan <b>ditimpa</b>.</p>' +
+  '</div>' +
+
+  '<div class="card">' +
     '<div class="card-head"><h2>Data</h2></div>' +
-    '<p class="small muted">Tersimpan di browser ini (localStorage). Ukuran: <b class="mono">' +
+    '<p class="small muted">Salinan di browser ini (localStorage). Ukuran: <b class="mono">' +
       (bytes/1024).toFixed(1) + ' KB</b> · ' + state.donors.length + ' donor · ' +
       state.messages.length + ' surat · ' + state.templates.length + ' template.</p>' +
     '<div class="btn-row">' +
@@ -5308,6 +5477,29 @@ document.addEventListener('click', function(e){
     case 'ekspor-xlsx': exportXLSX(); break;
     case 'ekspor-csv': exportCSV(); break;
     case 'impor-json': document.getElementById('file-import').click(); break;
+    case 'server-muat': {
+      Server.muat().then(function(ok){
+        if(ok){ render(); toast('Data dimuat ulang dari server'); }
+        else toast('Gagal memuat dari server: ' + (Server.pesan || 'tidak diketahui'), true);
+      });
+      break;
+    }
+    case 'server-unggah': {
+      if(!Server.bisa()){ toast('Isi alamat Worker & kunci aplikasi dulu di Setelan', true); break; }
+      if(!confirm('Kirim data dari browser ini ke server?\n\n' +
+        'Data yang ada di server akan DITIMPA dengan data dari komputer ini.\n' +
+        'Pakai ini hanya kalau data di komputer ini yang paling lengkap.')) break;
+      Server.siap = true;
+      (async function(){
+        for(const nama of Server.koleksi){ await Server.kirim(nama); }
+        await Server.kirim('isian');
+        await Server.kirim('majalah');
+        render();
+        toast(Server.gagal ? 'Sebagian gagal dikirim — lihat pesan galat' : 'Semua data terkirim ke server',
+          !!Server.gagal);
+      })();
+      break;
+    }
     case 'muat-contoh':
       if(confirm('Muat ulang 18 donor contoh dari data.xlsx?\nData donor & surat saat ini akan diganti.')){
         state.donors = SEED_DONORS.slice();
@@ -5510,3 +5702,17 @@ document.getElementById('theme-btn').addEventListener('click', cycleTheme);
 document.getElementById('theme-btn-m').addEventListener('click', cycleTheme);
 
 render();
+
+/* Ambil data bersama dari server. Dijalankan SETELAH render() supaya aplikasi
+   langsung tampil (memakai salinan di browser) dan tidak menunggu jaringan.
+   Kalau berhasil, tampilan digambar ulang dengan data terbaru. */
+(async function(){
+  if(!Server.bisa()){ Server.tandai('mati', 'Isi alamat Worker & kunci aplikasi di Setelan'); return; }
+  const berhasil = await Server.muat();
+  if(berhasil){
+    render();
+    toast('Data bersama dimuat dari server');
+  }else{
+    toast('Tidak bisa memuat data bersama — memakai salinan di browser ini', true);
+  }
+})();
