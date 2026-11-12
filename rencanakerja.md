@@ -3586,3 +3586,129 @@ dikirim ke server.
 | 5 | Data akan muncul sendiri. Selesai |
 
 ---
+
+## 24. Login & akun pengguna — rencana (12 Nov 2026) 📋 BELUM DIKERJAKAN
+
+**Pertanyaan Anda:** *"selanjutnya dibuat form signup untuk buat username dan
+password .. apakah lebih baik terpisah dengan aplikasi kartidaya.. karena
+aplikasi signup sangat jarang di gunakan .. di gunakan untuk membuat email +
+password yg bisa akses .. setelah di gunakan dimatikan.. aman
+di aplikasi kartidaya.. dibuat login : email dan password: ... apakah ini masuk
+akal ?"*
+
+**Jawaban singkat: ya, masuk akal.** Tapi ada 2 hal yang harus diperbaiki dulu,
+kalau tidak justru lebih berbahaya daripada sekarang.
+
+### 24.1 Yang sudah benar dari usulan Anda
+
+| Usulan | Kenapa benar |
+|---|---|
+| **Signup dipisah dari aplikasi** | Signup dipakai 2-3 kali seumur hidup aplikasi. Kalau menempel di aplikasi utama, pintunya terbuka terus. Dipisah lalu ditutup = pintunya hilang |
+| **Login email + password** | Sekarang semua orang memakai **satu kunci yang sama** (`APP_KEY`). Akibatnya: (a) kalau ada orang keluar, kunci harus diganti dan semua orang diberi tahu; (b) tidak bisa tahu **siapa** yang mengubah data keuangan. Dengan akun per orang: matikan akun satu orang itu saja, dan setiap perubahan ada namanya |
+
+### 24.2 Dua hal yang harus diperbaiki
+
+**❌ 1. "Dimatikan" tidak cukup dengan menghapus halamannya**
+
+Kalau halaman signup dihapus tetapi **pintu di server masih terbuka**, siapa pun
+yang tahu alamatnya masih bisa membuat akun. Yang harus dimatikan adalah
+**pintunya di server**, bukan halamannya.
+
+Cara paling rapi: pintu signup butuh **kode undangan**. Setelah selesai menambah
+user, kode itu dihapus dari server → pintu tertutup **seketika**, tanpa perlu
+ubah kode. Kalau nanti perlu tambah user lagi, kode dipasang lagi.
+
+**❌ 2. Password tidak boleh disimpan apa adanya**
+
+Ini yang paling penting. Kalau password disimpan mentah di database dan database
+bocor, **semua password terbaca** — dan karena orang sering memakai password
+yang sama, **email mereka ikut kena**.
+
+Harus disimpan dalam bentuk "acakan" (hash) yang tidak bisa dibalik. Cloudflare
+Worker sudah punya alatnya bawaan (`crypto.subtle`), tidak perlu tambahan.
+
+### 24.3 Rancangan
+
+```
+   Halaman Signup (terpisah)
+        |  butuh kode undangan
+        v
+   Server: buat akun  --->  Database: users (password diacak)
+        ^
+        |  email + password
+   Aplikasi Kartidaya  --->  Server: login
+        |                        |
+        |  token berlaku 12 jam  |
+        v                        v
+   Data donor & keuangan  <------+
+
+   Kode undangan dihapus  -.->  pintu signup tertutup
+```
+
+| Bagian | Perubahan |
+|---|---|
+| **Halaman signup** | Halaman terpisah, hanya untuk menambah user, butuh kode undangan |
+| **Aplikasi utama** | Layar login di depan; setelah masuk baru bisa dipakai |
+| **Server** | Tabel `users` baru + login + token + batas percobaan |
+| **Kunci lama** | Tetap jalan sebagai cadangan supaya Anda tidak terkunci sendiri |
+
+### 24.4 Tabel `users` yang akan dibuat
+
+| Kolom | Isi |
+|---|---|
+| `email` | Alamat email (jadi nama pengguna) |
+| `nama` | Nama orang, supaya kelihatan siapa yang mengubah data |
+| `hash` | Password dalam bentuk acakan — **bukan** password aslinya |
+| `salt` | Bumbu acak supaya dua password sama tetap menghasilkan acakan berbeda |
+| `peran` | `admin` atau `user` — admin boleh menambah/menghapus user |
+| `aktif` | 1 = boleh masuk, 0 = dimatikan |
+| `dibuat` | Waktu akun dibuat |
+| `masuk_terakhir` | Waktu terakhir masuk |
+
+### 24.5 Pengaman yang wajib ada
+
+| Pengaman | Kenapa |
+|---|---|
+| **Password diacak (PBKDF2)** | Kalau database bocor, password tidak terbaca |
+| **Batas percobaan login** | Mis. 5 kali salah → tunggu 15 menit. Tanpa ini, password bisa ditebak paksa |
+| **Token kedaluwarsa** | Berlaku 12 jam, lalu harus masuk lagi |
+| **Token disimpan di server** | Supaya bisa dicabut sebelum waktunya (mis. orang keluar) |
+| **Pesan galat seragam** | "Email atau password salah" — jangan bilang mana yang salah, itu memberi petunjuk ke penyerang |
+| **Kode undangan untuk signup** | Pintu signup bisa ditutup seketika |
+
+### 24.6 Keputusan yang masih menunggu Anda
+
+| # | Pertanyaan | Pilihan |
+|---|---|---|
+| 1 | Halaman signup diletakkan di mana? | **(a)** Di server (Worker) — halaman terpisah, butuh kode undangan. Paling aman & paling mudah dimatikan. **(b)** Berkas terpisah di repo (GitHub Pages) — sederhana, tapi halamannya tetap bisa dibuka orang. **(c)** Tanpa halaman sama sekali — Anda buat akun lewat perintah di komputer. Paling aman, tapi perlu sedikit teknis |
+| 2 | Email untuk login pakai yang mana? | **(a)** Email Gmail yang dipakai mengirim surat (mis. kantor@kartidaya.org). **(b)** Email apa saja sebagai nama pengguna — tidak harus email Gmail yang tersambung |
+| 3 | Kunci aplikasi lama (`APP_KEY`) diapakan? | **(a)** Tetap jalan sebagai cadangan — Anda tidak bisa terkunci sendiri kalau lupa password. **(b)** Dimatikan total — hanya login yang bisa masuk. Lebih aman, tapi kalau lupa password harus diperbaiki manual |
+| 4 | Kalau lupa password, siapa yang mengurus? | **(a)** Anda (admin) yang reset lewat perintah di komputer — cukup untuk 2 user. **(b)** Ada tombol "lupa password" yang mengirim email — perlu tambahan pekerjaan & alamat pengirim |
+
+### 24.7 Perkiraan pekerjaan
+
+Ini perubahan **besar** — menyentuh database, server, dan aplikasi. Bukan
+pekerjaan 1 jam. Urutan yang disarankan:
+
+| # | Langkah | Perkiraan |
+|---|---|---|
+| 1 | Tabel `users` + alat acak password di server | sedang |
+| 2 | Pintu signup + kode undangan | sedang |
+| 3 | Pintu login + token | sedang |
+| 4 | Layar login di aplikasi | sedang |
+| 5 | Ganti semua panggilan data dari kunci lama ke token | **besar** — menyentuh banyak tempat |
+| 6 | Uji: 2 user, salah password, token kedaluwarsa, akun dimatikan | sedang |
+
+### 24.8 Catatan penting
+
+**Fitur login TIDAK menutup masalah §22.1.** Data 18 donor asli (27 email, 14
+nomor HP) sekarang bisa dibaca siapa saja di
+`https://suwandhih.github.io/kartidaya/app.js` karena repo GitHub-nya **publik**.
+Login hanya menjaga **pintu masuk aplikasi** — berkas `app.js` tetap terbit
+seperti sekarang. Jadi §22.1 sebaiknya diputuskan bersamaan dengan pekerjaan ini.
+
+**Kalau dikerjakan setengah-setengah, hasilnya lebih berbahaya daripada
+sekarang** — karena memberi rasa aman yang palsu. Jadi harus lengkap: password
+diacak, batas percobaan login, dan token yang kedaluwarsa.
+
+---
