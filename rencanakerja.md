@@ -2046,7 +2046,7 @@ memang tidak ada pilihan lain (WhatsApp).
 
 ---
 
-### 19.3 Tanggal kirim kwitansi & majalah untuk mencegah salah data — ⭐ ID BAGUS
+### 19.3 Tanggal kirim kwitansi & majalah untuk mencegah salah data — ✅ SELESAI (12 Nov 2026)
 
 **Ini jawaban untuk pertanyaan Anda: apakah efektif mengurangi kesalahan?**
 
@@ -2127,24 +2127,56 @@ per pengiriman 1 jam, pratinjau wajib 30 menit, uji 30 menit).
 
 ---
 
+#### 19.3.1 Yang sudah dikerjakan (12 Nov 2026)
+
+| Pengaman | Wujud di aplikasi | Status |
+|---|---|---|
+| **Kode kwitansi** unik per transaksi | `KWT-20261112-0007` — tercetak di kwitansi, kolom pertama di halaman Keuangan | ✅ |
+| **Kode kiriman** unik per pengiriman | `KRM-20261112-AB12` — tercetak di kwitansi + tersimpan di buku surat | ✅ |
+| **Tanggal & jam kirim** | `dikirim 12 Nov 2026, 07.50 WIB` di kwitansi; kolom "Waktu kirim" di detail surat | ✅ |
+| **Total besar & tebal** di daftar penerima | angka `Rp 750.000` tampil besar di bawah nama, di sebelah kode kwitansi | ✅ |
+| **Nama + ID berdampingan** | sudah ada sejak awal (`Ferry Kangsadjaja` / `F00004R`) | ✅ |
+| **Kolom "Terakhir dikirim"** di halaman Keuangan | `1× · 12 Nov 2026, 07.50 WIB` atau `belum` | ✅ |
+| **Saringan status kirim** | Semua / Belum pernah dikirim / Sudah pernah dikirim | ✅ |
+| **Riwayat kirim** | tombol 🕘 di halaman Keuangan — semua kwitansi yang pernah dikirim, dikelompokkan per hari | ✅ |
+| **Baris "Periksa"** di kwitansi | "Ada yang perlu diperbaiki? Balas email ini atau hubungi kami di finance@kartidaya.org dengan menyebut kode di atas." | ✅ |
+| **Tombol "Kirim ke saya sendiri dulu"** | kirim 1 salinan ke email sendiri, berlabel `[UJI]`, tidak dicatat di buku donor | ✅ |
+| **Ekspor Excel** | lembar Keuangan kini memuat kolom KODE KWITANSI & TERAKHIR DIKIRIM | ✅ |
+
+**Catatan penting — kode kiriman vs kode kwitansi:**
+
+| | Kode kwitansi | Kode kiriman |
+|---|---|---|
+| Milik | satu **transaksi** keuangan | satu **pengiriman** ke satu donor |
+| Contoh | `KWT-20261112-0007` | `KRM-20261112-AB12` |
+| Kalau dikirim 2× | tetap sama | **berbeda** |
+| Gunanya | mencocokkan dengan catatan keuangan | menelusuri kiriman yang mana bermasalah |
+
+**Perbaikan bug yang ditemukan saat uji:** fungsi `terbilang()` mengembalikan
+teks dengan penanda `#` yang tidak pernah diproses, sehingga kwitansi menampilkan
+`#Tujuh ratus lima puluh ribu rupiah#`. Sudah dibetulkan menjadi
+`Tujuh ratus lima puluh ribu rupiah`.
+
+**Yang belum dikerjakan dari §19.3:** pratinjau **wajib** (saat ini masih bisa
+dilewati). Menunggu keputusan Anda — kalau diwajibkan, setiap kali menekan
+**Kirim** akan muncul layar periksa dulu dan tidak bisa langsung kirim.
+
+---
+
 ### 19.4 Ringkasan urutan pengerjaan (gabungan 18 & 19)
 
 | Urutan | Pekerjaan | Perkiraan | Tergantung |
 |---|---|---|---|
 | 1 | **Kwitansi PNG** di Tulis Surat (§19.2) | ±1 jam | — |
-| 2 | **Kode kiriman + tanggal kirim + daftar per pengiriman** (§19.3) | ±2 jam | — |
-| 3 | **Pratinjau wajib + kirim ke diri sendiri** (§19.3) | ±1 jam | langkah 2 |
+| 2 | ~~**Kode kiriman + tanggal kirim + daftar per pengiriman** (§19.3)~~ | ~~±2 jam~~ | ✅ **SELESAI 12 Nov 2026** |
+| 3 | **Pratinjau wajib** (§19.3) — tombol "kirim ke diri sendiri" sudah selesai | ±30 menit | keputusan Anda |
 | 4 | **Terima PDF majalah** + PNG otomatis (§19.1) | ±1,5 jam | berkas PDF dari user |
 | 5 | **Halaman pembaca** `/baca/<id>` (§18.2) | ±2 jam | langkah 4 |
 | 6 | **Sampul + tombol Baca majalah di email** (§18.2) | ±1 jam | langkah 5 |
 | 7 | **WhatsApp: kirim PNG & PDF** (§18.1) | ±2,5 jam | akun Meta tidak BLOCKED |
 
-**Bisa dikerjakan sekarang (tidak menunggu apa pun): langkah 1, 2, 3.**
-Total ±4 jam. Langkah 4–6 menunggu berkas PDF majalah. Langkah 7 menunggu Meta.
-
-**Saran saya:** kerjakan **langkah 2 dulu** (kode kiriman + tanggal kirim),
-karena itu yang paling langsung mengurangi kesalahan user — sesuai kekhawatiran
-Anda. Kwitansi PNG bisa menyusul.
+**Bisa dikerjakan sekarang (tidak menunggu apa pun): langkah 1 dan 3.**
+Langkah 4–6 menunggu berkas PDF majalah. Langkah 7 menunggu Meta.
 
 ---
 

@@ -435,6 +435,19 @@ tbody tr:last-child td{border-bottom:0}
 .recipient .txt{display:flex;flex-direction:column;min-width:0;flex:1}
 .recipient .txt b{font-size:13.5px;overflow-wrap:anywhere}
 .recipient .txt span{font-size:11.5px;color:var(--muted);overflow-wrap:anywhere}
+/* Baris kode + jumlah di daftar penerima. Angka sengaja dibuat besar & tebal
+   supaya bisa dibandingkan sekilas sebelum mencentang — ini pencegah salah
+   kirim yang utama. */
+.recipient .rc-kwt{
+  display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;margin-top:3px;
+}
+.recipient .rc-kwt .kode{
+  font-size:10.5px;color:var(--muted);letter-spacing:.3px;
+}
+.recipient .rc-kwt .rp{
+  font-size:14px;font-weight:700;color:var(--accent);
+  font-variant-numeric:tabular-nums;
+}
 
 /* ---------- MODAL ---------- */
 .modal-back{

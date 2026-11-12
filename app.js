@@ -175,7 +175,7 @@ function terbilang(n, mataUang){
   t = t.charAt(0).toUpperCase() + t.slice(1);
   const namaUang = { IDR:'rupiah', USD:'dolar Amerika', SGD:'dolar Singapura',
     EUR:'euro', AUD:'dolar Australia', MYR:'ringgit' }[m.kode] || m.nama.toLowerCase();
-  return '#' + t + ' ' + namaUang + '#';
+  return t + ' ' + namaUang;
 }
 /* Tanggal gaya kwitansi: "14 Oktober 2026". */
 function tanggalKwitansi(iso){
@@ -196,6 +196,74 @@ function nomorKwitansi(f, donorId){
   const tgl = String((f && f.tanggal) || new Date().toISOString().slice(0,10)).replace(/-/g,'');
   return 'KWT/' + tgl + '/' + (donorId || '');
 }
+
+/* ---------- KODE KWITANSI UNIK ---------- */
+/* Kode ini yang membedakan satu transaksi dari transaksi lain, walau donornya
+   sama dan tanggalnya sama. Dipakai user untuk mencocokkan kwitansi yang
+   dikirim dengan catatannya sendiri.
+
+   Bentuk: KWT-20261112-0007
+           └┬─┘ └──┬───┘ └┬─┘
+            │      │      └── nomor urut, 4 digit
+            │      └───────── tanggal transaksi
+            └──────────────── penanda kwitansi
+
+   Nomor urut dihitung dari transaksi yang sudah ada pada tanggal itu, jadi
+   tidak pernah sama. */
+function kodeKwitansi(f){
+  if(!f) return '';
+  if(f.kode) return f.kode;
+  return 'KWT-' + String(f.tanggal || '').replace(/-/g,'') + '-????';
+}
+
+/* Beri kode pada transaksi yang belum punya. Dipanggil sekali saat aplikasi
+   dibuka, supaya transaksi lama ikut punya kode tanpa perlu diubah manual. */
+function lengkapiKodeKwitansi(){
+  let n = 0;
+  const perTanggal = {};
+  /* Hitung dulu kode yang sudah ada supaya nomor urut tidak bertabrakan. */
+  state.finance.forEach(function(f){
+    if(f.kode){
+      const tgl = String(f.tanggal || '').replace(/-/g,'');
+      const urut = parseInt(String(f.kode).slice(-4), 10);
+      if(!isNaN(urut)) perTanggal[tgl] = Math.max(perTanggal[tgl] || 0, urut);
+    }
+  });
+  /* Urutkan supaya pemberian kode mengikuti urutan tanggal & waktu dibuat. */
+  state.finance.slice().sort(function(a, b){
+    const t = String(a.tanggal || '').localeCompare(String(b.tanggal || ''));
+    if(t) return t;
+    return String(a.createdAt || '').localeCompare(String(b.createdAt || ''));
+  }).forEach(function(f){
+    if(f.kode) return;
+    const tgl = String(f.tanggal || '').replace(/-/g,'');
+    perTanggal[tgl] = (perTanggal[tgl] || 0) + 1;
+    f.kode = 'KWT-' + tgl + '-' + String(perTanggal[tgl]).padStart(4, '0');
+    n++;
+  });
+  if(n) save('finance');
+  return n;
+}
+
+/* Kode kiriman: dibuat sekali setiap kali surat benar-benar dikirim. Berbeda
+   dari kode kwitansi (milik transaksi), kode kiriman menandai SATU pengiriman
+   ke SATU donor. Jadi kalau kwitansi yang sama dikirim dua kali, kode
+   kirimannya berbeda — inilah yang mencegah tertukar. */
+function kodeKiriman(){
+  const d = new Date();
+  const tgl = d.getFullYear() + String(d.getMonth() + 1).padStart(2,'0') + String(d.getDate()).padStart(2,'0');
+  const acak = Math.random().toString(36).slice(2, 6).toUpperCase();
+  return 'KRM-' + tgl + '-' + acak;
+}
+
+/* Tanggal & jam kirim dalam bentuk yang enak dibaca. */
+function waktuKirim(iso){
+  const d = iso ? new Date(iso) : new Date();
+  if(isNaN(d)) return '';
+  return d.toLocaleString('id-ID', {
+    day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'
+  }) + ' WIB';
+}
 /* Data kwitansi siap pakai untuk satu donor. */
 function dataKwitansi(d, finId){
   const f = kwitansiDonor(d.id, finId);
@@ -208,6 +276,7 @@ function dataKwitansi(d, finId){
     ada: !!f,
     finId: f ? f.id : '',
     nomor: nomorKwitansi(f, d.id),
+    kode: kodeKwitansi(f),
     tanggal: f ? f.tanggal : '',
     jumlah: kode.length ? perUang[kode[0]] : 0,
     mataUang: kode.length ? kode[0] : 'IDR',
@@ -217,8 +286,11 @@ function dataKwitansi(d, finId){
     catatan: f ? (f.catatan || '') : ''
   };
 }
-/* HTML kwitansi. Semua gaya ditulis inline karena klien email membuang <style>. */
-function kwitansiHTML(d, bahasa, finId){
+/* HTML kwitansi. Semua gaya ditulis inline karena klien email membuang <style>.
+   `opsi` boleh memuat { kodeKiriman, waktuKirim } — dua hal ini dicetak di
+   kwitansi supaya user bisa mencocokkan dengan catatannya sendiri. */
+function kwitansiHTML(d, bahasa, finId, opsi){
+  opsi = opsi || {};
   const L = KWITANSI_LABEL[bahasa] || KWITANSI_LABEL.id;
   const k = dataKwitansi(d, finId);
   const logo = state.settings.logoUrl || 'vendor/kartidaya-logo.png';
@@ -293,6 +365,18 @@ function kwitansiHTML(d, bahasa, finId){
         barisTerbilang +
         '<tr><td colspan="3" style="padding:8px 0 0;font-size:10.5px;color:#666">' +
           'No. ' + esc(k.nomor) + (k.ada ? '' : ' — belum ada transaksi keuangan untuk donor ini') +
+        '</td></tr>' +
+        (k.kode ? '<tr><td colspan="3" style="padding:2px 0 0;font-size:10.5px;color:#666">' +
+          'Kode kwitansi: <b style="color:#111;letter-spacing:.5px">' + esc(k.kode) + '</b>' +
+        '</td></tr>' : '') +
+        (opsi.kodeKiriman ? '<tr><td colspan="3" style="padding:2px 0 0;font-size:10.5px;color:#666">' +
+          'Kode kiriman: <b style="color:#111;letter-spacing:.5px">' + esc(opsi.kodeKiriman) + '</b>' +
+          (opsi.waktuKirim ? ' &middot; dikirim ' + esc(opsi.waktuKirim) : '') +
+        '</td></tr>' : '') +
+        '<tr><td colspan="3" style="padding:6px 0 0;font-size:10.5px;color:#666">' +
+          'Ada yang perlu diperbaiki? Balas email ini atau hubungi kami di ' +
+          esc(state.settings.kontakKoreksi || 'finance@kartidaya.org') +
+          ' dengan menyebut kode di atas.' +
         '</td></tr>' +
       '</table>' +
     '</td></tr>' +
@@ -530,6 +614,11 @@ function loadState(){
   if(state.settings.waAutoSync === undefined) state.settings.waAutoSync = true;
   if(!state.settings.waSyncMinutes) state.settings.waSyncMinutes = 10;
   if(!state.settings.waLastSync) state.settings.waLastSync = '';
+  /* Alamat untuk koreksi kwitansi — dicetak di kwitansi supaya donor tahu
+     harus menghubungi ke mana kalau ada yang salah. */
+  if(!state.settings.kontakKoreksi) state.settings.kontakKoreksi = 'finance@kartidaya.org';
+  /* Transaksi lama belum punya kode kwitansi — lengkapi sekali di sini. */
+  lengkapiKodeKwitansi();
   if(firstRun) save();
 }
 
@@ -783,6 +872,8 @@ function bindKeuangan(){
   if(d1) d1.addEventListener('change', function(){ finFilter.dari = this.value; refreshKeuangan(); });
   const d2 = document.getElementById('f-sampai');
   if(d2) d2.addEventListener('change', function(){ finFilter.sampai = this.value; refreshKeuangan(); });
+  const k = document.getElementById('f-kirim');
+  if(k) k.addEventListener('change', function(){ finFilter.kirim = this.value; refreshKeuangan(); });
 }
 /* Gambar ulang hanya daftar & ringkasan, lalu pasang ulang pendengar filter —
    kalau seluruh halaman digambar ulang, fokus di kotak cari akan hilang. */
@@ -1121,7 +1212,7 @@ function kv(k,v){
 
 /* ---------- TULIS SURAT ---------- */
 let suratState = { tplId:'', subjek:'', isi:'', selected:{}, previewId:'', q:'', replyTo:'', kanal:'email',
-  kwitansi:false, kwitansiBahasa:'id', kwitansiFinId:'', majalah:false };
+  kwitansi:false, kwitansiBahasa:'id', kwitansiFinId:'', majalah:false, kirimSendiri:false };
 
 function viewSurat(){
   setTitle('Tulis Surat','Susun surat dengan template, kirim ke banyak penerima');
@@ -1200,11 +1291,22 @@ function viewSurat(){
         const alamat = kanal === 'whatsapp'
           ? (donorWa(d) ? waPhonePretty(donorWa(d)) : 'tanpa nomor HP')
           : (d.email || 'tanpa email');
+        /* Kalau kwitansi ikut dikirim, tampilkan kode + jumlah besar di
+           sebelah nama. Tujuannya supaya user bisa membandingkan angka
+           sebelum mencentang — inilah pencegah salah kirim yang utama. */
+        const k = (kanal === 'email' && suratState.kwitansi) ? dataKwitansi(d, suratState.kwitansiFinId) : null;
+        const uang = k ? k.kodeUang.map(function(u){
+          return '<span class="rp">' + esc(fmtUang(k.perUang[u] || 0, u)) + '</span>';
+        }).join(' ') : '';
         return '<label class="recipient' + (on ? ' on' : '') + '">' +
           '<input type="checkbox" data-recip="' + esc(d.id) + '"' + (on ? ' checked' : '') + '>' +
           '<span class="txt"><b>' + esc(donorName(d)) + '</b>' +
-          '<span>' + esc(d.id) + ' · ' + esc(alamat) + '</span></span>' +
-        '</label>';
+          '<span>' + esc(d.id) + ' · ' + esc(alamat) + '</span>' +
+          (k ? '<span class="rc-kwt">' +
+            (k.kode ? '<span class="mono kode">' + esc(k.kode) + '</span>' : '') +
+            (k.ada ? uang : '<span class="chip warn">belum ada data keuangan</span>') +
+          '</span>' : '') +
+          '</span></label>';
       }).join('') + '</div>' : '<p class="muted small">Tidak ada donor.</p>') +
     '</div>' +
 
@@ -1235,6 +1337,15 @@ function viewSurat(){
         '<button class="btn" id="draft-btn" data-action="simpan-draft"' + (nSel ? '' : ' disabled') + '>Simpan Draft</button>' +
         '<button class="btn ghost" data-action="tpl-simpan-baru">Simpan sebagai template</button>' +
       '</div>' +
+      (kanal === 'email'
+        ? '<div class="btn-row" style="margin-top:8px">' +
+            '<button class="btn" data-action="kirim-sendiri"' + (nSel ? '' : ' disabled') + '>' +
+              '✉ Kirim ke saya sendiri dulu</button>' +
+            '<span class="tiny muted" style="align-self:center">' +
+              'Kirim satu salinan ke ' + esc(Gmail.email || 'email Anda') +
+              ' supaya bisa diperiksa dulu sebelum ke donor.</span>' +
+          '</div>'
+        : '') +
     '</div>' +
 
   '</div>';
@@ -1530,6 +1641,7 @@ function openPeriksaKirim(){
       : '');
 
   const footer = '<button class="btn" data-close>Kembali periksa</button>' +
+    (wa ? '' : '<button class="btn" data-action="kirim-sendiri-dari-periksa">✉ Kirim ke saya sendiri dulu</button>') +
     '<button class="btn primary" data-action="kirim-dari-periksa">➤ Kirim sekarang (' + ids.length + ')</button>';
 
   openModal({ title:'Periksa sebelum kirim', body:body, footer:footer, wide:true });
@@ -1675,7 +1787,7 @@ function viewKategori(){
 }
 
 /* ---------- KEUANGAN ---------- */
-let finFilter = { q:'', program:'', uang:'', dari:'', sampai:'' };
+let finFilter = { q:'', program:'', uang:'', dari:'', sampai:'', kirim:'' };
 
 function finList(){
   const q = finFilter.q.toLowerCase();
@@ -1685,9 +1797,16 @@ function finList(){
     if(finFilter.uang && !(f.program || []).some(function(x){ return mataUangBaris(x, f) === finFilter.uang; })) return false;
     if(finFilter.dari && String(f.tanggal || '') < finFilter.dari) return false;
     if(finFilter.sampai && String(f.tanggal || '') > finFilter.sampai) return false;
+    /* Filter status kirim: memisahkan kwitansi yang sudah pernah dikirim dari
+       yang belum, supaya tidak ada yang terlewat. */
+    if(finFilter.kirim){
+      const sudah = kirimanUntukFin(f.id).length > 0;
+      if(finFilter.kirim === 'sudah' && !sudah) return false;
+      if(finFilter.kirim === 'belum' && sudah) return false;
+    }
     if(!q) return true;
     const d = findDonor(f.donorId);
-    const teks = [f.donorId, d ? donorName(d) : '', d ? d.kategori : '',
+    const teks = [f.donorId, f.kode, d ? donorName(d) : '', d ? d.kategori : '',
       (f.program || []).map(function(x){ return programNama(x.id); }).join(' '),
       f.catatan, f.mataUang,
       (f.program || []).map(function(x){ return mataUangBaris(x, f); }).join(' ')].join(' ').toLowerCase();
@@ -1724,6 +1843,7 @@ function viewKeuangan(){
   '<div class="card">' +
     '<div class="card-head"><h2>Ringkasan</h2>' +
       '<button class="btn sm primary" data-action="fin-baru">+ Tambah</button>' +
+      '<button class="btn sm" data-action="riwayat-kirim">🕘 Riwayat kirim</button>' +
       '<button class="btn sm ghost" data-action="prg-kelola">Kelola program</button></div>' +
     (kodeUang.length
       ? '<div class="grid stats">' + kodeUang.map(function(k){
@@ -1756,25 +1876,36 @@ function viewKeuangan(){
     '<div class="toolbar" style="margin-bottom:10px">' +
       '<label class="tiny muted">Dari <input type="date" id="f-dari" value="' + esc(finFilter.dari) + '"></label>' +
       '<label class="tiny muted">Sampai <input type="date" id="f-sampai" value="' + esc(finFilter.sampai) + '"></label>' +
+      '<select id="f-kirim">' +
+        '<option value="">Semua status kirim</option>' +
+        '<option value="belum"' + (finFilter.kirim === 'belum' ? ' selected' : '') + '>Belum pernah dikirim</option>' +
+        '<option value="sudah"' + (finFilter.kirim === 'sudah' ? ' selected' : '') + '>Sudah pernah dikirim</option>' +
+      '</select>' +
       '<button class="btn sm ghost" data-action="fin-reset">Bersihkan filter</button>' +
     '</div>' +
     (list.length
       ? '<div class="table-wrap"><table><thead><tr>' +
-          '<th>Tanggal</th><th>Donor</th><th>Kategori</th><th>Program</th>' +
-          '<th class="right">Jumlah</th><th></th></tr></thead><tbody>' +
+          '<th>Kode</th><th>Tanggal</th><th>Donor</th><th>Kategori</th><th>Program</th>' +
+          '<th class="right">Jumlah</th><th>Terakhir dikirim</th><th></th></tr></thead><tbody>' +
           list.map(function(f){
             const d = findDonor(f.donorId);
             const prog = (f.program || []).map(function(x){
               return '<div>' + esc(programNama(x.id)) +
                 '<span class="mono muted"> · ' + esc(fmtUang(x.jumlah, mataUangBaris(x, f))) + '</span></div>';
             }).join('') || '<span class="muted">—</span>';
+            const kirim = kirimanUntukFin(f.id);
             return '<tr>' +
+              '<td class="mono nowrap"><b>' + esc(f.kode || '—') + '</b></td>' +
               '<td class="mono nowrap">' + esc(f.tanggal || '—') + '</td>' +
               '<td><b>' + esc(d ? donorName(d) : (f.donorId || '—')) + '</b>' +
                 '<div class="tiny muted mono">' + esc(f.donorId || '') + '</div></td>' +
               '<td class="small">' + esc(d ? (d.kategori || '—') : '—') + '</td>' +
               '<td class="small">' + prog + '</td>' +
               '<td class="mono right nowrap"><b>' + totalTransaksiHTML(f) + '</b></td>' +
+              '<td class="small nowrap">' + (kirim.length
+                ? '<span class="chip ok">' + kirim.length + '×</span>' +
+                  '<div class="tiny muted">' + esc(waktuKirim(kirim[kirim.length - 1].tanggal)) + '</div>'
+                : '<span class="chip plain">belum</span>') + '</td>' +
               '<td class="right nowrap">' +
                 '<button class="btn sm ghost" data-action="fin-ubah" data-id="' + esc(f.id) + '">Ubah</button>' +
                 '<button class="btn sm ghost" data-action="fin-hapus" data-id="' + esc(f.id) + '">Hapus</button>' +
@@ -1782,6 +1913,78 @@ function viewKeuangan(){
           }).join('') + '</tbody></table></div>'
       : '<div class="empty"><span class="big">◫</span>Belum ada transaksi yang cocok.</div>') +
   '</div>';
+}
+
+/* Surat keluar yang memuat kwitansi dari satu transaksi keuangan. Dipakai
+   untuk menjawab "kwitansi ini sudah dikirim kapan saja?". */
+function kirimanUntukFin(finId){
+  if(!finId) return [];
+  return state.messages.filter(function(m){
+    return m.arah === 'keluar' && m.kwitansiFinId === finId;
+  }).sort(function(a,b){ return String(a.tanggal).localeCompare(String(b.tanggal)); });
+}
+
+/* ---------- RIWAYAT KIRIM ----------
+   Daftar semua kwitansi yang pernah dikirim, dikelompokkan per tanggal kirim.
+   Gunanya: kalau ada donor yang mengaku belum menerima, atau ada angka yang
+   salah, user bisa menelusuri kapan & apa yang dikirim tanpa membuka satu per
+   satu buku donor. */
+function openRiwayatKirim(){
+  const keluar = state.messages.filter(function(m){
+    return m.arah === 'keluar' && m.kwitansiHTML;
+  }).sort(function(a,b){ return String(b.tanggal).localeCompare(String(a.tanggal)); });
+
+  if(!keluar.length){
+    openModal({
+      title:'Riwayat kirim kwitansi',
+      body:'<div class="empty"><span class="big">🕘</span>Belum ada kwitansi yang pernah dikirim.</div>',
+      footer:'<button class="btn" data-close>Tutup</button>'
+    });
+    return;
+  }
+
+  /* Kelompokkan per hari kirim. */
+  const perHari = {};
+  keluar.forEach(function(m){
+    const hari = String(m.tanggal || '').slice(0, 10);
+    (perHari[hari] = perHari[hari] || []).push(m);
+  });
+
+  const body = Object.keys(perHari).sort().reverse().map(function(hari){
+    const baris = perHari[hari];
+    return '<div class="sep"></div>' +
+      '<p class="small" style="margin:0 0 8px"><b>' + esc(fmtDate(hari)) + '</b> ' +
+        '<span class="chip plain">' + baris.length + ' kiriman</span></p>' +
+      '<div class="table-wrap"><table><thead><tr>' +
+        '<th>Kode kiriman</th><th>Jam</th><th>Donor</th><th>Kode kwitansi</th>' +
+        '<th class="right">Jumlah</th><th>Status</th><th></th></tr></thead><tbody>' +
+        baris.map(function(m){
+          const d = findDonor(m.donorId);
+          const f = state.finance.filter(function(x){ return x.id === m.kwitansiFinId; })[0];
+          const total = f ? totalTransaksiHTML(f) : '<span class="muted">—</span>';
+          return '<tr>' +
+            '<td class="mono nowrap"><b>' + esc(m.kodeKiriman || '—') + '</b></td>' +
+            '<td class="mono nowrap">' + esc(waktuKirim(m.tanggal).replace(/^.*?(\d{2}[.:]\d{2}).*$/, '$1')) + '</td>' +
+            '<td><b>' + esc(d ? donorName(d) : m.donorId) + '</b>' +
+              '<div class="tiny muted mono">' + esc(m.donorId || '') + '</div></td>' +
+            '<td class="mono nowrap">' + esc(f ? (f.kode || '—') : '—') + '</td>' +
+            '<td class="mono right nowrap"><b>' + total + '</b></td>' +
+            '<td class="small nowrap">' + esc(m.status || '') +
+              (m.dibacaPenerima ? ' <span class="chip ok">✓✓ Dibaca</span>' : '') + '</td>' +
+            '<td class="right nowrap">' +
+              '<button class="btn sm ghost" data-action="buka-pesan" data-id="' + esc(m.id) + '">Lihat</button>' +
+            '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+  }).join('');
+
+  openModal({
+    title:'Riwayat kirim kwitansi',
+    body:'<p class="small muted" style="margin:0 0 4px">Semua kwitansi yang pernah dikirim, ' +
+        'diurutkan dari yang terbaru. Pakai <b>kode kiriman</b> untuk menelusuri satu pengiriman tertentu.</p>' +
+      body,
+    footer:'<button class="btn" data-close>Tutup</button>',
+    wide:true
+  });
 }
 
 /* ---------- PEMILIH DONOR (ketik nama, lompat abjad) ---------- */
@@ -2517,6 +2720,11 @@ function openMessage(msgId){
             : 'belum ada kabar (penerima mungkin memblokir gambar)')
         : '') +
       kv('Lampiran', m.lampiran) + kv('Catatan', m.catatan) +
+      (m.kodeKiriman ? kv('Kode kiriman', m.kodeKiriman) : '') +
+      (m.waktuKirim ? kv('Waktu kirim', m.waktuKirim) : '') +
+      (m.kwitansiFinId ? kv('Kode kwitansi', (state.finance.filter(function(x){
+        return x.id === m.kwitansiFinId;
+      })[0] || {}).kode || '—') : '') +
       (m.waError ? kv('Alasan gagal', m.waError + (m.waKode ? ' (kode ' + m.waKode + ')' : '')) : '') +
     '</div>' +
     '<div class="sep"></div>' +
@@ -2881,9 +3089,51 @@ function isiHTML(d, isiTeks, bahasa, finId, opts){
   const teks = esc(isiTeks).replace(/\n/g, '<br>');
   return '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.65;' +
       'color:#111;max-width:720px">' + teks + '</div>' +
-    (opts.kwitansi === false ? '' : kwitansiHTML(d, bahasa, finId)) +
+    (opts.kwitansi === false ? '' : kwitansiHTML(d, bahasa, finId,
+      { kodeKiriman: opts.kodeKiriman, waktuKirim: opts.waktuKirim })) +
     (opts.majalah ? majalahHTML({ tautan: true }) : '') +
     (opts.pixelId ? pixelHTML(opts.pixelId) : '');
+}
+
+/* Kirim satu salinan ke email sendiri dulu. Tujuannya supaya user bisa
+   memeriksa hasil sungguhan di kotak masuknya sendiri sebelum dikirim ke
+   donor. Salinan ini TIDAK dicatat di buku donor — ini hanya uji coba. */
+async function kirimKeSendiri(){
+  const ids = Object.keys(suratState.selected).filter(function(k){ return suratState.selected[k]; });
+  if(!ids.length){ toast('Pilih penerima dulu', true); return; }
+  if(!suratState.isi.trim()){ toast('Isi surat masih kosong', true); return; }
+  if(!Gmail.isConnected()){
+    toast('Hubungkan Gmail dulu di halaman Setelan', true);
+    return;
+  }
+  const tujuan = Gmail.email || '';
+  if(!tujuan){ toast('Alamat email Anda belum terbaca dari Gmail', true); return; }
+
+  /* Pakai penerima pertama sebagai contoh, supaya isi surat & kwitansinya
+     benar-benar terisi seperti yang akan diterima donor. */
+  const d = findDonor(ids[0]);
+  if(!d){ toast('Penerima tidak ditemukan', true); return; }
+
+  const subjek = '[UJI] ' + fillTemplate(suratState.subjek, d);
+  const isi = fillTemplate(suratState.isi, d);
+  const kode = kodeKiriman();
+  const waktu = waktuKirim();
+  const html = isiHTML(d, isi, suratState.kwitansiBahasa, suratState.kwitansiFinId, {
+    kwitansi: !!suratState.kwitansi,
+    majalah: !!suratState.majalah,
+    kodeKiriman: kode, waktuKirim: waktu
+  });
+
+  const btn = document.querySelector('[data-action="kirim-sendiri"]');
+  if(btn){ btn.disabled = true; btn.textContent = 'Mengirim…'; }
+  try{
+    await Gmail.send({ from: Gmail.email || '', to: tujuan, subject: subjek, body: isi, html: html });
+    toast('Salinan uji terkirim ke ' + tujuan + ' — periksa kotak masuk Anda');
+  }catch(e){
+    toast('Gagal kirim salinan uji: ' + (e.message || e), true);
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = '✉ Kirim ke saya sendiri dulu'; }
+  }
 }
 
 async function kirimSurat(asDraft){
@@ -2923,6 +3173,11 @@ async function kirimSurat(asDraft){
     let status = asDraft ? 'Draft' : 'Terkirim';
     let gmailId = '', threadId = '', waId = '';
     let kwitansiSalinan = '', kwitansiBahasaSalinan = '';
+    /* Kode kiriman dibuat per penerima, bukan per surat — supaya kalau ada
+       yang perlu ditanyakan, kode di kwitansi donor menunjuk tepat ke satu
+       pengiriman. */
+    const kodeKrm = asDraft ? '' : kodeKiriman();
+    const waktuKrm = asDraft ? '' : waktuKirim();
     const tujuan = kanal === 'whatsapp' ? donorWa(d) : (d.email || '');
     /* ID pixel dibuat per surat supaya pembukaan oleh satu penerima tidak
        dianggap pembukaan oleh penerima lain. */
@@ -2944,14 +3199,17 @@ async function kirimSurat(asDraft){
             ? isiHTML(d, isi, suratState.kwitansiBahasa, suratState.kwitansiFinId, {
                 kwitansi: !!suratState.kwitansi,
                 majalah: !!suratState.majalah,
-                pixelId: pixelId
+                pixelId: pixelId,
+                kodeKiriman: kodeKrm,
+                waktuKirim: waktuKrm
               })
             : '';
           /* Salinan kwitansi disimpan apa adanya. Kalau nanti data keuangan
              diubah, isi surat yang sudah terkirim tetap bisa diperiksa persis
              seperti yang diterima donor. */
           if(suratState.kwitansi){
-            kwitansiSalinan = kwitansiHTML(d, suratState.kwitansiBahasa, suratState.kwitansiFinId);
+            kwitansiSalinan = kwitansiHTML(d, suratState.kwitansiBahasa, suratState.kwitansiFinId,
+              { kodeKiriman: kodeKrm, waktuKirim: waktuKrm });
             kwitansiBahasaSalinan = suratState.kwitansiBahasa;
           }
           const r = await Gmail.send({
@@ -2993,7 +3251,9 @@ async function kirimSurat(asDraft){
       to: tujuan,
       gmailId:gmailId, threadId:threadId, waId:waId, dibaca:true,
       pixelId: pixelId, dibacaPenerima: '',
+      kodeKiriman: kodeKrm, waktuKirim: waktuKrm,
       kwitansiHTML: kwitansiSalinan, kwitansiBahasa: kwitansiBahasaSalinan,
+      kwitansiFinId: suratState.kwitansi ? (dataKwitansi(d, suratState.kwitansiFinId).finId || '') : '',
       majalah: (kanal === 'email' && suratState.majalah) ? majalahInfo() : null
     });
 
@@ -3484,6 +3744,7 @@ function exportXLSX(){
 
   /* 5. Keuangan — satu baris per program, supaya mudah dijumlahkan di Excel */
   const kolFin = [
+    ['kode','KODE KWITANSI'],
     ['tanggal','TANGGAL'],
     ['donorId','ID-DONOR'],
     ['donor','NAMA', function(f){ const d = findDonor(f.donorId); return d ? donorName(d) : ''; }],
@@ -3491,13 +3752,17 @@ function exportXLSX(){
     ['program','PROGRAM', function(f){ return programNama(f.programId); }],
     ['jumlah','JUMLAH', function(f){ return Number(f.jumlah) || 0; }],
     ['mataUang','MATA UANG', function(f){ return f.mataUang || 'IDR'; }],
+    ['kirim','TERAKHIR DIKIRIM', function(f){
+      const k = kirimanUntukFin(f.id);
+      return k.length ? waktuKirim(k[k.length - 1].tanggal) : 'belum pernah';
+    }],
     ['catatan','CATATAN']
   ];
   const finBaris = [];
   state.finance.forEach(function(f){
     (f.program || []).forEach(function(x){
       finBaris.push({
-        tanggal:f.tanggal, donorId:f.donorId, programId:x.id,
+        kode:f.kode || '', tanggal:f.tanggal, donorId:f.donorId, programId:x.id,
         jumlah:x.jumlah, mataUang:mataUangBaris(x, f), catatan:f.catatan
       });
     });
@@ -3674,6 +3939,8 @@ document.addEventListener('click', function(e){
       break;
     }
     case 'kirim': kirimSurat(false); break;
+    case 'kirim-sendiri': kirimKeSendiri(); break;
+    case 'kirim-sendiri-dari-periksa': closeModal(); kirimKeSendiri(); break;
     case 'simpan-draft': kirimSurat(true); break;
     case 'sel-all':
       state.donors.forEach(function(d){ suratState.selected[d.id] = true; });
@@ -3715,6 +3982,8 @@ document.addEventListener('click', function(e){
       break;
     }
     case 'periksa-kirim': openPeriksaKirim(); break;
+    case 'riwayat-kirim': openRiwayatKirim(); break;
+    case 'buka-pesan': closeModal(); openMessage(id); break;
     case 'pratinjau-email': openPratinjauEmail(id); break;
     case 'pj-lebar':
       pratinjauOpsi.lebar = act.getAttribute('data-lebar') === 'hp' ? 'hp' : 'desktop';
@@ -3736,7 +4005,7 @@ document.addEventListener('click', function(e){
     case 'fin-hapus': hapusFin(id); break;
     case 'fin-simpan': simpanFinForm(id); break;
     case 'fin-reset':
-      finFilter = { q:'', program:'', uang:'', dari:'', sampai:'' };
+      finFilter = { q:'', program:'', uang:'', dari:'', sampai:'', kirim:'' };
       render(); break;
     case 'fin-baris-tambah': {
       const box = document.getElementById('k-program');
