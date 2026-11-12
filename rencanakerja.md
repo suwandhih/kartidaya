@@ -2145,3 +2145,74 @@ Total ±4 jam. Langkah 4–6 menunggu berkas PDF majalah. Langkah 7 menunggu Met
 **Saran saya:** kerjakan **langkah 2 dulu** (kode kiriman + tanggal kirim),
 karena itu yang paling langsung mengurangi kesalahan user — sesuai kekhawatiran
 Anda. Kwitansi PNG bisa menyusul.
+
+---
+
+## 20. Pratinjau email seperti klien email — ✅ SELESAI (12 Nov 2026)
+
+**Pertanyaan Anda:** apakah bisa preview / memastikan data benar **tanpa harus
+tes kirim email** — tapi seolah kirim email, tampil di layar seperti yang
+diterima donor?
+
+**Jawaban: BISA, dan sudah dibuat.** Tidak perlu kirim percobaan ke email
+sendiri lagi.
+
+### Cara kerja
+
+Pratinjau memakai **fungsi yang sama persis** dengan yang dipakai saat
+mengirim (`isiHTML()`). Jadi yang dilihat user = yang diterima donor. Isinya
+ditampilkan di dalam **iframe** supaya gaya email tidak bercampur dengan gaya
+aplikasi — sama seperti klien email sungguhan.
+
+### Tombol **👁 Pratinjau email**
+
+Ada di halaman **Tulis Surat**, bagian **3 · Pratinjau**.
+
+### Yang ditampilkan
+
+| Bagian | Isi |
+|---|---|
+| Kepala email | avatar, **subjek**, pengirim + alamat, **kepada** (nama + email donor), tanggal & jam |
+| Badan email | isi surat + kwitansi + majalah, persis seperti yang dikirim |
+| Keterangan | "Ini pratinjau. Tidak ada email yang dikirim." |
+
+### 4 pilihan tampilan
+
+| Pilihan | Gunanya |
+|---|---|
+| **Tampilan email** / **Versi teks** | versi teks = yang dilihat penerima mode teks (surat + ringkasan kwitansi) |
+| **🖥 Komputer** / **📱 HP** | melihat tampilan di layar HP (lebar 360 px) — memastikan tidak terpotong |
+| **🖼 Gambar tampil** / **🚫 Gambar diblokir** | meniru Gmail yang memblokir gambar — memastikan surat tetap terbaca tanpa gambar |
+
+### Kenapa "Gambar diblokir" penting
+
+Ini menjawab masalah yang Anda khawatirkan: banyak penerima memakai Gmail yang
+**menahan gambar** sampai mereka menekan "Tampilkan gambar". Dengan tombol ini
+user bisa memastikan **isi surat dan kwitansi tetap terbaca** walau gambar
+diblokir. Kalau tidak terbaca, user tahu harus memperbaiki sebelum kirim.
+
+### Yang sudah diuji
+
+| Uji | Hasil |
+|---|---|
+| Tombol Pratinjau email muncul | ✅ |
+| Kepala email: subjek, pengirim, kepada, waktu | ✅ |
+| Isi surat + kwitansi di dalam iframe | ✅ |
+| Kwitansi berisi nama, jumlah, terbilang, nomor | ✅ |
+| Mode HP (lebar 360 px) | ✅ |
+| Mode gambar diblokir + peringatan | ✅ |
+| Kwitansi tetap terbaca saat gambar diblokir | ✅ |
+| Versi teks: surat + ringkasan kwitansi | ✅ |
+| Ganti donor → pratinjau ikut berubah | ✅ |
+| Jumlah donor lama tidak tertinggal | ✅ |
+
+17 pemeriksaan, semua lulus.
+
+### Catatan jujur
+
+Tampilan bisa **sedikit berbeda** di aplikasi email lain (Outlook, Yahoo),
+terutama pada tabel yang rumit. Pratinjau ini memakai mesin render browser
+(Chrome), bukan mesin Outlook. Untuk kwitansi yang memakai tabel HTML
+sederhana, perbedaannya biasanya kecil — tapi bukan berarti nol.
+
+**Perkiraan waktu yang dipakai:** ±1,5 jam.

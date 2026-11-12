@@ -1263,9 +1263,173 @@ function previewHTML(d){
         '<div class="mj-preview">' + majalahHTML() + '</div>'
       : '') +
     '<div class="btn-row" style="margin-top:12px">' +
-      '<button class="btn primary" data-action="periksa-kirim">🔍 Periksa sebelum kirim</button>' +
+      '<button class="btn primary" data-action="pratinjau-email" data-id="' + esc(d.id) + '">👁 Pratinjau email</button>' +
+      '<button class="btn" data-action="periksa-kirim">🔍 Periksa sebelum kirim</button>' +
       '<button class="btn" data-action="print-one" data-id="' + esc(d.id) + '">⎙ Cetak</button>' +
     '</div>';
+}
+
+/* ============================================================
+   PRATINJAU EMAIL — seperti klien email sungguhan
+   ------------------------------------------------------------
+   Menampilkan HTML yang PERSIS sama dengan yang dikirim, di dalam
+   iframe. Jadi yang dilihat user = yang diterima donor. Tidak perlu
+   kirim percobaan ke email sendiri.
+
+   Ada pilihan tampilan:
+   - Lebar layar: komputer / HP
+   - Blokir gambar: meniru Gmail yang memblokir gambar
+   - Versi teks: yang dilihat penerima mode teks
+   ============================================================ */
+
+let pratinjauOpsi = { lebar:'desktop', blokirGambar:false, tab:'html' };
+
+/* Ganti warna tema terang/gelap untuk iframe (iframe tidak mewarisi CSS induk). */
+function temaIframe(){
+  const gelap = document.documentElement.getAttribute('data-theme') === 'dark';
+  return gelap
+    ? { bg:'#1a1d1c', teks:'#e6e6e1', garis:'#2f3432', panel:'#222624' }
+    : { bg:'#ffffff', teks:'#111111', garis:'#e0e0d8', panel:'#f7f7f2' };
+}
+
+/* HTML email apa adanya — memakai fungsi yang sama dengan pengirim. */
+function htmlEmailUntuk(d, pixelId){
+  const isi = fillTemplate(suratState.isi, d);
+  const pakaiKwitansi = suratState.kwitansi;
+  const pakaiMajalah = suratState.majalah && majalahInfo();
+  if(!pakaiKwitansi && !pakaiMajalah && !pixelId) return '';
+  return isiHTML(d, isi, suratState.kwitansiBahasa, suratState.kwitansiFinId, {
+    kwitansi: !!pakaiKwitansi,
+    majalah: !!pakaiMajalah,
+    pixelId: pixelId || ''
+  });
+}
+
+function openPratinjauEmail(donorId){
+  const d = findDonor(donorId) || findDonor(suratState.previewId) ||
+    findDonor(Object.keys(suratState.selected).filter(function(k){ return suratState.selected[k]; })[0]);
+  if(!d){ toast('Pilih penerima dulu untuk melihat pratinjau', true); return; }
+  pratinjauOpsi = { lebar:'desktop', blokirGambar:false, tab:'html' };
+  gambarPratinjauEmail(d);
+  openModal({
+    title:'Pratinjau email — seperti yang diterima donor',
+    body:'<div id="pratinjau-email-root"></div>',
+    wide:true,
+    footer:'<span class="tiny muted" style="margin-right:auto">Ini pratinjau. Tidak ada email yang dikirim.</span>' +
+      '<button class="btn" data-close>Tutup</button>' +
+      '<button class="btn primary" data-action="periksa-kirim">🔍 Periksa sebelum kirim</button>',
+    onOpen:function(){ gambarPratinjauEmail(d); }
+  });
+}
+
+function gambarPratinjauEmail(d){
+  const root = document.getElementById('pratinjau-email-root');
+  if(!root || !d) return;
+  const t = temaIframe();
+  const subjek = fillTemplate(suratState.subjek, d);
+  const isi = fillTemplate(suratState.isi, d);
+  const html = htmlEmailUntuk(d);
+  const pengirim = Gmail.email || 'kartidaya@contoh.org';
+  const namaPengirim = 'Kartidaya Sahabat Indonesia';
+  const waktu = new Date().toLocaleString('id-ID',
+    { weekday:'long', day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' });
+
+  /* Tab: HTML (yang dilihat mayoritas) atau teks biasa. */
+  const tab = function(kode, label){
+    return '<button class="btn sm' + (pratinjauOpsi.tab === kode ? ' primary' : '') +
+      '" data-action="pj-tab" data-tab="' + kode + '">' + label + '</button>';
+  };
+
+  /* Isi iframe. Kalau "blokir gambar" aktif, semua <img> diganti kotak abu-abu
+     — meniru Gmail yang menahan gambar sampai penerima mengizinkannya. */
+  let isiIframe = html;
+  if(!html){
+    isiIframe = '<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.65;color:' + t.teks +
+      '">' + esc(isi).replace(/\n/g, '<br>') + '</div>';
+  }
+  if(pratinjauOpsi.blokirGambar){
+    isiIframe = isiIframe.replace(/<img\b[^>]*>/gi,
+      '<span style="display:inline-block;padding:10px 14px;border:1px dashed #b8b8b0;' +
+      'background:#f0f0ea;color:#8a8a80;font:12px Arial,sans-serif;border-radius:4px">' +
+      'gambar diblokir</span>');
+  }
+
+  const doc = '<!DOCTYPE html><html><head><meta charset="utf-8">' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<style>' +
+      'html,body{margin:0;padding:0;background:' + t.bg + ';color:' + t.teks + '}' +
+      'body{padding:18px 20px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;' +
+        'overflow-wrap:anywhere}' +
+      'img{max-width:100%;height:auto}' +
+      'a{color:#2f6f9f}' +
+    '</style></head><body>' + isiIframe + '</body></html>';
+
+  /* Versi teks: yang dilihat penerima mode teks — surat + ringkasan kwitansi. */
+  const k = dataKwitansi(d, suratState.kwitansiFinId);
+  const teksPolos = isi + '\n\n' +
+    (suratState.kwitansi
+      ? '--- KWITANSI ---\n' +
+        'No. ' + k.nomor + '\n' +
+        'Telah terima dari: ' + donorName(d) + '\n' +
+        (k.kodeUang.length ? k.kodeUang : ['IDR']).map(function(u){
+          return 'Jumlah: ' + terbilang(k.perUang[u] || 0, u) + ' (' +
+            fmtUang(k.perUang[u] || 0, u) + ')\n';
+        }).join('') +
+        'Untuk: ' + (k.program || 'Pelayanan Kartidaya Sahabat') + '\n' +
+        'Tanggal: ' + tanggalKwitansi(k.tanggal) + '\n'
+      : '') +
+    (suratState.majalah && majalahInfo() ? '\nMajalah: ' + majalahInfo().halaman + ' halaman\n' : '');
+
+  const lebarKotak = pratinjauOpsi.lebar === 'hp' ? '360px' : '100%';
+
+  root.innerHTML =
+    /* Bilah kendali */
+    '<div class="pj-bilah">' +
+      '<div class="row" style="gap:6px">' + tab('html','Tampilan email') + tab('teks','Versi teks') + '</div>' +
+      '<div class="row" style="gap:6px">' +
+        '<button class="btn sm' + (pratinjauOpsi.lebar === 'desktop' ? ' primary' : '') +
+          '" data-action="pj-lebar" data-lebar="desktop">🖥 Komputer</button>' +
+        '<button class="btn sm' + (pratinjauOpsi.lebar === 'hp' ? ' primary' : '') +
+          '" data-action="pj-lebar" data-lebar="hp">📱 HP</button>' +
+        '<button class="btn sm' + (pratinjauOpsi.blokirGambar ? ' primary' : '') +
+          '" data-action="pj-blokir" title="Meniru Gmail yang memblokir gambar">' +
+          (pratinjauOpsi.blokirGambar ? '🚫 Gambar diblokir' : '🖼 Gambar tampil') + '</button>' +
+      '</div>' +
+    '</div>' +
+
+    '<div class="pj-pilihan">Pratinjau untuk: <b>' + esc(donorLabel(d)) + '</b>' +
+      (d.instansi && d.instansi !== donorName(d) ? ' — ' + esc(d.instansi) : '') +
+      ' <span class="mono">' + esc(d.email || 'belum ada email') + '</span>' +
+      '<span class="chip plain" style="margin-left:6px">' + esc(d.id) + '</span></div>' +
+
+    /* Kerangka klien email */
+    '<div class="pj-klien" style="max-width:' + lebarKotak + '">' +
+      '<div class="pj-kepala">' +
+        '<div class="pj-avatar">K</div>' +
+        '<div class="pj-dari">' +
+          '<div class="pj-subjek">' + esc(subjek || '(tanpa subjek)') + '</div>' +
+          '<div class="pj-meta"><b>' + esc(namaPengirim) + '</b> &lt;' + esc(pengirim) + '&gt;</div>' +
+          '<div class="pj-meta">kepada <b>' + esc(donorLabel(d)) + '</b> &lt;' + esc(d.email || '—') + '&gt;</div>' +
+        '</div>' +
+        '<div class="pj-waktu">' + esc(waktu) + '</div>' +
+      '</div>' +
+      (pratinjauOpsi.blokirGambar
+        ? '<div class="pj-peringatan">Gambar diblokir — ini yang dilihat penerima sebelum menekan ' +
+          '&ldquo;Tampilkan gambar&rdquo;. Pastikan isi surat tetap terbaca tanpa gambar.</div>'
+        : '') +
+      (pratinjauOpsi.tab === 'teks'
+        ? '<div class="pj-badan pj-teks">' + esc(teksPolos) + '</div>'
+        : '<iframe class="pj-iframe" id="pj-iframe" sandbox="allow-same-origin" ' +
+          'title="Pratinjau email"></iframe>') +
+    '</div>' +
+
+    '<p class="tiny muted" style="margin:10px 0 0">' +
+      'Isi di atas dibuat dengan fungsi yang <b>sama persis</b> dengan yang dipakai saat mengirim. ' +
+      'Tampilan bisa sedikit berbeda di aplikasi email lain (Outlook, Yahoo) — terutama pada tabel yang rumit.' +
+    '</p>';
+
+  const ifr = document.getElementById('pj-iframe');
+  if(ifr) ifr.srcdoc = doc;
 }
 
 /* Periksa sebelum kirim: tampilkan surat + kwitansi + majalah persis seperti
@@ -3551,6 +3715,19 @@ document.addEventListener('click', function(e){
       break;
     }
     case 'periksa-kirim': openPeriksaKirim(); break;
+    case 'pratinjau-email': openPratinjauEmail(id); break;
+    case 'pj-lebar':
+      pratinjauOpsi.lebar = act.getAttribute('data-lebar') === 'hp' ? 'hp' : 'desktop';
+      gambarPratinjauEmail(findDonor(suratState.previewId));
+      break;
+    case 'pj-blokir':
+      pratinjauOpsi.blokirGambar = !pratinjauOpsi.blokirGambar;
+      gambarPratinjauEmail(findDonor(suratState.previewId));
+      break;
+    case 'pj-tab':
+      pratinjauOpsi.tab = act.getAttribute('data-tab') === 'teks' ? 'teks' : 'html';
+      gambarPratinjauEmail(findDonor(suratState.previewId));
+      break;
     case 'kirim-dari-periksa': closeModal(); kirimSurat(false); break;
     case 'print-one': { const d = findDonor(id); if(d) printLetter(d); break; }
     case 'cetak-alamat': { const d = findDonor(id); if(d) printAlamat(d); break; }

@@ -492,6 +492,52 @@ tbody tr:last-child td{border-bottom:0}
   margin-bottom:8px;font-size:13.5px;
 }
 
+/* ---------- PRATINJAU EMAIL (seperti klien email) ---------- */
+.pj-bilah{
+  display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;
+  padding-bottom:10px;margin-bottom:12px;border-bottom:1px solid var(--line);
+}
+.pj-pilihan{
+  font-size:13px;color:var(--muted);margin-bottom:10px;
+  padding:8px 11px;background:var(--surface-2);border-radius:var(--radius-sm);
+  overflow-wrap:anywhere;
+}
+/* Kerangka klien email: kepala + badan. */
+.pj-klien{
+  margin:0 auto;border:1px solid var(--line-strong);border-radius:var(--radius);
+  overflow:hidden;background:var(--surface);
+}
+.pj-kepala{
+  display:flex;gap:11px;align-items:flex-start;
+  padding:14px 16px;border-bottom:1px solid var(--line);background:var(--surface-2);
+}
+.pj-avatar{
+  flex:0 0 38px;width:38px;height:38px;border-radius:50%;
+  background:var(--accent);color:var(--accent-text);
+  display:grid;place-items:center;font-weight:700;font-size:17px;
+}
+.pj-dari{flex:1;min-width:0}
+.pj-subjek{font-size:15px;font-weight:650;line-height:1.35;overflow-wrap:anywhere}
+.pj-meta{font-size:12px;color:var(--muted);margin-top:2px;overflow-wrap:anywhere}
+.pj-waktu{flex:0 0 auto;font-size:11.5px;color:var(--muted);text-align:right;max-width:130px}
+.pj-peringatan{
+  padding:9px 16px;background:var(--warn-soft);color:var(--warn);
+  border-bottom:1px solid var(--warn);font-size:12.5px;
+}
+.pj-iframe{
+  display:block;width:100%;height:520px;border:0;background:#fff;
+}
+.pj-badan{padding:18px 20px;font-size:14px;line-height:1.65}
+.pj-teks{
+  white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;
+  font-size:12.5px;overflow-wrap:anywhere;
+}
+@media (max-width:860px){
+  .pj-iframe{height:420px}
+  .pj-waktu{display:none}
+  .pj-bilah{gap:6px}
+}
+
 #toast{
   position:fixed;left:50%;transform:translateX(-50%);
   bottom:22px;z-index:200;
