@@ -3023,4 +3023,66 @@ Catatan uji disimpan di `localStorage` dengan kunci `kartidaya.v2.uji`,
 pemeriksaan surat biasa (tiap 3 menit, saat tab kembali aktif, dan 6 detik
 setelah aplikasi dibuka). Tidak perlu menekan tombol apa pun.
 
+### 21.4 Alamat email uji dipindah ke Setelan + Kotak Uji diberi aksi (12 Nov 2026)
+
+**Masukan Anda (dua-duanya tepat):**
+
+1. *"konsep [✉ Kirim ke saya sendiri dulu] agak membingungkan … seharusnya lebih
+   jelas jika mau kirim ke saya sendiri dulu di setting > Pengaman pengiriman >
+   alamat email uji : …@gmail.com"*
+2. *"sekarang setelah masuk uji > kotak uji sudah ada data lalu tidak tau harus
+   apa"*
+
+**Perbaikan 1 — alamat email uji sekarang di Setelan.**
+
+| Sebelum | Sesudah |
+|---|---|
+| Alamat selalu diambil dari Gmail yang tersambung — tidak bisa diatur | **Setelan → Pengaman pengiriman → Alamat email uji** — bisa diisi alamat apa pun |
+| Keterangan tombol menyebut alamat Gmail | Keterangan menyebut alamat dari Setelan, dan menyebut di mana mengubahnya |
+| Tidak ada validasi | Alamat tanpa `@` ditolak dengan pesan jelas |
+
+Dikosongkan berarti kembali memakai alamat Gmail yang tersambung — jadi
+perilaku lama tetap tersedia, tetapi sekarang **terlihat dan bisa diubah**.
+
+**Perbaikan 2 — Kotak Uji sekarang menjelaskan apa yang harus dilakukan.**
+
+Ditambahkan **4 langkah berurutan** di atas daftar:
+
+1. Buka kotak masuk alamat uji — periksa surat, kwitansi, majalahnya.
+2. Kembali ke sini. Kalau chip **✓✓ Dibaca** menyala, tanda dibaca bekerja.
+3. Di email itu, tekan tombol **Konfirmasi sudah menerima** → chip **✓ Dikonfirmasi** menyala.
+4. Kalau sudah yakin, hapus catatannya.
+
+Ditambahkan juga **3 tombol per salinan** dan **1 tombol pembersih**:
+
+| Tombol | Gunanya |
+|---|---|
+| **👁 Lihat isi salinan** | membuka isi email yang benar-benar terkirim, di jendela pratinjau |
+| **↻ Kirim ulang** | mengirim ulang salinan dengan isi surat yang sekarang |
+| **Hapus** | menghapus satu catatan |
+| **Hapus semua catatan uji** | membersihkan seluruh daftar |
+| **⚙ Ubah alamat** | langsung ke Setelan → Pengaman pengiriman |
+
+**Catatan teknis:** isi HTML salinan uji ikut disimpan (dibatasi 400 KB) supaya
+tombol **Lihat isi salinan** bisa bekerja. Tombol itu memakai jendela pratinjau
+di dalam aplikasi, **bukan tab baru** — tab baru sering diblokir browser dan
+gagal tanpa penjelasan.
+
+**Hasil uji (12 Nov 2026):**
+
+| # | Yang diuji | Hasil |
+|---|---|---|
+| 1 | Kolom "Alamat email uji" muncul di Setelan | ✅ |
+| 2 | Simpan alamat → keterangan ikut berubah | ✅ *"Salinan uji dikirim ke kantor@kartidaya.org"* |
+| 3 | Alamat tanpa `@` ditolak | ✅ nilai lama tidak berubah |
+| 4 | Tombol kirim memakai alamat dari Setelan | ✅ terkirim ke `kantor@kartidaya.org`, bukan Gmail |
+| 5 | Keterangan tombol di Tulis ikut berubah | ✅ |
+| 6 | Isi HTML salinan tersimpan | ✅ 7.173 karakter |
+| 7 | **👁 Lihat isi salinan** | ✅ kwitansi & majalah tampil di dalamnya |
+| 8 | **↻ Kirim ulang** | ✅ daftar bertambah 1 |
+| 9 | **Hapus** satu | ✅ |
+| 10 | **Hapus semua** | ✅ daftar jadi 0 |
+| 11 | Tombol di pratinjau email | ✅ ada & berfungsi, modal tertutup sendiri |
+| 12 | Semua halaman lain tetap jalan | ✅ 9 halaman diperiksa |
+
 ---

@@ -1008,6 +1008,10 @@ function loadState(){
   /* Alamat untuk koreksi kwitansi — dicetak di kwitansi supaya donor tahu
      harus menghubungi ke mana kalau ada yang salah. */
   if(!state.settings.kontakKoreksi) state.settings.kontakKoreksi = 'finance@kartidaya.org';
+  /* Alamat email uji — tujuan tombol "Kirim ke saya sendiri dulu". Dikosongkan
+     berarti pakai alamat Gmail yang sedang tersambung. Diisi kalau ingin
+     salinan uji dikirim ke alamat lain (mis. email kantor). */
+  if(state.settings.emailUji === undefined) state.settings.emailUji = '';
   /* Pratinjau wajib: sebelum benar-benar mengirim, layar "Periksa sebelum
      kirim" muncul lebih dulu. Aktif secara bawaan karena ini pengaman utama
      terhadap salah kirim — bisa dimatikan di Setelan kalau dirasa mengganggu. */
@@ -1817,8 +1821,8 @@ function viewSurat(){
             '<button class="btn" data-action="kirim-sendiri"' + (nSel ? '' : ' disabled') + '>' +
               '✉ Kirim ke saya sendiri dulu</button>' +
             '<span class="tiny muted" style="align-self:center">' +
-              'Tidak ada pertanyaan alamat — salinan langsung dikirim ke <b>' +
-              esc(Gmail.email || 'email Anda') + '</b> (alamat Gmail yang sedang tersambung). ' +
+              'Salinan dikirim ke <b>' + esc(emailUji() || 'alamat email uji (belum diisi)') + '</b>' +
+              ' — atur di <b>Setelan → Pengaman pengiriman</b>. ' +
               'Isinya memakai penerima pertama sebagai contoh, dan <b>tidak dicatat</b> di buku donor.' +
             '</span>' +
           '</div>'
@@ -1926,6 +1930,7 @@ function openPratinjauEmail(donorId){
     wide:true,
     footer:'<span class="tiny muted" style="margin-right:auto">Ini pratinjau. Tidak ada email yang dikirim.</span>' +
       '<button class="btn" data-close>Tutup</button>' +
+      '<button class="btn" data-action="kirim-sendiri-dari-pratinjau">✉ Kirim ke saya sendiri dulu</button>' +
       '<button class="btn primary" data-action="periksa-kirim">🔍 Periksa sebelum kirim</button>',
     onOpen:function(){ gambarPratinjauEmail(d); }
   });
@@ -2235,9 +2240,50 @@ function hapusUji(id){
   render();
 }
 
+function hapusSemuaUji(){
+  if(!(state.uji || []).length){ toast('Kotak uji sudah kosong'); return; }
+  state.uji = [];
+  save('uji');
+  render();
+  toast('Semua catatan uji dihapus');
+}
+
+/* Lihat isi salinan uji. Ditampilkan di jendela pratinjau di dalam aplikasi —
+   bukan tab baru, karena tab baru sering diblokir browser. */
+function bukaUji(id){
+  const u = (state.uji || []).filter(function(x){ return x.id === id; })[0];
+  if(!u){ toast('Catatan uji tidak ditemukan', true); return; }
+  if(!u.html){ toast('Isi salinan ini tidak tersimpan — tekan “Kirim ulang” untuk melihatnya', true); return; }
+  openModal({
+    title:'Isi salinan uji — ' + (u.subjek || '(tanpa subjek)'),
+    body:'<p class="tiny muted" style="margin:0 0 8px">Dikirim ke <b>' + esc(u.tujuan) + '</b> · ' +
+      esc(fmtDateTime(u.tanggal)) + '</p>' +
+      '<iframe class="pj-iframe" id="uji-iframe" sandbox="allow-same-origin" ' +
+        'title="Isi salinan uji" style="height:60vh"></iframe>',
+    wide:true,
+    footer:'<span class="tiny muted" style="margin-right:auto">Ini salinan yang benar-benar terkirim.</span>' +
+      '<button class="btn" data-close>Tutup</button>',
+    onOpen:function(root){
+      const f = root.querySelector('#uji-iframe');
+      if(f) f.srcdoc = u.html;
+    }
+  });
+}
+
+/* Kirim ulang salinan uji dengan isi surat yang sekarang. Berguna kalau surat
+   sudah diubah dan ingin memeriksa hasil terbarunya. */
+async function ulangUji(id){
+  const u = (state.uji || []).filter(function(x){ return x.id === id; })[0];
+  if(!u){ toast('Catatan uji tidak ditemukan', true); return; }
+  if(u.donorId) suratState.selected = (function(){ const o = {}; o[u.donorId] = true; return o; })();
+  await kirimKeSendiri();
+}
+
 function viewUji(){
   setTitle('Kotak Uji', 'Salinan percobaan yang dikirim ke email Anda sendiri');
   const list = state.uji || [];
+  const tujuan = emailUji();
+
   const kartu = list.map(function(u){
     const d = findDonor(u.donorId);
     const chipDibaca = u.pixelId
@@ -2259,6 +2305,11 @@ function viewUji(){
         (d ? ' · contoh penerima: ' + esc(donorName(d)) : '') + '</div>' +
       '<div class="mail-foot">' + chipDibaca + chipTerima +
         '<span class="chip plain">tidak masuk buku donor</span>' +
+      '</div>' +
+      '<div class="btn-row" style="margin-top:8px">' +
+        '<button class="btn sm" data-action="uji-buka" data-id="' + esc(u.id) + '"' +
+          (u.html ? '' : ' disabled') + '>👁 Lihat isi salinan</button>' +
+        '<button class="btn sm" data-action="uji-ulang" data-id="' + esc(u.id) + '">↻ Kirim ulang</button>' +
         '<button class="btn sm ghost" data-action="uji-hapus" data-id="' + esc(u.id) + '">Hapus</button>' +
       '</div>' +
     '</article>';
@@ -2267,11 +2318,25 @@ function viewUji(){
   return '<div class="card">' +
     '<div class="card-head"><h2>Kotak Uji</h2>' +
       '<span class="hint">' + list.length + ' salinan terakhir</span></div>' +
-    '<p class="small muted" style="margin:0 0 12px">Salinan dari tombol <b>✉ Kirim ke saya sendiri dulu</b>. ' +
+    '<p class="small muted" style="margin:0 0 10px">Salinan dari tombol <b>✉ Kirim ke saya sendiri dulu</b>. ' +
       'Isinya sama persis dengan yang akan diterima donor — termasuk tanda dibaca dan tombol konfirmasi — ' +
-      'tetapi <b>tidak dicatat</b> di buku donor. Hapus kalau sudah tidak perlu.</p>' +
+      'tetapi <b>tidak dicatat</b> di buku donor.</p>' +
+    '<div class="row" style="justify-content:space-between;align-items:center">' +
+      '<span class="small">Salinan dikirim ke <b>' + esc(tujuan || '(belum diisi)') + '</b></span>' +
+      '<button class="btn sm" data-go="pengaturan">⚙ Ubah alamat</button>' +
+    '</div>' +
+    '<div class="sep"></div>' +
+    '<p class="small" style="margin:0 0 8px"><b>Apa yang harus dilakukan di sini?</b></p>' +
+    '<ol class="small muted" style="margin:0 0 12px;padding-left:20px;line-height:1.7">' +
+      '<li>Buka kotak masuk <b>' + esc(tujuan || 'email uji') + '</b> — periksa tampilan surat, kwitansi, dan majalahnya.</li>' +
+      '<li>Kembali ke sini. Kalau chip <b>✓✓ Dibaca</b> sudah menyala, berarti tanda dibaca bekerja.</li>' +
+      '<li>Di email itu, tekan tombol <b>Konfirmasi sudah menerima</b>. Chip <b>✓ Dikonfirmasi</b> akan menyala.</li>' +
+      '<li>Kalau sudah yakin, hapus catatannya — atau biarkan, maksimal 20 yang disimpan.</li>' +
+    '</ol>' +
     (list.length
-      ? '<div class="mail-list">' + kartu + '</div>'
+      ? '<div class="mail-list">' + kartu + '</div>' +
+        '<div class="sep"></div>' +
+        '<button class="btn danger" data-action="uji-hapus-semua">Hapus semua catatan uji</button>'
       : '<div class="empty"><span class="big">✉</span><p>Belum ada salinan uji.<br>' +
         'Buka <b>Tulis</b>, pilih penerima, lalu tekan <b>✉ Kirim ke saya sendiri dulu</b>.</p></div>') +
   '</div>';
@@ -3300,6 +3365,18 @@ function viewPengaturan(){
         (state.settings.wajibPeriksa ? 'Aktif' : 'Mati') + '</button>' +
     '</div>' +
     '<div class="sep"></div>' +
+    '<div class="field"><label>Alamat email uji ' +
+      '<span class="hint">— tujuan tombol “Kirim ke saya sendiri dulu”</span></label>' +
+      '<input type="text" id="set-email-uji" value="' + esc(state.settings.emailUji || '') + '" ' +
+        'placeholder="' + esc(Gmail.email || 'kosongkan = pakai email Gmail yang tersambung') + '"></div>' +
+    '<button class="btn" data-action="email-uji-save">Simpan</button>' +
+    '<p class="tiny muted" style="margin-top:8px">' +
+      (state.settings.emailUji
+        ? 'Salinan uji dikirim ke <b>' + esc(state.settings.emailUji) + '</b>.'
+        : 'Dikosongkan berarti salinan uji dikirim ke <b>' +
+          esc(Gmail.email || 'email Gmail yang tersambung') + '</b>.') +
+      ' Salinan uji <b>tidak dicatat</b> di buku donor — hasilnya bisa dilihat di halaman <b>Uji</b>.</p>' +
+    '<div class="sep"></div>' +
     '<div class="field"><label>Alamat untuk koreksi kwitansi ' +
       '<span class="hint">— dicetak di kwitansi</span></label>' +
       '<input type="text" id="set-koreksi" value="' + esc(state.settings.kontakKoreksi) + '" ' +
@@ -4083,6 +4160,12 @@ function isiHTML(d, isiTeks, bahasa, finId, opts){
     (opts.pixelId ? pixelHTML(opts.pixelId) : '');
 }
 
+/* Alamat tujuan salinan uji. Diambil dari Setelan → Pengaman pengiriman →
+   "Alamat email uji". Kalau dikosongkan, pakai alamat Gmail yang tersambung. */
+function emailUji(){
+  return String(state.settings.emailUji || Gmail.email || '').trim();
+}
+
 /* Kirim satu salinan ke email sendiri dulu. Tujuannya supaya user bisa
    memeriksa hasil sungguhan di kotak masuknya sendiri sebelum dikirim ke
    donor. Salinan ini TIDAK dicatat di buku donor — ini hanya uji coba.
@@ -4099,8 +4182,11 @@ async function kirimKeSendiri(){
     toast('Hubungkan Gmail dulu di halaman Setelan', true);
     return;
   }
-  const tujuan = Gmail.email || '';
-  if(!tujuan){ toast('Alamat email Anda belum terbaca dari Gmail', true); return; }
+  const tujuan = emailUji();
+  if(!tujuan){
+    toast('Alamat email uji belum ada — isi di Setelan → Pengaman pengiriman', true);
+    return;
+  }
 
   /* Pakai penerima pertama sebagai contoh, supaya isi surat & kwitansinya
      benar-benar terisi seperti yang akan diterima donor. */
@@ -4140,7 +4226,10 @@ async function kirimKeSendiri(){
       tanggal: new Date().toISOString(),
       tujuan: tujuan, subjek: subjek, donorId: d.id,
       pixelId: pixelId, terimaId: terimaId,
-      dibaca: '', dikonfirmasi: ''
+      dibaca: '', dikonfirmasi: '',
+      /* Isi HTML disimpan supaya bisa dibuka lagi dari halaman Uji. Dibatasi
+         panjangnya supaya localStorage tidak cepat penuh. */
+      html: html.length > 400000 ? '' : html
     });
     toast('Salinan uji terkirim ke ' + tujuan + ' — periksa kotak masuk Anda');
   }catch(e){
@@ -5018,7 +5107,11 @@ document.addEventListener('click', function(e){
     }
     case 'kirim': kirimSurat(false); break;
     case 'kirim-sendiri': kirimKeSendiri(); break;
+    case 'kirim-sendiri-dari-pratinjau': closeModal(); kirimKeSendiri(); break;
     case 'uji-hapus': hapusUji(e.target.dataset.id); break;
+    case 'uji-hapus-semua': hapusSemuaUji(); break;
+    case 'uji-buka': bukaUji(e.target.dataset.id); break;
+    case 'uji-ulang': ulangUji(e.target.dataset.id); break;
     case 'kirim-sendiri-dari-periksa': closeModal(); kirimKeSendiri(); break;
     case 'simpan-draft': kirimSurat(true); break;
     case 'sel-all':
@@ -5315,6 +5408,18 @@ document.addEventListener('click', function(e){
       const el = document.getElementById('set-koreksi');
       state.settings.kontakKoreksi = (el ? el.value.trim() : '') || 'finance@kartidaya.org';
       save('settings'); render(); toast('Alamat koreksi disimpan');
+      break;
+    }
+    case 'email-uji-save': {
+      const el = document.getElementById('set-email-uji');
+      const v = (el ? el.value.trim() : '');
+      if(v && v.indexOf('@') < 1){
+        toast('Alamat email uji tidak sah — harus memuat @', true);
+        break;
+      }
+      state.settings.emailUji = v;
+      save('settings'); render();
+      toast(v ? 'Salinan uji akan dikirim ke ' + v : 'Salinan uji dikirim ke email Gmail yang tersambung');
       break;
     }
     case 'test-id': {
