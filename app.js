@@ -2229,11 +2229,40 @@ function blokKwitansi(){
 }
 /* Kotak pilihan majalah di halaman Tulis. Halaman majalah disimpan sekali di
    Worker, lalu dipakai ulang untuk semua penerima. */
+/* Periksa apakah majalah yang dicatat di browser benar-benar masih ada di
+   Worker. Majalah disimpan di KV Cloudflare, bukan di browser — jadi catatan
+   lokal bisa tertinggal kalau berkasnya sudah tidak ada di sana. Kalau tidak
+   diperiksa, email akan memuat gambar yang tidak bisa dibuka penerima. */
+async function cekMajalahAda(){
+  const m = majalahInfo();
+  if(!m || !WhatsApp.isConfigured()) return;
+  try{
+    await WhatsApp.api('/majalah/' + m.id);
+    if(state.settings.majalah && state.settings.majalah.hilang){
+      delete state.settings.majalah.hilang;
+      save('settings');
+      render();
+    }
+  }catch(e){
+    /* 404 = berkasnya memang tidak ada. Galat lain (jaringan, kunci salah)
+       diabaikan — jangan menuduh majalah hilang hanya karena tidak bisa
+       menghubungi Worker. */
+    if(e && e.status === 404){
+      state.settings.majalah.hilang = true;
+      suratState.majalah = false;
+      save('settings');
+      render();
+      toast('Majalah "' + (m.judul || 'Majalah') + '" sudah tidak ada di Worker — unggah ulang', true);
+    }
+  }
+}
+
 function blokMajalah(){
   const m = majalahInfo();
   const on = !!suratState.majalah;
   const base = workerBase();
-  const siap = !!(m && base);
+  const hilang = !!(m && m.hilang);
+  const siap = !!(m && base && !hilang);
 
   return '<div class="sep"></div>' +
     '<div class="row" style="justify-content:space-between">' +
@@ -2246,17 +2275,23 @@ function blokMajalah(){
           m.halaman + ' halaman · disimpan sekali, dipakai untuk semua penerima.' +
           (m.diunggah ? ' · diunggah ' + esc(fmtDate(m.diunggah)) : '') + '</p>' +
         (on ? '<div class="mj-preview">' + majalahHTML() + '</div>' : '')
-      : '<div class="warnbox" style="margin-top:8px">Majalah belum disiapkan. ' +
-        (base
-          ? 'Unggah berkas PDF majalah dulu lewat tombol di bawah — halamannya diubah jadi gambar otomatis.'
-          : 'Isi <b>Alamat Worker</b> di halaman <b>Setelan</b> dulu — majalah disimpan di sana ' +
-            'supaya bisa tampil di email.') +
+      : '<div class="warnbox" style="margin-top:8px">' +
+        (hilang
+          ? 'Majalah <b>' + esc(m.judul || 'Majalah') + '</b> sudah tidak ada di Worker — ' +
+            'berkasnya terhapus atau tersimpan di tempat lain. <b>Unggah ulang</b> berkas PDF-nya ' +
+            'supaya email tidak memuat gambar yang tidak bisa dibuka penerima.'
+          : 'Majalah belum disiapkan. ' +
+            (base
+              ? 'Unggah berkas PDF majalah dulu lewat tombol di bawah — halamannya diubah jadi gambar otomatis.'
+              : 'Isi <b>Alamat Worker</b> di halaman <b>Setelan</b> dulu — majalah disimpan di sana ' +
+                'supaya bisa tampil di email.')) +
         '</div>') +
     '<div class="btn-row" style="margin-top:10px">' +
-      '<button class="btn sm" data-action="mj-kelola">' +
+      '<button class="btn sm' + (hilang ? ' primary' : '') + '" data-action="mj-kelola">' +
         (siap ? 'Kelola majalah' : 'Unggah majalah') + '</button>' +
       (siap ? '<button class="btn sm" data-action="mj-baca">👁 Buka halaman pembaca</button>' : '') +
       (siap ? '<button class="btn sm ghost" data-action="mj-hapus">Hapus majalah</button>' : '') +
+      (hilang ? '<button class="btn sm ghost" data-action="mj-lupakan">Lupakan catatan ini</button>' : '') +
     '</div>';
 }
 
@@ -4968,6 +5003,13 @@ document.addEventListener('click', function(e){
       break;
     case 'mj-kelola': openMajalahForm(); break;
     case 'mj-hapus': hapusMajalah(); break;
+    case 'mj-lupakan':
+      delete state.settings.majalah;
+      suratState.majalah = false;
+      save('settings');
+      toast('Catatan majalah dibersihkan');
+      render();
+      break;
     case 'mj-pilih-file': {
       const el = document.getElementById('mj-file');
       if(el) el.click();
@@ -5199,6 +5241,10 @@ document.addEventListener('visibilitychange', function(){
 setTimeout(sinkronOtomatis, 3000);
 setTimeout(waSinkronOtomatis, 4000);
 setTimeout(function(){ cekTandaDibaca(); cekKonfirmasiTerima(); }, 6000);
+/* Majalah disimpan di Worker, bukan di browser. Kalau berkasnya sudah tidak
+   ada di sana (mis. KV dibersihkan atau namespace diganti), aplikasi harus
+   tahu — kalau tidak, email akan memuat gambar yang tidak bisa dibuka. */
+setTimeout(cekMajalahAda, 5000);
 
 function cycleTheme(){
   const order = ['light','dark','auto'];

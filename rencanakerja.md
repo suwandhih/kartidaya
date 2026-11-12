@@ -2523,3 +2523,80 @@ terutama pada tabel yang rumit. Pratinjau ini memakai mesin render browser
 sederhana, perbedaannya biasanya kecil — tapi bukan berarti nol.
 
 **Perkiraan waktu yang dipakai:** ±1,5 jam.
+
+---
+
+## 21. Pemeriksaan penyimpanan Cloudflare — 12 November 2026
+
+**Pertanyaan Anda:** apakah data sudah ada di server Cloudflare?
+
+**Jawaban singkat: sebagian.** Yang tersimpan di Cloudflare hanya **berkas
+sementara untuk pengiriman** — bukan data donor.
+
+### Apa yang disimpan di mana
+
+| Data | Tempat | Keterangan |
+|---|---|---|
+| Donor, surat, keuangan, template, isian | **Browser** (localStorage) | tidak pernah dikirim ke Cloudflare |
+| Alamat Worker & kunci aplikasi | **Browser** | tidak ikut ter-ekspor |
+| Token Meta (WhatsApp) | **Cloudflare** (rahasia Worker) | tidak pernah menyentuh browser |
+| Gambar kwitansi untuk WhatsApp | **Cloudflare KV** | kedaluwarsa **30 hari** |
+| Halaman majalah + PDF | **Cloudflare KV** | sampai dihapus sendiri |
+| Catatan "sudah dibaca" & "sudah dikonfirmasi" | **Cloudflare KV** | kecil, tanpa kedaluwarsa |
+
+**Penting:** data donor **tidak** ada di Cloudflare. Kalau browser dibersihkan
+atau berganti komputer, data donor hilang kecuali sudah diekspor
+(**Setelan → Ekspor JSON / Excel**).
+
+### Hasil pemeriksaan langsung (12 Nov 2026)
+
+| Yang diperiksa | Hasil |
+|---|---|
+| Halaman pembaca majalah | **404 — tidak ada** |
+| Gambar halaman majalah | **404 — tidak ada** |
+| PDF majalah | **404 — tidak ada** |
+| Kwitansi PNG dari uji tadi | **404 — tidak ada** |
+| Pixel tanda dibaca | 200 ✅ ada |
+| Halaman konfirmasi | 200 ✅ ada |
+| Namespace KV di akun | hanya **satu** (`WA_INBOX`) |
+
+**Artinya:** majalah yang diunggah tadi **sudah tidak ada** di Cloudflare.
+Kwitansi PNG juga sudah tidak ada — tapi itu **wajar**, memang kedaluwarsa
+30 hari (baru beberapa jam, jadi kemungkinan besar memang tidak pernah
+tersimpan karena kunci aplikasi tidak ada di profil otomasi).
+
+### Sebab majalah hilang
+
+Majalah disimpan di KV namespace `f92cebc2b7724490a76c18be3f3559a1`. Namespace
+itu **satu-satunya** di akun, jadi bukan salah namespace. Kemungkinan besar
+isinya dibersihkan (KV dibersihkan / namespace dibuat ulang / unggahan tidak
+pernah selesai karena kunci aplikasi tidak ada di profil otomasi).
+
+**Yang perlu Anda lakukan:** buka aplikasi di Chrome, isi **Alamat Worker** dan
+**Kunci aplikasi** di Setelan, lalu **unggah ulang** majalahnya. Setelah itu
+majalah akan tersimpan di Cloudflare dan bisa dipakai untuk email maupun
+WhatsApp.
+
+### Celah yang ditemukan dan diperbaiki
+
+Sebelumnya aplikasi **mengaku majalah "siap"** padahal berkasnya sudah tidak
+ada di Worker. Akibatnya email akan memuat gambar yang tidak bisa dibuka
+penerima — dan tidak ada peringatan apa pun.
+
+Sekarang aplikasi **memeriksa sendiri** 5 detik setelah dibuka:
+
+| Keadaan | Yang terjadi |
+|---|---|
+| Majalah ada di Worker | seperti biasa |
+| Majalah **tidak ada** (404) | kotak kuning: "sudah tidak ada di Worker — unggah ulang", tombol Lampirkan dimatikan, tombol **Unggah majalah** disorot |
+| Worker tidak bisa dihubungi / kunci salah | **tidak** dituduh hilang — hanya diabaikan, supaya tidak salah tuduh |
+| Majalah ditemukan lagi | tanda "hilang" dibersihkan sendiri |
+
+Ada juga tombol **Lupakan catatan ini** untuk membersihkan catatan lokal tanpa
+menghapus apa pun di Cloudflare.
+
+**Uji:** 4 pemeriksaan lulus — peringatan muncul saat 404, tombol Lampirkan
+dimatikan, tombol Lupakan bekerja, dan tanda hilang dibersihkan saat majalah
+ditemukan lagi. Galat 401 (kunci salah) terbukti **tidak** memicu peringatan.
+
+---
