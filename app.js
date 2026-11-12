@@ -1806,7 +1806,7 @@ function previewHTML(d){
     '<p class="muted small">Belum ada donor untuk dipratinjau.</p>';
   const wa = suratState.kanal === 'whatsapp';
   const alamat = wa ? (donorWa(d) ? waPhonePretty(donorWa(d)) : 'belum ada nomor HP') : (d.email || 'belum ada email');
-  const pakaiKwitansi = !wa && suratState.kwitansi;
+  const pakaiKwitansi = suratState.kwitansi;
   return '<div class="card-head"><h2>3 · Pratinjau</h2>' +
       '<span class="chip plain">' + esc(donorName(d)) + '</span>' +
       '<span class="chip kanal-' + (wa ? 'whatsapp' : 'email') + '">' +
@@ -1816,9 +1816,15 @@ function previewHTML(d){
     (wa
       ? '<div class="wa-preview"><div class="wa-bubble">' + esc(fillTemplate(suratState.isi, d)) + '</div></div>'
       : '<div class="letter">' + esc(fillTemplate(suratState.isi, d)) + '</div>') +
-    (pakaiKwitansi
+    /* Email: kwitansi ikut sebagai tabel HTML di badan email.
+       WhatsApp: tidak bisa tabel — dikirim sebagai gambar, jadi yang
+       ditampilkan di sini pun harus gambarnya. */
+    (!wa && pakaiKwitansi
       ? '<p class="tiny muted" style="margin:14px 0 0">Kwitansi yang ikut terkirim di badan email:</p>' +
         '<div class="kwitansi-preview">' + kwitansiHTML(d, suratState.kwitansiBahasa, suratState.kwitansiFinId) + '</div>'
+      : '') +
+    (wa && pakaiKwitansi
+      ? '<p class="tiny muted" style="margin:14px 0 0">Kwitansi dikirim sebagai gambar — tekan tombol di bawah untuk melihatnya:</p>'
       : '') +
     (!wa && suratState.majalah && majalahInfo()
       ? '<p class="tiny muted" style="margin:14px 0 0">Majalah yang ikut terkirim di badan email:</p>' +
@@ -1828,7 +1834,8 @@ function previewHTML(d){
       '<button class="btn primary" data-action="pratinjau-email" data-id="' + esc(d.id) + '">👁 Pratinjau email</button>' +
       '<button class="btn" data-action="periksa-kirim">🔍 Periksa sebelum kirim</button>' +
       (pakaiKwitansi
-        ? '<button class="btn" data-action="kwitansi-png" data-id="' + esc(d.id) + '">🖼 Kwitansi PNG</button>'
+        ? '<button class="btn' + (wa ? ' primary' : '') + '" data-action="kwitansi-png" data-id="' + esc(d.id) + '">' +
+          '🖼 Kwitansi PNG' + (wa ? ' (yang dikirim)' : '') + '</button>'
         : '') +
       '<button class="btn" data-action="print-one" data-id="' + esc(d.id) + '">⎙ Cetak</button>' +
     '</div>';
@@ -2098,6 +2105,16 @@ function openPeriksaKirim(){
           kwitansiHTML(contoh, suratState.kwitansiBahasa, suratState.kwitansiFinId) + '</div>'
       : '') +
 
+    /* WhatsApp tidak bisa menampilkan tabel HTML — kwitansinya dikirim sebagai
+       GAMBAR. Jadi yang diperiksa di sini harus gambarnya, bukan tabelnya. */
+    (wa && suratState.kwitansi && contoh
+      ? '<div class="sep"></div>' +
+        '<p class="small" style="margin:0 0 8px"><b>Kwitansi yang akan diterima</b> ' +
+          '<span class="hint">— dikirim sebagai gambar PNG, bukan tabel</span></p>' +
+        '<div class="png-preview" id="png-periksa">' +
+          '<p class="muted small">Menggambar kwitansi…</p></div>'
+      : '') +
+
     (pakaiMajalah
       ? '<div class="sep"></div>' +
         '<p class="small" style="margin:0 0 8px"><b>Majalah yang akan diterima</b> ' +
@@ -2126,7 +2143,13 @@ function openPeriksaKirim(){
     (wa ? '' : '<button class="btn" data-action="kirim-sendiri-dari-periksa">✉ Kirim ke saya sendiri dulu</button>') +
     '<button class="btn primary" data-action="kirim-dari-periksa">➤ Kirim sekarang (' + ids.length + ')</button>';
 
-  openModal({ title:'Periksa sebelum kirim', body:body, footer:footer, wide:true });
+  openModal({
+    title:'Periksa sebelum kirim', body:body, footer:footer, wide:true,
+    gambarKwitansi: (wa && suratState.kwitansi && contoh)
+      ? { d:contoh, bahasa:suratState.kwitansiBahasa, finId:suratState.kwitansiFinId,
+          kodeKiriman:kodeKiriman(), waktuKirim:waktuKirim() }
+      : null
+  });
 }
 
 /* Kotak 5 isian serba guna di halaman Tulis. Diisi SEKALI, lalu dipakai di
@@ -3161,6 +3184,23 @@ function openModal(o){
   back.addEventListener('mousedown', function(e){ if(e.target === back) closeModal(); });
   root.querySelectorAll('[data-close]').forEach(function(b){ b.addEventListener('click', closeModal); });
   if(o.onOpen) o.onOpen(root);
+  /* Gambar kwitansi (PNG) digambar setelah modal tampil — menggambar butuh
+     waktu, jadi jangan menahan tampilnya modal. */
+  if(o.gambarKwitansi){
+    const wadah = root.querySelector('#png-periksa');
+    if(wadah){
+      kwitansiPNG(o.gambarKwitansi.d, o.gambarKwitansi.bahasa, o.gambarKwitansi.finId,
+        { kodeKiriman: o.gambarKwitansi.kodeKiriman, waktuKirim: o.gambarKwitansi.waktuKirim })
+        .then(function(url){
+          const kb = Math.round((url.length - 'data:image/png;base64,'.length) * 3 / 4 / 1024);
+          wadah.innerHTML = '<img src="' + url + '" alt="Kwitansi" style="max-width:100%;display:block">' +
+            '<p class="tiny muted" style="margin:8px 0 0">Gambar ' + kb + ' KB — inilah yang diterima donor di WhatsApp.</p>';
+        })
+        .catch(function(e){
+          wadah.innerHTML = '<div class="warnbox">Gagal menggambar kwitansi: ' + esc(e.message || e) + '</div>';
+        });
+    }
+  }
 }
 function closeModal(){
   document.getElementById('modal-root').innerHTML = '';

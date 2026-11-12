@@ -2017,6 +2017,28 @@ nama berkas PDF benar (`Kabar Kartidaya.pdf`), dan pesan tercatat
 (`/kwitansi/<id>.png` → 404 kalau belum ada, `/majalah-pdf/<id>.pdf` → 404,
 `/wa/send-media` → 401 tanpa kunci).
 
+**Uji ulang lengkap 12 Nov 2026 (lanjutan):**
+
+| # | Yang diuji | Hasil |
+|---|---|---|
+| 1 | Urutan kirim WhatsApp | simpan gambar → kirim gambar → kirim PDF → kirim teks ✅ |
+| 2 | Ukuran PNG | 132 KB (satu mata uang), 161 KB (dua mata uang) ✅ |
+| 3 | Kwitansi dua mata uang | dua baris "Uang sejumlah" + dua baris "Terbilang" ✅ |
+| 4 | Kwitansi dua bahasa | Indonesia 161 KB, Inggris 160 KB ✅ |
+| 5 | `/kwitansi/<id>.png` belum ada | 404 ✅ |
+| 6 | `/majalah-pdf/<id>.pdf` belum ada | 404 ✅ |
+| 7 | `/wa/send-media` tanpa kunci | 401 ✅ |
+
+**Dua celah yang ditemukan dan diperbaiki (12 Nov 2026):**
+
+| Celah | Akibat sebelum diperbaiki | Perbaikan |
+|---|---|---|
+| Layar **Periksa sebelum kirim** di kanal WhatsApp tidak menampilkan kwitansi sama sekali | user tidak bisa memastikan kwitansi sebelum kirim — padahal justru di WhatsApp kwitansinya berbentuk gambar | sekarang gambar PNG-nya digambar dan ditampilkan di layar periksa |
+| Tombol **🖼 Kwitansi PNG** disembunyikan di kanal WhatsApp | tombol untuk melihat **yang benar-benar dikirim** justru tidak ada | sekarang tombol itu tampil dan ditandai **(yang dikirim)** |
+
+Di kanal **email** tidak ada yang berubah: kwitansi tetap tampil sebagai tabel
+HTML di badan email, dan tombol PNG tetap tersedia sebagai pilihan tambahan.
+
 ---
 
 ### 18.2 Majalah lewat PDF + halaman pembaca seperti browser — ✅ SELESAI (12 Nov 2026)
