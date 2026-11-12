@@ -16,6 +16,10 @@ const LS = {
   isian:'kartidaya.v2.isian',
   uji:'kartidaya.v2.uji'
 };
+/* Penanda perubahan yang belum sampai ke server. Disimpan di browser supaya
+   kalau halaman dimuat ulang sebelum internet kembali, perubahan itu dikirim
+   lebih dulu — bukan ditimpa oleh data server. */
+const LS_TERTUNDA = 'kartidaya.v2.tertunda';
 
 /* OAuth Client ID project `kartidaya-513714` (nomor 531116872278).
    Dipakai sebagai nilai awal supaya browser yang masih menyimpan Client ID
@@ -962,6 +966,12 @@ function writeLS(key, val){
   catch(e){ toast('Gagal menyimpan — penyimpanan browser penuh', true); }
 }
 function save(what){
+  /* Selama aplikasi terkunci (server tidak bisa dihubungi), data bersama tidak
+     boleh disimpan. Kalau disimpan, perubahan akan tampak "berhasil" padahal
+     tidak pernah sampai ke server — dan hilang saat halaman dimuat ulang.
+     Pengecualian: `settings` & `uji` memang milik komputer ini sendiri, dan
+     Setelan harus tetap bisa disimpan supaya alamat/kunci bisa diperbaiki. */
+  if(terkunciServer && what && what !== 'settings' && what !== 'uji') return;
   if(!what || what === 'donors')     writeLS(LS.donors, state.donors);
   if(!what || what === 'categories') writeLS(LS.categories, state.categories);
   if(!what || what === 'templates')  writeLS(LS.templates, state.templates);
@@ -995,8 +1005,19 @@ const Server = {
   online: false,      /* apakah server terakhir kali bisa dihubungi */
   sibuk: 0,           /* berapa pengiriman sedang berjalan */
   gagal: 0,           /* berapa pengiriman gagal sejak terakhir berhasil */
+  tertunda: {},       /* koleksi yang gagal terkirim, menunggu dikirim ulang */
   terakhir: '',       /* waktu sinkron terakhir berhasil */
   pesan: '',          /* pesan galat terakhir */
+
+  /* Baca/tulis daftar perubahan tertunda dari browser. */
+  bacaTertunda(){
+    try{ this.tertunda = JSON.parse(localStorage.getItem(LS_TERTUNDA) || '{}') || {}; }
+    catch(e){ this.tertunda = {}; }
+    return this.tertunda;
+  },
+  simpanTertunda(){
+    try{ localStorage.setItem(LS_TERTUNDA, JSON.stringify(this.tertunda)); }catch(e){ /* penuh — abaikan */ }
+  },
 
   /* Koleksi yang disimpan di server. `settings` & `uji` TIDAK termasuk —
      keduanya milik komputer masing-masing. */
@@ -1090,11 +1111,17 @@ const Server = {
       }
       this.online = true;
       this.gagal = 0;
+      delete this.tertunda[nama];
+      this.simpanTertunda();
       this.terakhir = new Date().toISOString();
       this.tandai('ok', 'Tersimpan di server');
     }catch(e){
       this.online = false;
       this.gagal++;
+      /* Catat supaya bisa dicoba lagi otomatis — perubahan tidak boleh hilang
+         hanya karena internet sempat putus. */
+      this.tertunda[nama] = true;
+      this.simpanTertunda();
       this.pesan = e.message || String(e);
       this.tandai('gagal', 'Gagal menyimpan ke server: ' + this.pesan);
     }finally{
@@ -1102,21 +1129,49 @@ const Server = {
     }
   },
 
+  /* Kirim ulang semua yang tertunda. Dipanggil berkala dan saat tab aktif lagi. */
+  async kirimTertunda(){
+    if(!this.bisa()) return;
+    if(this.sibuk) return;
+    const daftar = Object.keys(this.tertunda);
+    if(!daftar.length) return;
+    this.siap = true;
+    for(const nama of daftar){
+      await this.kirim(nama);
+      if(!this.online) return;   /* masih putus — jangan buang waktu */
+    }
+    /* Semua tertunda sudah terkirim. Kalau tadi aplikasi terkunci karena
+       sambungan putus, sekarang bisa dibuka lagi. */
+    if(terkunciServer) cobaSambungLagi();
+  },
+
   /* Tampilkan keadaan di chip header. */
   tandai(keadaan, pesan){
     const el = document.getElementById('simpan-status');
-    if(!el) return;
-    const peta = {
-      mati:   ['plain', '☁ Belum diatur'],
-      muat:   ['plain', '☁ Memuat…'],
-      simpan: ['plain', '☁ Menyimpan…'],
-      ok:     ['ok',    '☁ Tersimpan'],
-      gagal:  ['warn',  '☁ Gagal']
-    };
-    const p = peta[keadaan] || peta.mati;
-    el.className = 'chip ' + p[0];
-    el.textContent = p[1];
-    el.title = pesan || '';
+    if(el){
+      const peta = {
+        mati:   ['plain', '☁ Belum diatur'],
+        muat:   ['plain', '☁ Memuat…'],
+        simpan: ['plain', '☁ Menyimpan…'],
+        ok:     ['ok',    '☁ Tersimpan'],
+        gagal:  ['warn',  '☁ Gagal']
+      };
+      const p = peta[keadaan] || peta.mati;
+      el.className = 'chip ' + p[0];
+      el.textContent = p[1];
+      el.title = pesan || '';
+    }
+    /* Banner peringatan: hanya untuk keadaan yang benar-benar bermasalah.
+       `mati` (belum diatur) tidak perlu banner — layar Setelan sudah jelas. */
+    const b = document.getElementById('banner-offline');
+    if(b){
+      const perlu = (keadaan === 'gagal');
+      b.hidden = !perlu;
+      if(perlu){
+        const t = document.getElementById('banner-offline-teks');
+        if(t) t.textContent = pesan || 'Perubahan tidak tersimpan. Periksa sambungan internet.';
+      }
+    }
   }
 };
 function loadState(){
@@ -1369,6 +1424,9 @@ const PAGES = [
 ];
 let currentPage = 'beranda';
 let pageParams = {};
+/* Diisi kalau data bersama tidak bisa dimuat dari server. Selama terisi,
+   halaman selain Setelan dikunci (lihat render()). */
+let terkunciServer = null;
 
 function go(page, params){
   currentPage = page;
@@ -1408,6 +1466,11 @@ function setTitle(t, s){
 function render(){
   renderNav();
   const v = document.getElementById('view');
+  /* Kalau data bersama tidak bisa dimuat, halaman dikunci. Tanpa kunci,
+     pengguna bisa mengedit data yang sebenarnya tidak tersambung ke server —
+     dan editannya hilang begitu halaman dimuat ulang.
+     Halaman Setelan tetap boleh dibuka supaya alamat/kunci bisa diperbaiki. */
+  if(terkunciServer && currentPage !== 'pengaturan'){ v.innerHTML = layarTidakTersambung(); afterRender(); return; }
   if(currentPage === 'beranda')         v.innerHTML = viewBeranda();
   else if(currentPage === 'masuk')      v.innerHTML = viewKotak('masuk');
   else if(currentPage === 'keluar')     v.innerHTML = viewKotak('keluar');
@@ -3482,10 +3545,17 @@ function viewPengaturan(){
     '<p class="small muted">Data donor, surat, keuangan, dan template disimpan di <b>server</b> ' +
       '(Cloudflare), bukan di browser ini. Jadi kalau ada rekan yang membuka aplikasi ini, ' +
       'dia melihat data yang sama.</p>' +
+    '<p class="small muted">Aplikasi ini bekerja <b>online</b>. Kalau internet mati, ' +
+      'aplikasi tidak bisa dipakai sampai sambungan kembali — ini disengaja supaya ' +
+      'tidak ada perubahan yang tampak tersimpan padahal hilang.</p>' +
     '<p class="tiny muted">' +
       (Server.terakhir
         ? 'Terakhir tersimpan: <b>' + esc(fmtDateTime(Server.terakhir)) + '</b>.'
         : 'Belum pernah tersimpan ke server dari komputer ini.') +
+      (Object.keys(Server.tertunda || {}).length
+        ? ' <b style="color:#a33">Ada ' + Object.keys(Server.tertunda).length +
+          ' perubahan belum terkirim — akan dicoba lagi otomatis.</b>'
+        : '') +
       (Server.pesan ? ' <span style="color:#a33">Galat terakhir: ' + esc(Server.pesan) + '</span>' : '') +
     '</p>' +
     '<div class="btn-row">' +
@@ -4695,6 +4765,7 @@ async function gmailSync(opts){
    lagi membuka Setelan hanya untuk menekan Sinkron. */
 let _syncJalan = false;
 async function sinkronOtomatis(paksa){
+  if(terkunciServer) return;                            /* aplikasi sedang dikunci */
   if(!state.settings.autoSync) return;
   if(!Gmail.isConfigured()) return;
   if(!Gmail.isConnected() && !Gmail.msLeft()) return;   /* belum pernah login */
@@ -4720,6 +4791,7 @@ async function sinkronOtomatis(paksa){
 let _waSyncJalan = false;
 async function waSinkronOtomatis(paksa){
   if(WA_DITUNDA) return;
+  if(terkunciServer) return;                            /* aplikasi sedang dikunci */
   if(!state.settings.waAutoSync) return;
   if(!WhatsApp.isConfigured()) return;
   if(_waSyncJalan) return;
@@ -5477,9 +5549,10 @@ document.addEventListener('click', function(e){
     case 'ekspor-xlsx': exportXLSX(); break;
     case 'ekspor-csv': exportCSV(); break;
     case 'impor-json': document.getElementById('file-import').click(); break;
+    case 'server-coba-lagi': cobaSambungLagi(); break;
     case 'server-muat': {
-      Server.muat().then(function(ok){
-        if(ok){ render(); toast('Data dimuat ulang dari server'); }
+      sambungDanMuat().then(function(ok){
+        if(ok){ bukaKunciServer(); render(); toast('Data dimuat ulang dari server'); }
         else toast('Gagal memuat dari server: ' + (Server.pesan || 'tidak diketahui'), true);
       });
       break;
@@ -5494,6 +5567,7 @@ document.addEventListener('click', function(e){
         for(const nama of Server.koleksi){ await Server.kirim(nama); }
         await Server.kirim('isian');
         await Server.kirim('majalah');
+        if(!Server.gagal) bukaKunciServer();
         render();
         toast(Server.gagal ? 'Sebagian gagal dikirim — lihat pesan galat' : 'Semua data terkirim ke server',
           !!Server.gagal);
@@ -5631,6 +5705,7 @@ function applyTheme(){
 
 /* ---------- 15. MULAI ---------- */
 loadState();
+Server.bacaTertunda();
 applyTheme();
 Gmail.clientId = state.settings.gmailClientId || '';
 Gmail.onStatus = function(){ renderNav(); };
@@ -5679,9 +5754,13 @@ if(!WA_DITUNDA) setInterval(waSinkronOtomatis, 60 * 1000);
 /* Tanda dibaca & konfirmasi penerimaan ikut diperiksa berkala — tidak perlu
    menekan tombol. */
 setInterval(function(){ cekTandaDibaca(); cekKonfirmasiTerima(); cekUji(); }, 3 * 60 * 1000);
+/* Coba kirim ulang perubahan yang gagal tersimpan — tiap 20 detik. Kalau
+   internet kembali, perubahan langsung menyusul tanpa perlu diapa-apakan. */
+setInterval(function(){ Server.kirimTertunda(); }, 20 * 1000);
 document.addEventListener('visibilitychange', function(){
   if(!document.hidden){
     sinkronOtomatis(); waSinkronOtomatis(); cekTandaDibaca(); cekKonfirmasiTerima(); cekUji();
+    Server.kirimTertunda();
   }
 });
 /* Beri jeda sedikit supaya token sempat dipulihkan lebih dulu. */
@@ -5705,14 +5784,91 @@ render();
 
 /* Ambil data bersama dari server. Dijalankan SETELAH render() supaya aplikasi
    langsung tampil (memakai salinan di browser) dan tidak menunggu jaringan.
-   Kalau berhasil, tampilan digambar ulang dengan data terbaru. */
+   Kalau berhasil, tampilan digambar ulang dengan data terbaru.
+
+   PENTING: kalau gagal, aplikasi dikunci. Alasannya: tanpa kunci, pengguna
+   bisa mengedit data yang sebenarnya sudah tidak terhubung ke server — dan
+   editannya hilang begitu halaman dimuat ulang. Lebih baik diberi tahu terus
+   terang daripada kehilangan pekerjaan tanpa sadar. */
 (async function(){
-  if(!Server.bisa()){ Server.tandai('mati', 'Isi alamat Worker & kunci aplikasi di Setelan'); return; }
-  const berhasil = await Server.muat();
+  if(!Server.bisa()){
+    Server.tandai('mati', 'Isi alamat Worker & kunci aplikasi di Setelan');
+    kunciServer('Data bersama belum diatur',
+      'Isi <b>Alamat Worker</b> dan <b>Kunci aplikasi</b> di halaman Setelan.');
+    return;
+  }
+  /* Kalau ada perubahan yang belum sempat terkirim (mis. internet putus saat
+     mengedit), kirim itu DULU sebelum mengambil data server. Kalau tidak,
+     data server akan menimpa perubahan tadi dan pekerjaan itu hilang. */
+  const berhasil = await sambungDanMuat();
   if(berhasil){
+    bukaKunciServer();
     render();
     toast('Data bersama dimuat dari server');
   }else{
-    toast('Tidak bisa memuat data bersama — memakai salinan di browser ini', true);
+    kunciServer('Tidak tersambung ke server',
+      'Aplikasi ini bekerja <b>online</b> — data disimpan di server supaya bisa ' +
+      'dipakai bersama. Periksa sambungan internet, lalu coba lagi.');
   }
 })();
+
+/* Layar pengganti kalau data bersama tidak bisa dimuat. Aplikasi sengaja tidak
+   bisa dipakai supaya tidak ada perubahan yang hilang tanpa disadari. */
+function layarTidakTersambung(){
+  const k = terkunciServer || {};
+  return '<div class="card" style="max-width:560px;margin:40px auto">' +
+    '<div class="card-head"><h2>' + esc(k.judul || 'Tidak tersambung') + '</h2></div>' +
+    '<p class="small">' + (k.pesan || '') + '</p>' +
+    (Server.pesan ? '<p class="tiny muted">Pesan dari server: <b>' + esc(Server.pesan) + '</b></p>' : '') +
+    '<div class="btn-row">' +
+      '<button class="btn primary" data-action="server-coba-lagi">⟳ Coba lagi</button>' +
+      '<button class="btn" data-go="pengaturan">⚙ Buka Setelan</button>' +
+    '</div>' +
+    '<p class="tiny muted" style="margin-top:10px">Data yang sudah ada di server <b>tidak terpengaruh</b> — ' +
+      'ini hanya soal sambungan dari komputer ini.</p>' +
+  '</div>';
+}
+function kunciServer(judul, pesan){
+  terkunciServer = { judul: judul, pesan: pesan };
+  /* Banner bawah tidak perlu lagi — layar kunci sudah menjelaskan semuanya. */
+  const b = document.getElementById('banner-offline');
+  if(b) b.hidden = true;
+  render();
+}
+function bukaKunciServer(){
+  terkunciServer = null;
+}
+
+/* Kirim dulu semua perubahan yang belum sempat terkirim, baru ambil data
+   server. Urutannya penting: kalau `muat()` dijalankan lebih dulu, data server
+   akan menimpa perubahan tadi dan pekerjaan pengguna hilang. */
+async function sambungDanMuat(){
+  const tertunda = Object.keys(Server.bacaTertunda());
+  if(tertunda.length){
+    Server.siap = true;
+    for(const nama of tertunda){
+      await Server.kirim(nama);
+      if(!Server.online) break;
+    }
+  }
+  return await Server.muat();
+}
+
+/* Coba sambung ulang dari layar "tidak tersambung" atau dari banner. */
+async function cobaSambungLagi(){
+  const v = document.getElementById('view');
+  if(terkunciServer && v){
+    v.innerHTML = '<div class="card" style="max-width:560px;margin:40px auto">' +
+      '<p class="small">Menghubungi server…</p></div>';
+  }
+  const ok = await sambungDanMuat();
+  if(ok){
+    bukaKunciServer();
+    render();
+    toast('Tersambung — data dimuat dari server');
+  }else if(terkunciServer){
+    render();
+  }else{
+    toast('Masih tidak tersambung ke server', true);
+  }
+}

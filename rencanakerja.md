@@ -3519,15 +3519,34 @@ tersimpan lama. POST lebih andal.
 | 11 | Chip keadaan | ☁ Tersimpan ✅ |
 | 12 | Tombol **Muat ulang dari server** | berfungsi ✅ |
 | 13 | Semua 8 halaman tetap jalan | ✅ |
+| 14 | **Internet mati saat mengedit** → perubahan dicatat sebagai *tertunda* | ✅ |
+| 15 | Halaman dimuat ulang saat masih offline → perubahan tertunda **selamat** | ✅ |
+| 16 | Internet pulih → perubahan tertunda **terkirim lebih dulu**, baru data server diambil | ✅ |
+| 17 | Internet mati saat aplikasi dibuka → aplikasi **dikunci** (tidak bisa mengedit) | ✅ |
+| 18 | Halaman **Setelan** tetap bisa dibuka saat terkunci | ✅ |
+| 19 | `save()` tidak menulis apa pun selama terkunci | ✅ |
 
 **Uji nomor 7–10 adalah inti jawaban pertanyaan Anda:** dua browser berbeda
 benar-benar melihat dan mengubah **satu data yang sama**.
+
+**Uji nomor 14–19 menutup satu lubang berbahaya.** Sebelum diperbaiki: kalau
+internet mati, aplikasi masih terbuka dari salinan di browser, pengguna bisa
+mengedit, dan **editannya hilang tanpa pemberitahuan** begitu internet kembali
+— karena data server menimpa semuanya. Sekarang ada tiga lapis pengaman:
+
+1. **Perubahan tertunda dicatat** di browser (`kartidaya.v2.tertunda`).
+2. **Dikirim lebih dulu** sebelum data server diambil — baik saat halaman
+   dibuka maupun saat tombol **Coba lagi** ditekan.
+3. **Aplikasi dikunci** kalau data server tidak bisa dimuat sama sekali, supaya
+   tidak ada yang mengedit dengan harapan sia-sia. Halaman **Setelan** tetap
+   bisa dibuka supaya alamat/kunci bisa diperbaiki.
 
 ### 23.8 Yang perlu Anda tahu
 
 | Hal | Keterangan |
 |---|---|
-| **Butuh internet** | Sesuai keputusan Anda: online saja. Kalau internet mati, aplikasi tetap terbuka memakai salinan di browser, tetapi perubahan tidak terkirim |
+| **Butuh internet** | Sesuai keputusan Anda: **online saja**. Kalau internet mati, aplikasi **tidak bisa dipakai** sampai sambungan kembali — ini disengaja, supaya tidak ada perubahan yang tampak tersimpan padahal hilang. Pengguna tidak perlu diberi tahu; layarnya sudah menjelaskan sendiri |
+| **Kalau internet putus di tengah kerja** | Perubahan yang belum terkirim **tidak hilang**. Muncul pita kuning di bawah layar, dan perubahan dikirim ulang otomatis setiap 20 detik sampai berhasil |
 | **Bentrok** | Kalau 2 orang mengubah **donor yang sama** dalam waktu hampir bersamaan, perubahan terakhir yang menang. Untuk 2 user jarang terjadi |
 | **Data lama** | Data yang sudah ada di browser **perlu diunggah sekali** lewat tombol **Unggah data browser ini ke server** |
 | **Gratis** | D1 gratis sampai 5 GB penyimpanan & 5 juta baris dibaca/hari — jauh lebih dari cukup |

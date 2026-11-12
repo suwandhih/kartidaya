@@ -303,6 +303,18 @@ tbody tr:last-child td{border-bottom:0}
 .chip.kanal-email{background:var(--surface-2);color:var(--muted);border-color:var(--line)}
 .chip.kanal-whatsapp{background:var(--wa-soft);color:var(--wa);border-color:var(--wa)}
 
+/* ---------- BANNER TIDAK TERSAMBUNG ----------
+   Muncul di bawah isi halaman kalau server tidak bisa dihubungi. Sengaja
+   menempel di bawah dan berwarna peringatan supaya tidak terlewat. */
+.banner-offline{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  margin:0 18px 18px;padding:10px 14px;border-radius:var(--radius-sm);
+  background:var(--warn-soft);color:var(--warn);
+  border:1px solid var(--warn);font-size:13px;
+}
+.banner-offline[hidden]{display:none}
+.banner-offline .btn{margin-left:auto}
+
 /* Pratinjau kwitansi di halaman Tulis — diperkecil supaya tidak mendominasi
    layar, tapi tetap terbaca. */
 .kwitansi-preview{
