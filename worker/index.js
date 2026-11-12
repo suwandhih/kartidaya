@@ -704,7 +704,12 @@ export default {
 
       /* --- sisanya butuh kunci aplikasi --- */
       if (!authorized(req, env)) {
-        return withCors(json({ ok: false, error: 'Kunci aplikasi salah atau belum diisi' }, 401), req);
+        return withCors(json({
+          ok: false,
+          error: 'Kunci aplikasi salah atau belum diisi',
+          petunjuk: 'Buka aplikasi → Setelan → Worker Cloudflare → isi kolom ' +
+            '"Kunci aplikasi" dengan nilai APP_KEY, lalu tekan "Simpan & uji sambungan".'
+        }, 401), req);
       }
 
       if (path === '/wa/status' && req.method === 'GET') {

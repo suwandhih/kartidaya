@@ -2819,4 +2819,68 @@ di komentar kode (tidak terlihat pengguna).
 **Uji:** diperiksa di browser (localhost, `?v=44`) — label kwitansi, label
 majalah, kartu Setelan, dan daftar centang semuanya sudah memakai kata baru.
 
+### Alamat Worker hilang sendiri + kunci aplikasi dibuat ulang (12 Nov 2026)
+
+**Laporan Anda:** *"alamat worker — keterangan sudah terisi, jangan diubah"*,
+padahal di layar kolomnya **kosong** dan hanya menampilkan tulisan abu-abu
+`https://kartidaya-wa.namaanda.workers.dev`. Waktu tombol **Simpan & uji
+sambungan** ditekan, muncul peringatan merah *"Isi alamat Worker dulu"*.
+
+**Dua kesalahan saya, keduanya sudah diperbaiki:**
+
+| # | Kesalahan | Akibat | Perbaikan |
+|---|---|---|---|
+| 1 | Tombol **Putuskan** mengosongkan Alamat Worker (`waEndpoint = ''`) | Alamat hilang → majalah & tanda dibaca ikut mati, padahal itu fitur **email** | Tombol diganti nama jadi **Hapus kunci** dan hanya mengosongkan kuncinya; alamat dikembalikan ke nilai bawaan |
+| 2 | Keterangan *"sudah terisi, jangan diubah"* ditulis **tanpa syarat** | Keterangan itu berbohong saat kolomnya kosong | Keterangan sekarang mengikuti isi kolom: *"sudah terisi, jangan diubah"* atau *"belum diisi"* |
+
+**Tambahan di kode:** dibuat tetapan `DEFAULT_WORKER` =
+`https://kartidaya-wa.suwandhih.workers.dev`. Alamat itu sekarang **selalu
+terisi sendiri** — tidak perlu diketik, dan tidak bisa hilang lagi. Alamat ini
+bukan rahasia (hanya URL publik); yang rahasia adalah **Kunci aplikasi**.
+
+**Kunci aplikasi (APP_KEY) dibuat ulang.** Kunci lama **tidak bisa dibaca
+lagi** — Cloudflare menyimpannya dalam bentuk terenkripsi, dan
+`wrangler secret list` hanya menampilkan *nama* rahasianya, bukan isinya.
+Jadi satu-satunya jalan adalah membuat kunci baru lalu memasangnya di kedua
+sisi:
+
+| Langkah | Perintah / tempat |
+|---|---|
+| Buat kunci baru | `kartidaya-hQWZOmGXsyqljX7gvARa` |
+| Pasang di Worker | `cd worker` → `npx wrangler secret put APP_KEY` |
+| Pasang di aplikasi | Setelan → Worker Cloudflare → **Kunci aplikasi** → **Simpan & uji sambungan** |
+
+**Uji kunci:** `POST /pixel/status` dengan kunci baru → **200** `{"ok":true}`;
+tanpa kunci → **401**; dengan kunci salah → **401**. Jadi kunci baru sudah
+benar-benar aktif di server.
+
+**Pesan 401 diperjelas.** Kalau kunci salah/kosong, Worker sekarang membalas
+dengan petunjuk berbahasa awam: *"Buka aplikasi → Setelan → Worker Cloudflare →
+isi kolom Kunci aplikasi…"* — supaya tidak lagi muncul pesan teknis tanpa
+jalan keluar.
+
+### Majalah sungguhan berhasil diunggah (12 Nov 2026)
+
+Berkas `Firman Hidup Edisi Oktober 2026.pdf` (16 halaman, 3,0 MB) berhasil
+diunggah dan **sudah tersimpan di Cloudflare**:
+
+| Yang diperiksa | Hasil |
+|---|---|
+| Info majalah (`GET /majalah/<id>`) | `ok:true`, 16 halaman, `image/jpeg` |
+| Halaman 1 | 200, `image/jpeg`, 166 KB |
+| Halaman 16 | 200, `image/jpeg`, 110 KB |
+| PDF untuk WhatsApp | 200, `application/pdf`, 3,0 MB |
+| Halaman pembaca (`/baca/<id>`) | 200 |
+| Sampul di pratinjau email | termuat, 1240×1759 px |
+
+**Catatan penting soal cara mengunggah:** konversi PDF → gambar memakai
+`canvas` di browser, dan **canvas berhenti bekerja kalau tab-nya tidak aktif**
+(tab di belakang layar). Unggahan pertama macet di 6% karena itu. Jadi
+**jangan pindah tab** selama proses unggah majalah berjalan — 16 halaman
+butuh ±1 menit.
+
+**Perbaikan kecil:** judul majalah yang dikosongkan sekarang tersimpan sebagai
+*"Majalah Kartidaya"*, bukan kosong. Sebelumnya halaman pembaca bisa tampil
+tanpa judul.
+
 ---

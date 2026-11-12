@@ -21,6 +21,12 @@ const LS = {
    lama tidak terus gagal dengan `access_denied`. */
 const DEFAULT_CLIENT_ID = '531116872278-hep5meju0djk30qrsee5ec4np2t895qo.apps.googleusercontent.com';
 
+/* Alamat Worker Cloudflare milik Kartidaya. Dipakai sebagai nilai awal supaya
+   pengguna tidak perlu mengetik alamat panjang ini — dan supaya alamatnya tidak
+   hilang kalau tombol "Hapus kunci" pernah ditekan. Alamat ini bukan rahasia:
+   hanya URL publik. Yang rahasia adalah Kunci aplikasi (APP_KEY). */
+const DEFAULT_WORKER = 'https://kartidaya-wa.suwandhih.workers.dev';
+
 const PANGGILAN = ['','Ibu','Bapak','Saudara','Saudari'];
 const PENGIRIMAN = ['','Email','WhatsApp','POS','Kurir','Lainnya'];
 const STATUS_KELUAR = ['Draft','Terkirim','Gagal'];
@@ -653,7 +659,7 @@ function majalahInfo(){
   return m;
 }
 function workerBase(){
-  return String(WhatsApp.endpoint || state.settings.waEndpoint || '').replace(/\/+$/, '');
+  return String(WhatsApp.endpoint || state.settings.waEndpoint || DEFAULT_WORKER).replace(/\/+$/, '');
 }
 function majalahURL(n){
   const m = majalahInfo();
@@ -988,9 +994,11 @@ function loadState(){
   if(state.settings.autoSync === undefined) state.settings.autoSync = true;
   if(!state.settings.syncMinutes) state.settings.syncMinutes = 10;
   if(!state.settings.lastSync) state.settings.lastSync = '';
-  /* WhatsApp — alamat Worker & kunci aplikasi disimpan di sessionStorage
-     (lihat whatsapp.js), sisanya di sini. */
-  if(!state.settings.waEndpoint) state.settings.waEndpoint = '';
+  /* WhatsApp — alamat Worker & kunci aplikasi disimpan di localStorage
+     (lihat whatsapp.js), sisanya di sini. Alamat Worker diisi nilai bawaan
+     supaya tidak pernah kosong: alamat itu juga dipakai fitur EMAIL (majalah
+     di email, tanda dibaca), jadi tidak boleh hilang. */
+  if(!state.settings.waEndpoint) state.settings.waEndpoint = DEFAULT_WORKER;
   if(state.settings.waAutoSync === undefined) state.settings.waAutoSync = true;
   if(!state.settings.waSyncMinutes) state.settings.waSyncMinutes = 10;
   if(!state.settings.waLastSync) state.settings.waLastSync = '';
@@ -3020,6 +3028,10 @@ function viewPengaturan(){
   const label = { unconfigured:'Belum diatur', disconnected:'Siap dihubungkan', connected:'Terhubung' }[st];
   const wst = WhatsApp.status();
   const wlabel = { unconfigured:'Belum diatur', disconnected:'Belum tersambung', connected:'Tersambung' }[wst];
+  /* Alamat Worker punya nilai bawaan, jadi hampir selalu terisi. Yang sering
+     kosong adalah kuncinya — itu yang membuat majalah & tanda dibaca gagal. */
+  const adaAlamat = !!workerBase();
+  const adaKunci = !!String(WhatsApp.appKey || '');
   const waPending = state.messages.filter(function(m){
     return m.arah === 'masuk' && m.kanal === 'whatsapp' && !m.donorId;
   }).length;
@@ -3126,8 +3138,9 @@ function viewPengaturan(){
     '</ul>' +
     '<p class="small muted">Jadi <b>dua kolom di bawah tetap harus diisi</b> walaupun WhatsApp ' +
       'sedang ditunda — kalau kosong, majalah dan tanda dibaca tidak jalan.</p>' +
-    '<div class="field"><label>Alamat Worker <span class="hint">— sudah terisi, jangan diubah</span></label>' +
-      '<input type="text" id="w-endpoint" class="mono" placeholder="https://kartidaya-wa.namaanda.workers.dev" value="' +
+    '<div class="field"><label>Alamat Worker <span class="hint">— ' +
+      (adaAlamat ? 'sudah terisi, jangan diubah' : 'belum diisi') + '</span></label>' +
+      '<input type="text" id="w-endpoint" class="mono" placeholder="' + DEFAULT_WORKER + '" value="' +
         esc(WhatsApp.endpoint || state.settings.waEndpoint || '') + '"></div>' +
     '<div class="field"><label>Kunci aplikasi <span class="hint">— kata sandi rahasia, minta ke pembuat aplikasi</span></label>' +
       '<input type="password" id="w-key" class="mono" placeholder="tempel kunci rahasia di sini" value="' +
@@ -3138,7 +3151,7 @@ function viewPengaturan(){
       '<button class="btn primary" data-action="w-save">Simpan &amp; uji sambungan</button>' +
       (WA_DITUNDA ? '' : '<button class="btn" data-action="wa-sync">⟳ Sinkron WhatsApp</button>') +
       (WA_DITUNDA ? '' : '<button class="btn" data-action="wa-cocokkan">⇄ Cocokkan ulang</button>') +
-      '<button class="btn danger" data-action="w-disconnect">Putuskan</button>' +
+      (adaKunci ? '<button class="btn danger" data-action="w-disconnect">Hapus kunci</button>' : '') +
     '</div>' +
     (WhatsApp.phone ? '<p class="small muted" style="margin-top:10px">Nomor WhatsApp Business: <b class="mono">' +
       esc(WhatsApp.phone) + '</b></p>' : '') +
@@ -3848,7 +3861,8 @@ async function unggahMajalah(){
       const data = h.blob ? await blobKeBase64(h.blob) : await fileKeBase64(h.file);
       await WhatsApp.api('/majalah', {
         method:'POST',
-        body:{ id:id, halaman:i + 1, total:halaman.length, tipe:h.tipe, judul:judul, data:data }
+        body:{ id:id, halaman:i + 1, total:halaman.length, tipe:h.tipe,
+          judul:judul || 'Majalah Kartidaya', data:data }
       });
     }catch(e){
       if(prog) prog.textContent = '';
@@ -5019,9 +5033,11 @@ document.addEventListener('click', function(e){
     case 'w-save': waConnect(); break;
     case 'w-disconnect':
       WhatsApp.disconnect();
-      state.settings.waEndpoint = '';
+      /* Alamat Worker dikembalikan ke nilai bawaan, bukan dikosongkan —
+         alamat itu juga dipakai fitur email (majalah, tanda dibaca). */
+      state.settings.waEndpoint = DEFAULT_WORKER;
       save('settings');
-      toast('WhatsApp diputuskan');
+      toast('Kunci aplikasi dihapus dari browser ini');
       render();
       break;
     case 'wa-auto-toggle':
