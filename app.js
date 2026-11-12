@@ -12,7 +12,8 @@ const LS = {
   messages:'kartidaya.v2.messages',
   settings:'kartidaya.v2.settings',
   programs:'kartidaya.v2.programs',
-  finance:'kartidaya.v2.finance'
+  finance:'kartidaya.v2.finance',
+  isian:'kartidaya.v2.isian'
 };
 
 /* OAuth Client ID project `kartidaya-513714` (nomor 531116872278).
@@ -103,8 +104,14 @@ const DEFAULT_TEMPLATES = [
     isi:'Kepada Yth.\n{/PIC}\n{/INST}\n\nDengan hormat,\n\nKami mengucapkan terima kasih yang sebesar-besarnya atas dukungan yang diberikan. Kontribusi {/PIC} sangat berarti bagi pelayanan kami.\n\nTuhan memberkati.\n\nHormat kami,\nKartidaya\n\n{/TANGGAL}' },
   { id:'tpl-undangan', nama:'Undangan Kegiatan',
     subjek:'Undangan Kegiatan — {/NAMA}',
-    isi:'Kepada Yth.\n{/PIC}\n{/INST}\n\nDengan hormat,\n\nDengan ini kami mengundang {/PIC} untuk hadir dalam kegiatan yang akan kami selenggarakan.\n\nHari/Tanggal : \nWaktu        : \nTempat       : \n\nMerupakan suatu kehormatan apabila {/PIC} dapat hadir.\n\nHormat kami,\nKartidaya\n\n{/TANGGAL}' }
+    isi:'Kepada Yth.\n{/PIC}\n{/INST}\n\nDengan hormat,\n\nDengan ini kami mengundang {/PIC} untuk hadir dalam kegiatan yang akan kami selenggarakan.\n\nHari/Tanggal : {/ISI1}\nWaktu        : {/ISI2}\nTempat       : {/ISI3}\nPembicara    : {/ISI4}\n\n{/ISI5}\n\nMerupakan suatu kehormatan apabila {/PIC} dapat hadir.\n\nHormat kami,\nKartidaya\n\n{/TANGGAL}' }
 ];
+
+/* Isi template undangan versi lama — dipakai sekali untuk memindahkan template
+   yang belum memakai token isian ke versi baru. Template yang sudah diubah
+   user tidak ikut diganti. */
+const TPL_UNDANGAN_LAMA =
+  'Kepada Yth.\n{/PIC}\n{/INST}\n\nDengan hormat,\n\nDengan ini kami mengundang {/PIC} untuk hadir dalam kegiatan yang akan kami selenggarakan.\n\nHari/Tanggal : \nWaktu        : \nTempat       : \n\nMerupakan suatu kehormatan apabila {/PIC} dapat hadir.\n\nHormat kami,\nKartidaya\n\n{/TANGGAL}';
 
 const TOKENS = [
   ['{/PIC}','Panggilan + nama PIC'],
@@ -117,8 +124,28 @@ const TOKENS = [
   ['{/EMAIL}','Email penerima'],
   ['{/HP}','No HP'],
   ['{/ALAMAT}','Alamat lengkap'],
-  ['{/TANGGAL}','Tanggal hari ini']
+  ['{/TANGGAL}','Tanggal hari ini'],
+  ['{/ISI1}','Isian serba guna 1'],
+  ['{/ISI2}','Isian serba guna 2'],
+  ['{/ISI3}','Isian serba guna 3'],
+  ['{/ISI4}','Isian serba guna 4'],
+  ['{/ISI5}','Isian serba guna 5']
 ];
+
+/* ---------- ISIAN SERBA GUNA ----------
+   Lima isian bebas yang diisi SEKALI di halaman Tulis, lalu dipakai di semua
+   surat lewat token {/ISI1}…{/ISI5}. Gunanya untuk hal yang tidak ada di data
+   donor — misalnya hari/tanggal, waktu, tempat, dan pembicara sebuah undangan.
+   Nilainya disimpan terpisah dari template supaya tidak perlu diketik ulang
+   setiap kali mengirim surat. */
+const ISIAN_FIELD = [
+  { n:1, label:'Isian 1', contoh:'Sabtu, 22 November 2026' },
+  { n:2, label:'Isian 2', contoh:'09.00 – 12.00 WIB' },
+  { n:3, label:'Isian 3', contoh:'Aula Kartidaya, Jakarta' },
+  { n:4, label:'Isian 4', contoh:'Pdt. Nama Pembicara' },
+  { n:5, label:'Isian 5', contoh:'Catatan tambahan…' }
+];
+const ISIAN_MAKS = ISIAN_FIELD.length;
 
 /* ---------- KEUANGAN ---------- */
 /* Mata uang yang didukung. `locale` dipakai untuk format ribuan, `kode` untuk
@@ -878,7 +905,7 @@ function totalTransaksiHTML(f){
 }
 
 /* ---------- 2. STATE ---------- */
-let state = { donors:[], categories:[], templates:[], messages:[], settings:{}, programs:[], finance:[] };
+let state = { donors:[], categories:[], templates:[], messages:[], settings:{}, programs:[], finance:[], isian:[] };
 
 function readLS(key, fallback){
   try{
@@ -900,6 +927,7 @@ function save(what){
   if(!what || what === 'settings')   writeLS(LS.settings, state.settings);
   if(!what || what === 'programs')   writeLS(LS.programs, state.programs);
   if(!what || what === 'finance')    writeLS(LS.finance, state.finance);
+  if(!what || what === 'isian')      writeLS(LS.isian, state.isian);
 }
 function loadState(){
   const firstRun = localStorage.getItem(LS.donors) === null;
@@ -910,6 +938,7 @@ function loadState(){
   state.settings   = readLS(LS.settings, null) || {};
   state.programs   = readLS(LS.programs, null) || DEFAULT_PROGRAMS.slice();
   state.finance    = readLS(LS.finance, null) || [];
+  state.isian      = readLS(LS.isian, null) || [];
   if(!state.settings.theme) state.settings.theme = 'light';
   if(!state.settings.gmailClientId) state.settings.gmailClientId = DEFAULT_CLIENT_ID;
   /* Client ID lama milik project yang tidak bisa diakses akun ini — sumber
@@ -937,6 +966,20 @@ function loadState(){
      kirim" muncul lebih dulu. Aktif secara bawaan karena ini pengaman utama
      terhadap salah kirim — bisa dimatikan di Setelan kalau dirasa mengganggu. */
   if(state.settings.wajibPeriksa === undefined) state.settings.wajibPeriksa = true;
+  /* Lima isian serba guna — selalu ada 5 baris supaya token {/ISI1}…{/ISI5}
+     tidak pernah kosong tanpa penjelasan. */
+  while(state.isian.length < ISIAN_MAKS) state.isian.push('');
+  state.isian = state.isian.slice(0, ISIAN_MAKS).map(function(v){ return String(v || ''); });
+  /* Template undangan bawaan versi lama belum memakai token isian — pindahkan
+     ke versi baru supaya kolom Hari/Waktu/Tempat langsung terisi. */
+  let tplBerubah = false;
+  state.templates.forEach(function(t){
+    if(t.id === 'tpl-undangan' && t.isi === TPL_UNDANGAN_LAMA){
+      t.isi = DEFAULT_TEMPLATES[2].isi;
+      tplBerubah = true;
+    }
+  });
+  if(tplBerubah) save('templates');
   /* Transaksi lama belum punya kode kwitansi — lengkapi sekali di sini. */
   lengkapiKodeKwitansi();
   if(firstRun) save();
@@ -1073,7 +1116,11 @@ function fillTemplate(text, d){
     '/ALAMAT': d.alamat || '',
     '/TANGGAL': todayID()
   };
-  return String(text || '').replace(/\{\/([A-Z_]+)\}/g, function(m, k){
+  /* Isian serba guna — diisi sekali di halaman Tulis, dipakai di semua surat. */
+  ISIAN_FIELD.forEach(function(f){
+    map['/ISI' + f.n] = state.isian[f.n - 1] || '';
+  });
+  return String(text || '').replace(/\{\/([A-Z_0-9]+)\}/g, function(m, k){
     const key = '/' + k;
     return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : m;
   });
@@ -1601,6 +1648,7 @@ function viewSurat(){
         '<textarea id="s-isi" style="min-height:230px" placeholder="Tulis isi surat di sini…">' + esc(suratState.isi) + '</textarea>' +
       '</div>' +
       (kanal === 'email' ? blokKwitansi() + blokMajalah() : '') +
+      blokIsian() +
     '</div>' +
 
     '<div class="card">' +
@@ -1981,6 +2029,41 @@ function openPeriksaKirim(){
   openModal({ title:'Periksa sebelum kirim', body:body, footer:footer, wide:true });
 }
 
+/* Kotak 5 isian serba guna di halaman Tulis. Diisi SEKALI, lalu dipakai di
+   semua surat lewat token {/ISI1}…{/ISI5}. Gunanya untuk hal yang tidak ada di
+   data donor — misalnya hari/tanggal, waktu, tempat, dan pembicara undangan.
+   Nilainya ikut tersimpan, jadi surat berikutnya tidak perlu diketik ulang. */
+function blokIsian(){
+  const terisi = state.isian.filter(function(v){ return String(v || '').trim(); }).length;
+  return '<div class="sep"></div>' +
+    '<div class="row" style="justify-content:space-between">' +
+      '<span class="small"><b>Isian serba guna</b> ' +
+        '<span class="hint">— diisi sekali, dipakai di semua surat</span></span>' +
+      '<span class="chip' + (terisi ? '' : ' plain') + '">' + terisi + ' dari ' + ISIAN_MAKS + ' terisi</span>' +
+    '</div>' +
+    '<p class="tiny muted" style="margin:6px 0 10px">Untuk hal yang tidak ada di data donor — ' +
+      'misalnya hari/tanggal, waktu, tempat, dan pembicara sebuah undangan. ' +
+      'Klik token <span class="mono">{/ISI1}</span>…<span class="mono">{/ISI5}</span> di atas untuk ' +
+      'menyisipkannya ke isi surat. Isian ini juga dipakai di template.</p>' +
+    '<div class="form-grid">' + ISIAN_FIELD.map(function(f){
+      return '<div class="field"><label>' + esc(f.label) + '</label>' +
+        '<input type="text" class="isian" data-isian="' + f.n + '" ' +
+          'placeholder="' + esc(f.contoh) + '" value="' + esc(state.isian[f.n - 1] || '') + '"></div>';
+    }).join('') + '</div>' +
+    '<div class="btn-row">' +
+      '<button class="btn sm" data-action="isian-simpan">Simpan isian</button>' +
+      '<button class="btn sm ghost" data-action="isian-kosongkan">Kosongkan semua</button>' +
+    '</div>';
+}
+
+/* Ambil nilai 5 isian dari form (dipakai tombol "Simpan isian"). */
+function bacaIsianDariForm(){
+  document.querySelectorAll('.isian').forEach(function(el){
+    const n = parseInt(el.getAttribute('data-isian'), 10);
+    if(n >= 1 && n <= ISIAN_MAKS) state.isian[n - 1] = el.value;
+  });
+}
+
 /* Kotak pilihan kwitansi di halaman Tulis. Hanya untuk kanal email — WhatsApp
    tidak bisa menampilkan tabel HTML. */
 function blokKwitansi(){
@@ -2078,6 +2161,16 @@ function bindSurat(){
     render();
     const el = document.getElementById('s-q');
     if(el){ el.focus(); el.setSelectionRange(pos,pos); }
+  });
+  /* Isian serba guna: diperbarui saat diketik supaya pratinjau langsung ikut
+     berubah, tanpa render ulang seluruh halaman (kursor tidak melompat). */
+  document.querySelectorAll('.isian').forEach(function(el){
+    el.addEventListener('input', function(){
+      const n = parseInt(this.getAttribute('data-isian'), 10);
+      if(!(n >= 1 && n <= ISIAN_MAKS)) return;
+      state.isian[n - 1] = this.value;
+      refreshPreview();
+    });
   });
 }
 function refreshPreview(){
@@ -4712,6 +4805,18 @@ document.addEventListener('click', function(e){
       break;
     case 'kw-bahasa':
       suratState.kwitansiBahasa = act.getAttribute('data-bahasa') === 'en' ? 'en' : 'id';
+      render();
+      break;
+    case 'isian-simpan':
+      bacaIsianDariForm();
+      save('isian');
+      toast('Isian serba guna disimpan');
+      render();
+      break;
+    case 'isian-kosongkan':
+      state.isian = ISIAN_FIELD.map(function(){ return ''; });
+      save('isian');
+      toast('Isian serba guna dikosongkan');
       render();
       break;
     case 'mj-toggle':

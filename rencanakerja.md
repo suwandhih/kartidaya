@@ -144,6 +144,7 @@ User menulis isi surat di editor, lalu menyisipkan token. Sistem mengganti token
 | `{/EMAIL}` | Email penerima |
 | `{/HP}` | HP 1 |
 | `{/TANGGAL}` | Tanggal hari ini (format Indonesia) |
+| `{/ISI1}` … `{/ISI5}` | **Isian serba guna** — diisi sekali di halaman Tulis, lihat di bawah |
 
 Contoh:
 
@@ -176,6 +177,71 @@ Fitur pendukung:
   - Mode simulasi → hanya dicatat `Terkirim` di buku donor.
   - Bisa juga disimpan sebagai `Draft`.
 - **Cetak** surat per penerima (`window.print()`).
+
+### 6.1 Isian serba guna — 5 field untuk hal di luar data donor ✅ SELESAI (12 Nov 2026)
+
+**Masalahnya:** ada hal yang dibutuhkan saat surat dilayangkan tapi **tidak ada
+di data donor** — misalnya hari/tanggal, waktu, tempat, dan pembicara sebuah
+undangan kegiatan. Sebelumnya harus diketik manual di dalam isi surat, dan
+harus diketik ulang setiap kali mengirim surat baru.
+
+**Solusinya:** 5 kotak isian bebas di halaman **Tulis Surat**, di bawah kotak
+kwitansi dan majalah. Diisi **sekali**, lalu dipakai di **semua surat** lewat
+token `{/ISI1}` … `{/ISI5}`.
+
+| Isian | Contoh isi |
+|---|---|
+| Isian 1 | `Sabtu, 22 November 2026` |
+| Isian 2 | `09.00 – 12.00 WIB` |
+| Isian 3 | `Aula Kartidaya, Jakarta` |
+| Isian 4 | `Pdt. Nama Pembicara` |
+| Isian 5 | `Catatan tambahan…` |
+
+Cara pakai:
+
+1. Buka **Tulis Surat**.
+2. Isi kotak **Isian serba guna** (boleh sebagian saja).
+3. Klik token `{/ISI1}` … `{/ISI5}` di baris token untuk menyisipkannya ke isi
+   surat — persis seperti token lain.
+4. Tekan **Simpan isian**. Isian tersimpan di browser dan otomatis terisi lagi
+   saat aplikasi dibuka kembali.
+5. Pratinjau langsung ikut berubah saat isian diketik, jadi bisa dipastikan
+   dulu sebelum dikirim.
+
+Tombol **Kosongkan semua** menghapus kelima isian sekaligus — berguna kalau
+kegiatan sudah selesai dan isian akan dipakai untuk kegiatan berikutnya.
+
+**Template Undangan Kegiatan** bawaan sudah memakai token ini:
+
+```
+Hari/Tanggal : {/ISI1}
+Waktu        : {/ISI2}
+Tempat       : {/ISI3}
+Pembicara    : {/ISI4}
+
+{/ISI5}
+```
+
+Template undangan milik user yang masih versi lama (kolom Hari/Waktu/Tempat
+masih kosong) **dipindahkan otomatis** ke versi baru sekali saat aplikasi
+dibuka. Template yang sudah diubah sendiri oleh user tidak ikut diganti.
+
+**Yang sudah diuji:**
+
+| Uji | Hasil |
+|---|---|
+| 5 kotak isian muncul di halaman Tulis | ✅ |
+| Isi 5 field → pratinjau langsung terisi | ✅ |
+| Token `{/ISI1}` menyisipkan di posisi kursor | ✅ |
+| Tombol **Simpan isian** menyimpan ke browser | ✅ |
+| Isian tetap ada setelah halaman dimuat ulang | ✅ |
+| Tombol **Kosongkan semua** mengosongkan kelima isian | ✅ |
+| Template Undangan bawaan memakai `{/ISI1}`…`{/ISI4}` | ✅ |
+| Template undangan lama dipindahkan otomatis | ✅ |
+| Layar **Periksa sebelum kirim** menampilkan isian yang sudah terisi | ✅ |
+| Penghitung "N dari 5 terisi" | ✅ |
+
+**Perkiraan waktu yang dipakai:** ±45 menit.
 
 ---
 
