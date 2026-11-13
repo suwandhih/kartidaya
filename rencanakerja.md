@@ -3197,7 +3197,12 @@ mengganti isi satu elemen — **bukan** `render()` seluruh halaman. Kalau memaka
 *Ditulis menjawab pertanyaan Anda: "di rencanakerja apa lagi yg perlu direvisi
 atau ada penambahan selain whatsapp". Semua di bawah ini **bukan** WhatsApp.*
 
-### 22.1 🔴 MENDESAK — data pribadi donor ter-publish di internet
+### 22.1 ⏸️ DITUNDA ATAS KEPUTUSAN ANDA — data pribadi donor ter-publish di internet
+
+> **Keputusan Anda (23 Nov 2026):** *"sementara seperti ini.. saya anggap ini
+> data tes.. jadi saya anggapan ini data coba2"* — **tidak dikerjakan sekarang.**
+> Data 18 donor tetap sebagai data uji. Poin ini dibuka kembali **sebelum
+> aplikasi dipakai sungguhan** atau **sebelum repo dipakai klien**.
 
 **Ini yang paling perlu ditangani, dan bukan soal WhatsApp.**
 
@@ -3266,7 +3271,12 @@ ada pilihan *"Majalah yang dilampirkan: [edisi ▾]"*.
 **Perkiraan:** ±2 jam. **Belum mendesak** — kerjakan kalau memang akan ada lebih
 dari satu edisi.
 
-### 22.4 🟡 Halaman pembaca majalah bisa dibuka siapa saja
+### 22.4 ✅ SELESAI (keputusan: dibiarkan terbuka) — halaman pembaca majalah bisa dibuka siapa saja
+
+> **Keputusan Anda (23 Nov 2026):** *"majalah bisa dibaca siapa saja secara
+> teknis, jadi tidak perlu dibuat pengamanan khusus.. login yg sudah sudah
+> cukup"* — **tidak diubah.** Halaman `/baca/<id>` tetap tanpa kata sandi.
+> Login aplikasi (admin/donor/keuangan) sudah dianggap cukup.
 
 `https://kartidaya-wa.suwandhih.workers.dev/baca/<id>` **tidak memakai kata
 sandi**. Siapa pun yang punya tautannya bisa membaca majalah. Tautan itu juga
@@ -3321,18 +3331,70 @@ aman; kalau nanti dipakai beberapa staf, perlu login.
 
 **Perkiraan:** besar (±1–2 hari, perlu server). **Tergantung rencana hosting.**
 
-### 22.10 🟡 Verifikasi OAuth Google belum diajukan
+### 22.10 🟡 Verifikasi OAuth Google belum diajukan — **jawaban: tunggu email resmi klien**
 
-Sekarang aplikasi masih berstatus **Testing** di Google Cloud. Akibatnya:
+**Koreksi fakta penting.** Rencana ini sebelumnya menulis *"token kedaluwarsa
+7 hari"*. Itu **tidak berlaku** untuk aplikasi ini. Batas 7 hari hanya untuk
+aplikasi yang memakai **refresh token** (alur server). Aplikasi Kartidaya
+memakai **Google Identity Services `initTokenClient`** — token didapat langsung
+di browser, tidak ada refresh token, tidak ada server.
+
+| Yang tertulis sebelumnya | Kenyataan di kode |
+|---|---|
+| Token kedaluwarsa **7 hari** | token berlaku **±1 jam**, diperbarui diam-diam selama tab terbuka (`gmail.js:253`, `gmail.js:318`) |
+| Perlu menghubungkan ulang tiap minggu | tidak perlu — cukup buka aplikasi, token diperbarui sendiri |
+
+**Yang benar-benar berlaku selama status masih Testing:**
 
 | Batas | Akibat |
 |---|---|
-| Maksimal **100 test user** | hanya akun yang didaftarkan bisa menghubungkan Gmail |
-| Token kedaluwarsa **7 hari** | perlu menghubungkan ulang Gmail setiap minggu |
+| Maksimal **100 test user** | hanya akun Gmail yang didaftarkan bisa menghubungkan Gmail |
+| Layar **"aplikasi belum diverifikasi"** | muncul sekali saat pertama menghubungkan; klik *Lanjutkan* |
 
-**Usulan:** ajukan verifikasi OAuth (butuh video demo + kebijakan privasi).
-Setelah lulus, batas 7 hari hilang. **Perkiraan proses Google:** 1–4 minggu.
-**Belum mendesak** selama masih dipakai sendiri.
+**Jawaban atas pertanyaan Anda — apakah perlu OAuth sekarang dengan
+`fotohotono03@gmail.com`, atau tunggu email resmi klien?**
+
+**Saran saya: tunggu email resmi klien.** Alasannya:
+
+1. **Verifikasi terikat pada identitas, bukan pada kode.** Yang dinilai Google
+   adalah **nama aplikasi, email dukungan, homepage, dan kebijakan privasi** di
+   layar izin. Kalau diajukan sekarang dengan Gmail pribadi, seluruh pengajuan
+   harus **diulang** begitu email resmi klien dipakai.
+2. **Google sendiri menyatakan verifikasi tidak perlu untuk tahap uji.**
+   Dokumentasi resmi: *"if your app is in the development, testing, or staging
+   phases, verification isn't required"* — status **Testing** memang sudah cukup.
+3. **Syarat verifikasi cukup berat** dan tidak ada gunanya dikerjakan dua kali:
+   - kebijakan privasi yang **di-host di domain aplikasi** (bukan GitHub Pages
+     milik orang lain) dan tertaut di layar izin;
+   - kepemilikan domain diverifikasi lewat **Google Search Console**;
+   - **video demo** di YouTube (Unlisted) yang menunjukkan alur izin **dalam
+     bahasa Inggris**;
+   - `gmail.readonly` termasuk **restricted scope** → butuh **security
+     assessment tahunan** oleh assessor pihak ketiga (CASA), bukan sekadar
+     review biasa. Ini berbiaya dan berulang tiap 12 bulan.
+4. **Selama masa uji, 100 test user lebih dari cukup.** Cukup tambahkan alamat
+   Gmail klien (dan staf yang akan memakai) ke daftar **Test users** di Google
+   Cloud Console → OAuth consent screen. Selesai — tidak perlu verifikasi.
+
+**Kapan verifikasi jadi perlu?** Hanya kalau aplikasi akan dipakai oleh **lebih
+dari 100 akun Gmail**, atau dipakai publik. Untuk pemakaian internal yayasan
+(beberapa staf), batas 100 tidak akan tersentuh.
+
+**Yang perlu Anda lakukan sekarang (5 menit, tanpa verifikasi):**
+
+1. Buka [Google Cloud Console → APIs & Services → OAuth consent screen](https://console.cloud.google.com/apis/credentials/consent).
+2. Di bagian **Test users**, klik **+ ADD USERS**.
+3. Masukkan alamat Gmail yang akan dipakai mengirim surat (termasuk
+   `fotohotono03@gmail.com` dan alamat resmi klien nanti).
+4. Simpan. Selesai.
+
+**Kalau nanti email resmi klien sudah ada**, tinggal: ganti **User support
+email** di layar izin → tambahkan alamat itu sebagai Test user → baru ajukan
+verifikasi kalau memang dibutuhkan. Tidak ada pekerjaan kode yang perlu diubah.
+
+**Perkiraan proses Google (kalau nanti diajukan):** brand verification 2–3 hari
+kerja, lalu review sensitive/restricted scope 1–4 minggu, ditambah security
+assessment CASA untuk `gmail.readonly`.
 
 ### 22.11 🟡 Data Keuangan & Alamat Lengkap masih kosong
 
@@ -3349,21 +3411,22 @@ sungguhan**.
 
 | Prioritas | Pekerjaan | Perkiraan | Perlu keputusan Anda? | Status |
 |---|---|---|---|---|
-| 🔴 1 | **Kosongkan data donor asli dari repo publik** (§22.1) | ±30 menit | **ya** — pilih A / B / C | ⏳ belum |
+| 🔴 1 | **Kosongkan data donor asli dari repo publik** (§22.1) | ±30 menit | **sudah diputuskan** — ditunda, data dianggap data uji | ⏸️ ditunda |
 | 🟠 2 | Pengingat mencadangkan data (§22.2) | ±30 menit | tidak | ✅ selesai |
 | 🟠 3 | Isi data Keuangan & Alamat Lengkap (§22.11) | — | **ya** — data dari Anda | ⏳ belum |
 | 🟡 4 | Daftar edisi majalah (§22.3) | ±2 jam | tidak lagi | ✅ selesai |
-| 🟡 5 | Kata sandi halaman pembaca (§22.4) | ±1 jam | **ya** — majalah untuk umum? | ⏳ belum |
+| 🟡 5 | Kata sandi halaman pembaca (§22.4) | ±1 jam | **sudah diputuskan** — majalah untuk umum, dibiarkan | ✅ selesai |
 | 🟡 6 | Penghitung pembaca majalah (§22.5) | ±1,5 jam | tidak | ✅ selesai |
 | 🟡 7 | Balas semua & Teruskan (§22.6) | ±1 jam | tidak | ✅ selesai |
 | 🟡 8 | Lampiran berkas sungguhan (§22.7) | ±2 jam | tidak | ✅ selesai |
 | 🟡 9 | Template berformat (§22.8) | ±3 jam | tidak | ✅ selesai |
-| 🟡 10 | Verifikasi OAuth Google (§22.10) | proses 1–4 minggu | **ya** — kapan diajukan? | ⏳ belum |
+| 🟡 10 | Verifikasi OAuth Google (§22.10) | proses 1–4 minggu | **sudah diputuskan** — tunggu email resmi klien | ⏸️ ditunda |
 | 🟡 11 | Login / multi-user (§22.9) | ±1–2 hari | tidak lagi | ✅ selesai (§24) |
 
-**Catatan:** §22.1 masih yang paling perlu dikerjakan — repo publik memuat data
-donor asli. Yang tersisa sekarang hanya §22.1, §22.4, §22.10, dan §22.11; tiga
-di antaranya menunggu keputusan/data dari Anda.
+**Catatan:** semua poin yang menunggu keputusan Anda sudah diputuskan. Yang
+tersisa hanya **§22.11** (data Keuangan & Alamat Lengkap dari Anda) — itu bukan
+pekerjaan kode. §22.1 dan §22.10 ditunda atas keputusan Anda dan akan dibuka
+kembali sebelum aplikasi dipakai sungguhan.
 
 ### 22.13 Pemeriksaan ulang isi Cloudflare — 12 Nov 2026, 21:15 WIB
 
