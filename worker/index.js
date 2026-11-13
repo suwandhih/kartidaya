@@ -485,92 +485,201 @@ function halamanTerima(info, sudah){
 }
 
 /* ============================================================
-   HALAMAN DAFTAR AKUN — /daftar
+   HALAMAN AKUN — /daftar
 
-   Sengaja TERPISAH dari aplikasi Kartidaya dan sengaja TANPA kunci
-   aplikasi: yang mendaftar belum punya akun, jadi tidak mungkin
-   memegang kunci. Yang menjaga halaman ini adalah KODE UNDANGAN.
+   Satu halaman, dua tugas:
+     1. Kalau BELUM ada admin → tampilkan formulir "buat akun".
+        Akun yang dibuat di sini otomatis menjadi admin.
+     2. Kalau SUDAH ada admin → minta masuk sebagai admin, lalu
+        tampilkan daftar akun + formulir "buat akun untuk user".
 
-   Menutup pendaftaran = hapus baris di tabel `invites`. Halamannya
-   sendiri boleh tetap ada — tanpa kode yang sah, tidak ada akun
-   yang bisa dibuat. Halaman ini juga bisa dimatikan total dengan
-   variabel DAFTAR_MATI=1 di Worker.
+   Sengaja tanpa kode undangan. Ini fase tes: yang penting user
+   mengerti alurnya — buat akun, masuk, admin membuatkan akun.
    ============================================================ */
 
-function halamanDaftar(terbuka) {
+function halamanDaftar(adaAdmin) {
   return '<!DOCTYPE html><html lang="id"><head>' +
     '<meta charset="utf-8">' +
     '<meta name="viewport" content="width=device-width,initial-scale=1">' +
     '<meta name="robots" content="noindex,nofollow">' +
-    '<title>Buat akun Kartidaya</title>' +
+    '<title>Akun Kartidaya</title>' +
     '<style>' +
       '*{box-sizing:border-box}' +
-      'body{margin:0;padding:32px 18px;background:#f5f5f0;color:#161616;' +
+      'body{margin:0;padding:28px 18px;background:#f5f5f0;color:#161616;' +
         'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;' +
         'line-height:1.55}' +
-      '.kotak{max-width:420px;margin:0 auto;background:#fff;border:1px solid #e3e3dc;' +
-        'border-radius:14px;padding:26px 24px;box-shadow:0 1px 2px rgba(0,0,0,.04)}' +
+      '.kotak{max-width:460px;margin:0 auto 16px;background:#fff;border:1px solid #e3e3dc;' +
+        'border-radius:14px;padding:24px;box-shadow:0 1px 2px rgba(0,0,0,.04)}' +
       'h1{font-size:19px;margin:0 0 4px;font-weight:600}' +
-      'p{font-size:13.5px;color:#6b6b6b;margin:0 0 16px}' +
+      'h2{font-size:15px;margin:0 0 12px;font-weight:600}' +
+      'p{font-size:13.5px;color:#6b6b6b;margin:0 0 14px}' +
       'label{display:block;font-size:12.5px;font-weight:600;color:#6b6b6b;margin:0 0 5px}' +
-      'input{width:100%;padding:10px 12px;border:1px solid #d0d0c6;border-radius:9px;' +
+      'input,select{width:100%;padding:10px 12px;border:1px solid #d0d0c6;border-radius:9px;' +
         'font:inherit;font-size:14px;background:#fff;margin:0 0 12px}' +
-      'input:focus{outline:2px solid #1f6f5c33;border-color:#1f6f5c}' +
+      'input:focus,select:focus{outline:2px solid #1f6f5c33;border-color:#1f6f5c}' +
       'button{width:100%;padding:11px;border:0;border-radius:9px;background:#1f6f5c;' +
         'color:#fff;font:inherit;font-weight:600;cursor:pointer}' +
       'button:disabled{opacity:.5;cursor:not-allowed}' +
+      'button.putih{background:#fff;color:#161616;border:1px solid #d0d0c6}' +
       '.pesan{padding:10px 12px;border-radius:9px;font-size:13px;margin:0 0 14px;display:none}' +
       '.pesan.galat{display:block;background:#f7e9e6;color:#a33a2c}' +
       '.pesan.ok{display:block;background:#e8f0ed;color:#1f6f5c}' +
-      '.tutup{background:#f7f1e0;color:#8a6a1f;padding:12px 14px;border-radius:9px;font-size:13px}' +
+      'table{width:100%;border-collapse:collapse;font-size:13px}' +
+      'th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;' +
+        'color:#8a8a80;font-weight:600;padding:0 0 8px;border-bottom:1px solid #e3e3dc}' +
+      'td{padding:9px 0;border-bottom:1px solid #eee;vertical-align:top}' +
+      'td:last-child{text-align:right;white-space:nowrap}' +
+      '.peran{display:inline-block;font-size:11px;padding:1px 7px;border-radius:20px;' +
+        'background:#e8f0ed;color:#1f6f5c;font-weight:600}' +
+      '.peran.mati{background:#f7e9e6;color:#a33a2c}' +
+      '.kecil{font-size:11.5px;color:#8a8a80}' +
       '.kaki{margin:16px 0 0;font-size:11.5px;color:#8a8a80;text-align:center}' +
       'a{color:#1f6f5c}' +
-    '</style></head><body><div class="kotak">' +
-    '<h1>Buat akun Kartidaya</h1>' +
-    '<p>Halaman ini hanya untuk menambah pengguna aplikasi. Perlu <b>kode undangan</b> dari admin.</p>' +
-    (terbuka
-      ? '<div class="pesan" id="pesan"></div>' +
-        '<form id="f" autocomplete="off">' +
-          '<label for="kode">Kode undangan</label>' +
-          '<input id="kode" name="kode" required autocomplete="off">' +
-          '<label for="nama">Nama lengkap</label>' +
-          '<input id="nama" name="nama" required autocomplete="off">' +
-          '<label for="email">Alamat email</label>' +
-          '<input id="email" name="email" type="email" required autocomplete="off">' +
-          '<label for="password">Password <span style="font-weight:400">(minimal 8 huruf)</span></label>' +
-          '<input id="password" name="password" type="password" minlength="8" required autocomplete="new-password">' +
-          '<button id="b" type="submit">Buat akun</button>' +
-        '</form>' +
-        '<p class="kaki">Sudah punya akun? Buka <a href="./">aplikasi</a> lalu masuk.</p>'
-      : '<div class="tutup"><b>Pendaftaran sedang ditutup.</b><br>' +
-        'Admin perlu memasang kode undangan di server untuk membuka pintu ini ' +
-        'sebentar, lalu menghapusnya lagi setelah akun dibuat.</div>' +
-        '<p class="kaki" style="margin-top:14px">Sudah punya akun? ' +
-        '<a href="./">Buka aplikasi</a>.</p>') +
+      '.sembunyi{display:none}' +
+    '</style></head><body>' +
+
+    /* ---------- kotak 1: masuk / buat akun ---------- */
+    '<div class="kotak" id="kotak-masuk">' +
+      '<h1>Akun Kartidaya</h1>' +
+      '<p id="ket">' +
+        (adaAdmin
+          ? 'Masuk dengan akun admin untuk melihat dan membuat akun pengguna.'
+          : 'Belum ada akun. Buat akun pertama — akun ini otomatis menjadi <b>admin</b>.') +
+      '</p>' +
+      '<div class="pesan" id="pesan"></div>' +
+      (adaAdmin ? '' :
+        '<p class="kecil" style="background:#f7f1e0;color:#8a6a1f;padding:10px 12px;' +
+          'border-radius:9px;margin:0 0 14px">Ini halaman <b>sekali saja</b>: setelah akun admin ' +
+          'dibuat, halaman ini berubah menjadi tempat admin membuat akun pengguna.</p>') +
+      '<form id="f1" autocomplete="off">' +
+              (adaAdmin ? '' :
+                '<label for="nama">Nama lengkap</label>' +
+                '<input id="nama" name="nama" required autocomplete="off">') +
+        '<label for="email">Alamat email</label>' +
+        '<input id="email" name="email" type="email" required autocomplete="off">' +
+        '<label for="password">Password <span style="font-weight:400">(minimal 8 huruf)</span></label>' +
+        '<input id="password" name="password" type="password" minlength="8" required autocomplete="new-password">' +
+              (adaAdmin ? '' :
+                '<label for="ulangi">Ulangi password</label>' +
+                '<input id="ulangi" name="ulangi" type="password" minlength="8" required autocomplete="new-password">') +
+        '<button id="b1" type="submit">' + (adaAdmin ? 'Masuk' : 'Buat akun admin') + '</button>' +
+      '</form>' +
+      '<p class="kaki">Sudah punya akun? <a href="./">Buka aplikasi</a> lalu masuk.</p>' +
     '</div>' +
-    (terbuka ?
+
+    /* ---------- kotak 2: kelola akun (hanya admin) ---------- */
+    '<div class="kotak sembunyi" id="kotak-kelola">' +
+      '<h2 id="judul-kelola">Akun pengguna</h2>' +
+      '<p class="kecil" id="siapa" style="margin:0 0 12px"></p>' +
+      '<table><thead><tr><th>Nama / email</th><th>Aktif</th></tr></thead>' +
+        '<tbody id="isi-tabel"></tbody></table>' +
+      '<div style="height:18px"></div>' +
+      '<h2>Buat akun baru</h2>' +
+      '<div class="pesan" id="pesan2"></div>' +
+      '<form id="f2" autocomplete="off">' +
+        '<label for="n2">Nama lengkap</label>' +
+        '<input id="n2" required autocomplete="off">' +
+        '<label for="e2">Alamat email</label>' +
+        '<input id="e2" type="email" required autocomplete="off">' +
+        '<label for="p2">Password <span style="font-weight:400">(minimal 8 huruf)</span></label>' +
+        '<input id="p2" type="password" minlength="8" required autocomplete="new-password">' +
+        '<label for="u2">Ulangi password</label>' +
+        '<input id="u2" type="password" minlength="8" required autocomplete="new-password">' +
+        '<label for="r2">Jenis akun</label>' +
+        '<select id="r2">' +
+          '<option value="donor">User donor — mengurus data donor & surat</option>' +
+          '<option value="keuangan">User keuangan — mengurus kwitansi & keuangan</option>' +
+          '<option value="admin">Admin — boleh membuat akun juga</option>' +
+        '</select>' +
+        '<button id="b2" type="submit">Buat akun</button>' +
+      '</form>' +
+      '<div style="height:6px"></div>' +
+      '<button class="putih" id="b-keluar" type="button">Keluar dari halaman ini</button>' +
+      '<p class="kaki"><a href="./" id="tautan-app">Buka aplikasi Kartidaya</a></p>' +
+    '</div>' +
+
     '<script>' +
-      'var f=document.getElementById("f"),b=document.getElementById("b"),p=document.getElementById("pesan");' +
-      'function kabar(teks,kelas){p.className="pesan "+kelas;p.textContent=teks;}' +
-      'f.addEventListener("submit",async function(e){' +
-        'e.preventDefault();b.disabled=true;kabar("Mengirim…","");' +
+      'var adaAdmin=' + (adaAdmin ? 'true' : 'false') + ';' +
+      'var token="";' +
+      'var el=function(id){return document.getElementById(id);};' +
+      'function kabar(id,teks,kelas){var p=el(id);p.className="pesan "+(kelas||"");p.textContent=teks||"";}' +
+      'async function api(path,opsi){' +
+        'opsi=opsi||{};' +
+        'var h={"Content-Type":"application/json"};' +
+        'if(token)h["Authorization"]="Bearer "+token;' +
+        'var r=await fetch(path,{method:opsi.method||"GET",headers:h,' +
+          'body:opsi.body?JSON.stringify(opsi.body):undefined});' +
+        'var d=await r.json().catch(function(){return null;});' +
+        'if(!r.ok||!d||d.ok===false){var e=new Error((d&&d.error)||("HTTP "+r.status));e.status=r.status;throw e;}' +
+        'return d;' +
+      '}' +
+      /* ---- form 1: buat admin pertama ATAU masuk ---- */
+      'el("f1").addEventListener("submit",async function(ev){' +
+        'ev.preventDefault();el("b1").disabled=true;kabar("pesan","");' +
         'try{' +
-          'var r=await fetch("/akun/daftar",{method:"POST",' +
-            'headers:{"Content-Type":"application/json"},' +
-            'body:JSON.stringify({kode:document.getElementById("kode").value.trim(),' +
-              'nama:document.getElementById("nama").value.trim(),' +
-              'email:document.getElementById("email").value.trim(),' +
-              'password:document.getElementById("password").value})});' +
-          'var d=await r.json().catch(function(){return null;});' +
-          'if(!r.ok||!d||!d.ok){throw new Error((d&&d.error)||("HTTP "+r.status));}' +
-          'kabar("Akun dibuat. Silakan masuk di aplikasi.","ok");' +
-          'f.reset();' +
-        '}catch(err){kabar(err.message||String(err),"galat");}' +
-        'finally{b.disabled=false;}' +
+          'if(adaAdmin){' +
+            'var r=await api("/akun/login",{method:"POST",body:{email:el("email").value.trim(),' +
+              'password:el("password").value}});' +
+            'if(r.pengguna.peran!=="admin"){throw new Error("Akun ini bukan admin");}' +
+            'token=r.token;pengguna=r.pengguna;tampilKelola();' +
+          '}else{' +
+                      'var em=el("email").value.trim(),pw=el("password").value;' +
+            'var r2=await api("/akun/daftar",{method:"POST",body:{nama:el("nama").value.trim(),' +
+                        'email:em,password:pw,ulangi:el("ulangi").value}});' +
+                      'kabar("pesan","Akun admin dibuat. Masuk sebagai admin…","ok");' +
+                      'adaAdmin=true;' +
+                      'var m=await api("/akun/login",{method:"POST",body:{email:em,password:pw}});' +
+                      'token=m.token;pengguna=m.pengguna;tampilKelola();' +
+          '}' +
+        '}catch(err){kabar("pesan",err.message,"galat");}' +
+        'finally{el("b1").disabled=false;}' +
       '});' +
-    '<\/script>' : '') +
-    '</body></html>';
-}
+      /* ---- form 2: admin membuat akun ---- */
+      'el("f2").addEventListener("submit",async function(ev){' +
+        'ev.preventDefault();el("b2").disabled=true;kabar("pesan2","");' +
+        'try{' +
+          'var r=await api("/akun/tambah",{method:"POST",body:{nama:el("n2").value.trim(),' +
+            'email:el("e2").value.trim(),password:el("p2").value,ulangi:el("u2").value,' +
+            'peran:el("r2").value}});' +
+          'kabar("pesan2","Akun "+r.pengguna.email+" ("+r.pengguna.peran+") dibuat.","ok");' +
+          'el("f2").reset();muat();' +
+        '}catch(err){kabar("pesan2",err.message,"galat");}' +
+        'finally{el("b2").disabled=false;}' +
+      '});' +
+      'el("b-keluar").addEventListener("click",function(){token="";pengguna=null;' +
+        'el("kotak-kelola").className="kotak sembunyi";el("kotak-masuk").className="kotak";' +
+        'el("f1").reset();kabar("pesan","");});' +
+      'var pengguna=null;' +
+      'function tampilKelola(){' +
+        'el("kotak-masuk").className="kotak sembunyi";' +
+        'el("kotak-kelola").className="kotak";' +
+        'el("siapa").innerHTML="Masuk sebagai <b>"+(pengguna.nama||"")+"</b> ("+pengguna.email+") — "+pengguna.peran+".";' +
+        'muat();' +
+      '}' +
+      'async function muat(){' +
+        'try{var d=await api("/akun/pengguna");' +
+          'var t=el("isi-tabel");t.innerHTML="";' +
+          'd.pengguna.forEach(function(u){' +
+            'var tr=document.createElement("tr");' +
+            'var aktif=u.aktif?"":" mati";' +
+            'tr.innerHTML="<td><b>"+u.nama+"</b><br><span class=kecil>"+u.email+"</span><br>"+' +
+              '"<span class=peran"+aktif+">"+u.peran+(u.aktif?"":" · mati")+"</span></td>"+' +
+              '"<td><span class=kecil>"+(u.aktif?("terakhir masuk: "+(u.masuk_terakhir?u.masuk_terakhir.slice(0,16).replace("T"," "):"belum pernah")):"dimatikan")+"</span><br>"+' +
+              '"<button class=putih style=\\"width:auto;padding:5px 10px;font-size:12px;margin-top:6px\\" ' +
+              'data-email=\\""+u.email+"\\" data-aktif=\\""+(u.aktif?0:1)+"\\">"+(u.aktif?"Matikan":"Aktifkan")+"</button></td>";' +
+            'tr.querySelector("button").addEventListener("click",async function(){' +
+              'this.disabled=true;' +
+              'try{await api("/akun/aktif",{method:"POST",body:{email:this.getAttribute("data-email"),' +
+                'aktif:this.getAttribute("data-aktif")==="1"}});muat();}' +
+              'catch(err){kabar("pesan2",err.message,"galat");this.disabled=false;}' +
+            '});' +
+            't.appendChild(tr);' +
+          '});' +
+        '}catch(err){kabar("pesan2","Gagal memuat akun: "+err.message,"galat");}' +
+      '}' +
+    '<\/script>' +
+            '</body></html>';
+        }
 
 /* ============================================================
    TANDA DIBACA — pixel 1×1 yang dicatat saat email dibuka.
@@ -668,20 +777,17 @@ async function metaSimpan(env, kunci, isi) {
 /* ============================================================
    AKUN & LOGIN
 
-   Prinsipnya:
-   - Password TIDAK disimpan apa adanya. Yang disimpan hanya hash PBKDF2
-     + salt acak. Kalau database bocor, password tidak terbaca.
-   - Setiap masuk menghasilkan token acak yang berlaku 12 jam. Token
-     disimpan di server sehingga bisa dicabut sebelum waktunya.
-   - Email atau password yang salah dijawab dengan pesan yang SAMA, supaya
-     tidak memberi petunjuk alamat mana yang terdaftar.
-   - Kunci aplikasi (X-App-Key) tetap wajib, jadi endpoint ini tidak terbuka
-     untuk umum. Pintu pendaftaran ditutup/dibuka lewat tabel `invites`.
+   Fase tes — dibuat sederhana:
+   - Password disimpan sebagai hash + salt (bukan tulisan biasa),
+     tetapi tidak ada lapisan tambahan di luar itu.
+   - Setiap masuk menghasilkan token yang berlaku 12 jam.
+   - Endpoint akun masih memakai kunci aplikasi (X-App-Key) yang
+     sudah dipegang aplikasi, jadi user tidak perlu mengetiknya.
+   - Tidak ada kode undangan. Akun pertama = admin; akun berikutnya
+     dibuat oleh admin dari halaman /daftar.
    ============================================================ */
 
 const PBKDF2_ITER = 100000;
-const LOGIN_MAKS_GAGAL = 5;
-const LOGIN_TUNGGU_MENIT = 15;
 const SESI_JAM = 12;
 
 function b64url(buf) {
@@ -761,40 +867,9 @@ function galatLogin() {
   return json({ ok: false, error: 'Email atau password salah' }, 401);
 }
 
-/* Batas percobaan: dihitung per email per 15 menit. Jawabannya seragam supaya
-   tidak bisa dipakai menebak alamat mana yang terdaftar. */
-async function cekBlokir(env, email) {
-  const row = await env.DB.prepare(
-    'SELECT menit, gagal, sampai FROM login_acuan WHERE email = ?'
-  ).bind(email).first();
-  if (!row) return { blokir: false };
-  if (row.sampai && Date.parse(row.sampai) > Date.now()) {
-    return { blokir: true, sampai: row.sampai };
-  }
-  return { blokir: false };
-}
-
-async function catatGagal(env, email) {
-  const menit = Math.floor(Date.now() / 60000);
-  const row = await env.DB.prepare(
-    'SELECT menit, gagal FROM login_acuan WHERE email = ?'
-  ).bind(email).first();
-  /* Hitungan hanya berlaku 15 menit; lewat dari itu mulai dari 1 lagi. */
-  let jumlah = 1;
-  if (row && row.menit >= menit - LOGIN_TUNGGU_MENIT) jumlah = (row.gagal || 0) + 1;
-  const sampai = jumlah >= LOGIN_MAKS_GAGAL
-    ? new Date(Date.now() + LOGIN_TUNGGU_MENIT * 60000).toISOString()
-    : null;
-  await env.DB.prepare(
-    'INSERT INTO login_acuan (email, menit, gagal, sampai) VALUES (?, ?, ?, ?) ' +
-    'ON CONFLICT(email) DO UPDATE SET menit = excluded.menit, gagal = excluded.gagal, sampai = excluded.sampai'
-  ).bind(email, menit, jumlah, sampai).run();
-  return jumlah;
-}
-
-async function hapusHitunganGagal(env, email) {
-  await env.DB.prepare('DELETE FROM login_acuan WHERE email = ?').bind(email).run();
-}
+/* Catatan: batas percobaan login SENGAJA TIDAK dipakai. Ini fase tes —
+   yang penting user mudah masuk. Kalau nanti aplikasi dipakai dengan data
+   sungguhan, batas ini bisa dinyalakan lagi (lihat PANDUAN-AKUN.md). */
 
 async function buatSesi(env, email, peran) {
   const token = acakB64(32);
@@ -816,16 +891,6 @@ async function akunLogin(req, env) {
   const password = String((body && body.password) || '');
   if (!email || !password) return galatLogin();
 
-  const blokir = await cekBlokir(env, email);
-  if (blokir.blokir) {
-    const sisa = Math.max(1, Math.ceil((Date.parse(blokir.sampai) - Date.now()) / 60000));
-    return json({
-      ok: false,
-      error: 'Terlalu banyak percobaan. Coba lagi dalam ' + sisa + ' menit.',
-      blokir: true
-    }, 429);
-  }
-
   const row = await env.DB.prepare(
     'SELECT email, nama, hash, salt, iter, peran, aktif FROM users WHERE email = ?'
   ).bind(email).first();
@@ -835,14 +900,13 @@ async function akunLogin(req, env) {
   const salt = (row && row.salt) || 'AAAAAAAAAAAAAAAAAAAAAA';
   const hash = await hashPassword(password, salt, iter);
   if (!row || !row.aktif || !row.hash || !sameKey(hash, row.hash)) {
-    await catatGagal(env, email);
     return galatLogin();
   }
 
-  await hapusHitunganGagal(env, email);
   const sesi = await buatSesi(env, email, row.peran);
   await env.DB.prepare('UPDATE users SET masuk_terakhir = ? WHERE email = ?')
     .bind(new Date().toISOString(), email).run();
+  await catatAktivitas(env, { email: row.email, nama: row.nama }, 'masuk', 'akun', row.email, 'masuk aplikasi');
   return json({
     ok: true,
     token: sesi.token,
@@ -865,62 +929,191 @@ async function akunSaya(req, env) {
 
 async function akunKeluar(req, env) {
   const token = bearer(req);
-  if (token) await env.DB.prepare('DELETE FROM sessions WHERE token = ?').bind(token).run();
+  if (token) {
+    const s = await sesiDari(req, env);
+    await env.DB.prepare('DELETE FROM sessions WHERE token = ?').bind(token).run();
+    if (s) await catatAktivitas(env, s, 'keluar', 'akun', s.email, 'keluar aplikasi');
+  }
   return json({ ok: true });
 }
 
-async function akunDaftarTerbuka(env) {
-  const r = await env.DB.prepare('SELECT COUNT(*) AS n FROM invites').first();
-  return json({ ok: true, terbuka: !!(r && r.n > 0) });
-}
-
-/* Pendaftaran hanya jalan kalau kode undangannya ada di tabel `invites`.
-   Kode itu TIDAK dihapus setelah dipakai — satu kode boleh dipakai untuk
-   beberapa akun, dan pintunya ditutup dengan menghapus barisnya. Alasannya:
-   dengan 2–3 akun, menghapus kode setelah satu pemakaian justru merepotkan. */
+/* Akun pertama dibuat lewat halaman /daftar dan otomatis menjadi admin.
+   Setelah ada admin, pendaftaran mandiri ditutup: akun berikutnya hanya bisa
+   dibuat oleh admin dari halaman yang sama. Ini cukup untuk fase tes —
+   tidak perlu kode undangan. */
 async function akunDaftar(req, env) {
   if (!env.DB) return json({ ok: false, error: 'Database D1 belum dipasang di Worker' }, 500);
-  const r = await env.DB.prepare('SELECT COUNT(*) AS n FROM invites').first();
-  if (!r || !r.n) {
-    return json({ ok: false, error: 'Pendaftaran sedang ditutup' }, 403);
+  const adaAdmin = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM users WHERE peran = 'admin' AND aktif = 1"
+  ).first();
+  if (adaAdmin && adaAdmin.n > 0) {
+    return json({
+      ok: false,
+      error: 'Admin sudah ada. Masuk sebagai admin untuk membuat akun berikutnya.'
+    }, 403);
   }
+
   const body = await req.json().catch(function () { return null; });
-  const kode = String((body && body.kode) || '').trim();
   const email = rapikanEmail(body && body.email);
   const nama = String((body && body.nama) || '').trim();
   const password = String((body && body.password) || '');
+  const ulang = String((body && body.ulangi) || '');
 
-  const undangan = await env.DB.prepare('SELECT kode FROM invites WHERE kode = ?').bind(kode).first();
-  if (!undangan) return json({ ok: false, error: 'Kode undangan salah' }, 403);
   if (!emailWajar(email)) return json({ ok: false, error: 'Alamat email belum benar' }, 400);
   if (nama.length < 2) return json({ ok: false, error: 'Nama belum diisi' }, 400);
   if (password.length < 8) return json({ ok: false, error: 'Password minimal 8 huruf' }, 400);
+  if (password !== ulang) return json({ ok: false, error: 'Ulangan password tidak sama' }, 400);
 
   const ada = await env.DB.prepare('SELECT email FROM users WHERE email = ?').bind(email).first();
   if (ada) return json({ ok: false, error: 'Email itu sudah terdaftar' }, 409);
 
   const salt = acakB64(16);
   const hash = await hashPassword(password, salt, PBKDF2_ITER);
-  const adminPertama = await env.DB.prepare(
-    "SELECT COUNT(*) AS n FROM users WHERE aktif = 1 AND peran = 'admin'"
-  ).first();
-  const peran = (adminPertama && adminPertama.n > 0) ? 'user' : 'admin';
+  await env.DB.prepare(
+    'INSERT INTO users (email, nama, hash, salt, iter, peran, aktif, dibuat, masuk_terakhir) ' +
+    "VALUES (?, ?, ?, ?, ?, 'admin', 1, ?, NULL)"
+  ).bind(email, nama, hash, salt, PBKDF2_ITER, new Date().toISOString()).run();
 
+  await catatAktivitas(env, { email: email, nama: nama }, 'tambah', 'akun', email, 'admin pertama');
+
+  return json({ ok: true, pengguna: { email: email, nama: nama, peran: 'admin' } });
+}
+
+/* Admin membuatkan akun untuk user donor / user keuangan. */
+async function akunTambah(req, env) {
+  const sesi = await sesiDari(req, env);
+  if (!sesi) return json({ ok: false, error: 'Sesi tidak berlaku' }, 401);
+  if (sesi.peran !== 'admin') {
+    return json({ ok: false, error: 'Hanya admin yang bisa membuat akun' }, 403);
+  }
+
+  const body = await req.json().catch(function () { return null; });
+  const email = rapikanEmail(body && body.email);
+  const nama = String((body && body.nama) || '').trim();
+  const password = String((body && body.password) || '');
+  const ulang = String((body && body.ulangi) || '');
+  const peran = String((body && body.peran) || 'donor');
+
+  if (['admin', 'donor', 'keuangan'].indexOf(peran) < 0) {
+    return json({ ok: false, error: 'Jenis akun tidak dikenal' }, 400);
+  }
+  if (!emailWajar(email)) return json({ ok: false, error: 'Alamat email belum benar' }, 400);
+  if (nama.length < 2) return json({ ok: false, error: 'Nama belum diisi' }, 400);
+  if (password.length < 8) return json({ ok: false, error: 'Password minimal 8 huruf' }, 400);
+  if (password !== ulang) return json({ ok: false, error: 'Ulangan password tidak sama' }, 400);
+
+  const ada = await env.DB.prepare('SELECT email FROM users WHERE email = ?').bind(email).first();
+  if (ada) return json({ ok: false, error: 'Email itu sudah terdaftar' }, 409);
+
+  const salt = acakB64(16);
+  const hash = await hashPassword(password, salt, PBKDF2_ITER);
   await env.DB.prepare(
     'INSERT INTO users (email, nama, hash, salt, iter, peran, aktif, dibuat, masuk_terakhir) ' +
     'VALUES (?, ?, ?, ?, ?, ?, 1, ?, NULL)'
   ).bind(email, nama, hash, salt, PBKDF2_ITER, peran, new Date().toISOString()).run();
 
+  await catatAktivitas(env, sesi, 'tambah', 'akun', email, 'akun ' + peran);
+
   return json({ ok: true, pengguna: { email: email, nama: nama, peran: peran } });
+}
+
+/* Menyalakan / mematikan akun. Tidak ada tombol hapus: mematikan sudah cukup
+   dan tidak menghilangkan jejak aktivitasnya. */
+async function akunAktif(req, env) {
+  const sesi = await sesiDari(req, env);
+  if (!sesi) return json({ ok: false, error: 'Sesi tidak berlaku' }, 401);
+  if (sesi.peran !== 'admin') return json({ ok: false, error: 'Hanya admin' }, 403);
+
+  const body = await req.json().catch(function () { return null; });
+  const email = rapikanEmail(body && body.email);
+  const aktif = body && body.aktif ? 1 : 0;
+  const target = await env.DB.prepare('SELECT email, peran FROM users WHERE email = ?').bind(email).first();
+  if (!target) return json({ ok: false, error: 'Akun tidak ditemukan' }, 404);
+  if (target.peran === 'admin' && !aktif) {
+    const n = await env.DB.prepare(
+      "SELECT COUNT(*) AS n FROM users WHERE peran = 'admin' AND aktif = 1"
+    ).first();
+    if (n && n.n <= 1) return json({ ok: false, error: 'Admin terakhir tidak bisa dimatikan' }, 400);
+  }
+
+  await env.DB.prepare('UPDATE users SET aktif = ? WHERE email = ?').bind(aktif, email).run();
+  if (!aktif) await env.DB.prepare('DELETE FROM sessions WHERE email = ?').bind(email).run();
+
+  await catatAktivitas(env, sesi, 'ubah', 'akun', email, aktif ? 'diaktifkan' : 'dimatikan');
+  return json({ ok: true });
+}
+
+/* ============================================================
+   CATATAN AKTIVITAS ("CCTV")
+
+   Setiap kejadian dicatat: siapa, kapan, apa. Ini hanya catatan —
+   tidak membatasi apa pun. Tujuannya supaya kalau ada data yang
+   berubah atau hilang, bisa ditelusuri siapa pelakunya.
+   ============================================================ */
+
+async function catatAktivitas(env, sesi, aksi, bagian, sasaran, ket) {
+  try {
+    await env.DB.prepare(
+      'INSERT INTO aktivitas (waktu, email, nama, aksi, bagian, sasaran, ket) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    ).bind(
+      new Date().toISOString(),
+      String((sesi && sesi.email) || ''),
+      String((sesi && sesi.nama) || ''),
+      String(aksi || ''),
+      String(bagian || ''),
+      String(sasaran || ''),
+      String(ket || '')
+    ).run();
+  } catch (e) {
+    /* Pencatatan tidak boleh menggagalkan pekerjaan utama pengguna. */
+  }
+}
+
+/* Aplikasi mengirim catatan aktivitasnya sendiri (tambah/ubah/hapus data),
+   supaya aturan "apa yang dicatat" tetap di satu tempat: di aplikasi. */
+async function akunCatat(req, env) {
+  const sesi = await sesiDari(req, env);
+  if (!sesi) return json({ ok: false, error: 'Sesi tidak berlaku' }, 401);
+  const body = await req.json().catch(function () { return null; });
+  const baris = (body && Array.isArray(body.baris)) ? body.baris : [];
+  const u = await penggunaAktif(env, sesi.email);
+  const nama = (u && u.nama) || sesi.email;
+
+  for (const b of baris.slice(0, 40)) {
+    await catatAktivitas(env,
+      { email: sesi.email, nama: nama },
+      String((b && b.aksi) || 'ubah'),
+      String((b && b.bagian) || ''),
+      String((b && b.sasaran) || ''),
+      String((b && b.ket) || '').slice(0, 200));
+  }
+  return json({ ok: true });
+}
+
+async function akunAktivitas(req, env) {
+  const sesi = await sesiDari(req, env);
+  if (!sesi) return json({ ok: false, error: 'Sesi tidak berlaku' }, 401);
+  if (sesi.peran !== 'admin') return json({ ok: false, error: 'Hanya admin' }, 403);
+  const url = new URL(req.url);
+  const batas = Math.min(500, Math.max(10, Number(url.searchParams.get('batas')) || 200));
+  const r = await env.DB.prepare(
+    'SELECT waktu, email, nama, aksi, bagian, sasaran, ket FROM aktivitas ORDER BY id DESC LIMIT ?'
+  ).bind(batas).all();
+  return json({ ok: true, aktivitas: r.results || [] });
 }
 
 async function akunDaftarPengguna(req, env) {
   const sesi = await sesiDari(req, env);
   if (!sesi) return json({ ok: false, error: 'Sesi tidak berlaku' }, 401);
+  if (sesi.peran !== 'admin') return json({ ok: false, error: 'Hanya admin' }, 403);
   const daftar = await env.DB.prepare(
     'SELECT email, nama, peran, aktif, dibuat, masuk_terakhir FROM users ORDER BY dibuat'
   ).all();
-  return json({ ok: true, pengguna: daftar.results || [] });
+  return json({
+    ok: true,
+    pengguna: daftar.results || [],
+    saya: { email: sesi.email, peran: sesi.peran }
+  });
 }
 
 /* Pengguna boleh mengganti password sendiri; admin boleh mengganti milik
@@ -948,7 +1141,6 @@ async function akunGantiPassword(req, env) {
     /* Salah password lama masih dihitung sebagai percobaan — kalau tidak,
        siapa pun yang menemukan sesi yang lupa ditutup bisa mengganti password. */
     if (!sameKey(uji, row.hash)) {
-      await catatGagal(env, email);
       return json({ ok: false, error: 'Password lama salah' }, 401);
     }
   } else {
@@ -1159,33 +1351,73 @@ export default {
         });
       }
 
-      /* --- halaman pendaftaran (tanpa kunci, dijaga kode undangan) --- */
+      /* --- halaman akun (satu halaman) --- */
       if ((path === '/daftar' || path === '/daftar/') && req.method === 'GET') {
         if (!env.DB) return new Response('Database belum dipasang', { status: 500 });
-        const n = await env.DB.prepare('SELECT COUNT(*) AS n FROM invites').first();
-        const terbuka = !!env.DAFTAR_MATI ? false : !!(n && n.n > 0);
-        return new Response(halamanDaftar(terbuka), {
+              const n = await env.DB.prepare(
+                "SELECT COUNT(*) AS n FROM users WHERE peran = 'admin' AND aktif = 1"
+              ).first();
+              return new Response(halamanDaftar(!!(n && n.n > 0)), {
           status: 200,
           headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }
         });
       }
 
-            /* Membuat akun juga TANPA kunci aplikasi — yang mendaftar belum punya
-               akun, dan halaman /daftar tidak memegang kunci. Pengamannya adalah
-               kode undangan: tanpa kode yang ada di tabel `invites`, tidak ada akun
-               yang bisa dibuat. Endpoint ini sengaja diletakkan SEBELUM pemeriksaan
-               kunci; endpoint akun lainnya tetap butuh kunci. */
+            /* ---------- akun & login (tanpa kunci aplikasi) ----------
+               Fase tes: halaman akun berdiri sendiri dan tidak memegang kunci
+               aplikasi, jadi endpoint akun tidak meminta kunci. Yang menjaga tetap
+               password dan token — bukan kunci. Ini disengaja supaya user tidak
+               perlu menyiapkan apa pun untuk mencoba.
+               (Data bersama /data tetap memakai kunci seperti sebelumnya.) */
+
             if (path === '/akun/daftar' && req.method === 'POST') {
               return withCors(await akunDaftar(req, env), req);
             }
+            if (path === '/akun/login' && req.method === 'POST') {
+              return withCors(await akunLogin(req, env), req);
+            }
+            if (path === '/akun/saya' && req.method === 'POST') {
+              return withCors(await akunSaya(req, env), req);
+            }
+            if (path === '/akun/keluar' && req.method === 'POST') {
+              return withCors(await akunKeluar(req, env), req);
+            }
+            if (path === '/akun/daftar-terbuka' && req.method === 'GET') {
+              const n = await env.DB.prepare(
+                "SELECT COUNT(*) AS n FROM users WHERE peran = 'admin' AND aktif = 1"
+              ).first();
+              return withCors(json({ ok: true, adaAdmin: !!(n && n.n > 0) }), req);
+            }
+            if (path === '/akun/pengguna' && req.method === 'GET') {
+              return withCors(await akunDaftarPengguna(req, env), req);
+            }
+            if (path === '/akun/tambah' && req.method === 'POST') {
+              return withCors(await akunTambah(req, env), req);
+            }
+            if (path === '/akun/aktif' && req.method === 'POST') {
+              return withCors(await akunAktif(req, env), req);
+            }
+            if (path === '/akun/ganti-password' && req.method === 'POST') {
+              return withCors(await akunGantiPassword(req, env), req);
+            }
+            if (path === '/akun/aktivitas' && req.method === 'GET') {
+              return withCors(await akunAktivitas(req, env), req);
+            }
+            if (path === '/akun/catat' && req.method === 'POST') {
+              return withCors(await akunCatat(req, env), req);
+            }
 
-      /* --- sisanya butuh kunci aplikasi --- */
-      if (!authorized(req, env)) {
+      /* --- sisanya butuh kunci aplikasi ATAU token login ---
+               Data bersama (/data) dan WhatsApp tetap butuh salah satu dari itu.
+               Dengan begitu browser baru tidak perlu mengisi kunci aplikasi hanya
+               untuk membaca data — cukup masuk dengan akun. */
+            const bersesi = !!(await sesiDari(req, env));
+            if (!authorized(req, env) && !bersesi) {
         return withCors(json({
           ok: false,
-          error: 'Kunci aplikasi salah atau belum diisi',
-          petunjuk: 'Buka aplikasi → Setelan → Worker Cloudflare → isi kolom ' +
-            '"Kunci aplikasi" dengan nilai APP_KEY, lalu tekan "Simpan & uji sambungan".'
+                error: 'Belum masuk, dan kunci aplikasi belum diisi',
+                petunjuk: 'Masuk dengan akun di layar masuk. (Kunci aplikasi hanya ' +
+                  'diperlukan untuk pengaturan WhatsApp & majalah di Setelan.)'
         }, 401), req);
       }
 
@@ -1202,41 +1434,7 @@ export default {
         }), req);
       }
 
-      /* ---------- akun & login ---------- */
-
-        /* Endpoint akun di bawah ini butuh kunci aplikasi (X-App-Key) — sudah
-           diperiksa di atas. Kuncinya dipegang aplikasi, jadi pengguna tidak perlu
-           mengetik apa pun lagi: layar login hanya meminta email + password.
-           Tanpa syarat ini, siapa pun yang tahu alamat Worker bisa menebak password
-           tanpa henti.
-           Pengecualian: /akun/daftar sudah ditangani SEBELUM pemeriksaan kunci,
-           karena halaman pendaftaran berdiri sendiri dan tidak memegang kunci. */
-
-  if (path === '/akun/login' && req.method === 'POST') {
-    return withCors(await akunLogin(req, env), req);
-  }
-
-  if (path === '/akun/saya' && req.method === 'POST') {
-    return withCors(await akunSaya(req, env), req);
-  }
-
-  if (path === '/akun/keluar' && req.method === 'POST') {
-    return withCors(await akunKeluar(req, env), req);
-  }
-
-        if (path === '/akun/daftar-terbuka' && req.method === 'GET') {
-          return withCors(await akunDaftarTerbuka(env), req);
-  }
-
-  if (path === '/akun/pengguna' && req.method === 'GET') {
-    return withCors(await akunDaftarPengguna(req, env), req);
-  }
-
-  if (path === '/akun/ganti-password' && req.method === 'POST') {
-    return withCors(await akunGantiPassword(req, env), req);
-  }
-
-  /* ---------- data bersama ---------- */
+            /* ---------- data bersama ---------- */
 
       /* Ambil semua data. Aplikasi memanggil ini sekali saat dibuka. */
       if (path === '/data' && req.method === 'GET') {

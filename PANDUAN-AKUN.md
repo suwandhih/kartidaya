@@ -1,186 +1,164 @@
-# Panduan Akun & Login
+# Panduan Akun — Kartidaya
 
-Aplikasi Kartidaya sekarang memakai **akun per orang** (email + password).
-Ada **dua aplikasi** yang bekerja sama:
+Halaman akun: **https://kartidaya-wa.suwandhih.workers.dev/daftar**
 
-| Aplikasi | Alamat | Gunanya | Dipakai kapan |
-|---|---|---|---|
-| **Aplikasi Kartidaya** | `https://suwandhih.github.io/kartidaya/` | kerja sehari-hari: donor, surat, keuangan | setiap hari |
-| **Halaman pendaftaran** | `https://kartidaya-wa.suwandhih.workers.dev/daftar` | membuat akun baru | 2–3 kali seumur aplikasi |
-
-Halaman pendaftaran **sengaja dipisah**: kalau pintunya menempel di aplikasi
-utama, pintu itu terbuka terus. Dipisah, lalu ditutup = pintunya hilang.
+Halaman ini **terpisah** dari aplikasi. Fungsinya hanya membuat dan mengatur
+akun, jadi tidak perlu dibuka setiap hari.
 
 ---
 
-## 1. Kenapa dipisah, dan kenapa "ditutup" bukan sekadar halaman dihapus
-
-Menghapus halaman pendaftaran **tidak cukup**. Kalau pintu di server masih
-terbuka, siapa pun yang tahu alamatnya tetap bisa membuat akun.
-
-Yang dipakai di sini: pintu pendaftaran hanya terbuka kalau ada **kode
-undangan** di database (tabel `invites`).
+## 1. Alur singkatnya
 
 ```
-Ada kode undangan  →  /daftar menampilkan formulir
-Tidak ada kode     →  /daftar hanya menampilkan "Pendaftaran sedang ditutup"
+Belum ada akun
+     │  buka halaman akun
+     ▼
+Buat akun  ──►  otomatis menjadi ADMIN
+     │
+     │  admin masuk di halaman yang sama
+     ▼
+Admin membuat akun untuk:
+     • User donor     (mengurus data donor & surat)
+     • User keuangan  (mengurus kwitansi & keuangan)
+     │
+     ▼
+Setiap user membuka aplikasi, masuk dengan email + password
 ```
 
-Menutup pintu = menghapus baris kode undangan itu. **Seketika**, tanpa
-mengubah kode program dan tanpa deploy ulang.
+Tidak ada kode undangan, tidak ada langkah tambahan.
 
 ---
 
-## 2. Membuat akun pertama (admin)
+## 2. Membuat akun admin (sekali saja)
 
-Akun pertama otomatis menjadi **admin**. Urutannya:
+1. Buka **https://kartidaya-wa.suwandhih.workers.dev/daftar**
+2. Tampilannya berbunyi *"Belum ada akun. Buat akun pertama — akun ini otomatis
+   menjadi admin."*
+3. Isi:
+   - **Nama lengkap** — nama Anda, dipakai untuk mencatat siapa yang mengubah data
+   - **Alamat email** — dipakai untuk masuk
+   - **Password** — minimal 8 huruf
+   - **Ulangi password** — ketik sekali lagi, harus sama
+4. Tekan **Buat akun admin**
 
-```powershell
-cd worker
+Setelah itu halaman langsung berubah menjadi tampilan admin: daftar akun + form
+*buat akun baru*.
 
-# 1. Pasang tabel akun di database (sekali saja)
-npx wrangler d1 execute kartidaya --remote --file=schema.sql
-
-# 2. Buka pintu pendaftaran dengan kode undangan pilihan Anda
-npx wrangler d1 execute kartidaya --remote --command "INSERT INTO invites (kode, dibuat, catatan) VALUES ('kartidaya-2026', datetime('now'), 'akun pertama')"
-```
-
-3. Buka `https://kartidaya-wa.suwandhih.workers.dev/daftar`
-4. Isi: kode undangan, nama, email, password (minimal 8 huruf)
-5. Akun pertama otomatis **admin**
-
-**Setelah akun Anda jadi, tutup pintunya:**
-
-```powershell
-npx wrangler d1 execute kartidaya --remote --command "DELETE FROM invites"
-```
-
-Sekarang `/daftar` hanya menampilkan "Pendaftaran sedang ditutup".
+> Saran password sederhana: tiga kata yang mudah Anda ingat, misalnya
+> `kartidaya2026`.
 
 ---
 
-## 3. Menambah pengguna kedua
+## 3. Admin membuat akun untuk user
 
-Buka pintunya lagi, buat akunnya, tutup lagi:
+Di halaman yang sama, di bagian **Buat akun baru**:
 
-```powershell
-cd worker
-npx wrangler d1 execute kartidaya --remote --command "INSERT INTO invites (kode, dibuat, catatan) VALUES ('tambah-kamlesh', datetime('now'), 'user kedua')"
-```
+1. Isi **Nama lengkap**, **Alamat email**, **Password**, dan **Ulangi password**
+2. Pilih **Jenis akun**:
 
-Berikan kode itu ke orangnya, minta dia membuka
-`https://kartidaya-wa.suwandhih.workers.dev/daftar` dan membuat akunnya
-sendiri — **Anda tidak perlu tahu password-nya**.
+   | Pilihan | Untuk siapa |
+   |---|---|
+   | **User donor** | mengurus data donor & surat |
+   | **User keuangan** | mengurus kwitansi & keuangan |
+   | **Admin** | boleh membuat akun juga |
 
-Setelah itu:
+3. Tekan **Buat akun**
 
-```powershell
-npx wrangler d1 execute kartidaya --remote --command "DELETE FROM invites"
-```
+Akun baru langsung muncul di daftar. Berikan email & password itu kepada
+orangnya — Anda tidak perlu membuatkannya lagi.
 
-> **Cek kapan saja:** di aplikasi → **Setelan** → kartu **Akun saya** →
-> tombol **Cek pintu pendaftaran**. Jawabannya "terbuka" atau "tertutup".
+**Kalau admin perlu masuk lagi:** buka halaman akun, masukkan email & password
+admin di bagian atas, lalu tekan **Masuk**.
 
 ---
 
 ## 4. Masuk ke aplikasi
 
-1. Buka `https://suwandhih.github.io/kartidaya/`
-2. Isi **email** dan **password**
+1. Buka **https://suwandhih.github.io/kartidaya/**
+2. Isi **email** dan **password** yang sudah dibuat
 3. Tekan **Masuk**
-
-Yang perlu diketahui:
 
 | Hal | Keterangan |
 |---|---|
-| **Berlaku 12 jam** | setelah itu perlu masuk lagi. Ini disengaja: kalau komputer ditinggal, data donor tidak terbuka selamanya |
-| **Tidak ada data sebelum masuk** | layar masuk menutup seluruh aplikasi. Data donor tidak tampil sekejap pun |
-| **Sesi tersimpan di browser** | memuat ulang halaman atau menutup tab tidak memutus sesi |
-| **Tombol Keluar** | di sidebar (PC) dan di **Setelan → Akun saya**. Sesi langsung dicabut di server, bukan hanya di browser |
+| **Berlaku 12 jam** | setelah itu perlu masuk lagi |
+| **Tidak ada data sebelum masuk** | layar masuk menutup seluruh aplikasi |
+| **Tombol Keluar** | di sidebar (PC) dan di **Setelan → Akun saya** |
+| **Tidak ada blokir** | salah password boleh langsung coba lagi (fase tes) |
 
 ---
 
-## 5. Kalau lupa password
+## 5. Mematikan akun
 
-Admin bisa mengganti password siapa pun tanpa password lama. Untuk sementara
-(masih fase tes) caranya lewat komputer, bukan lewat halaman:
+Di halaman akun, pada baris akun yang bersangkutan, tekan **Matikan**.
+Akun itu tidak bisa masuk lagi dan sesinya langsung diputus. Untuk
+mengembalikannya, tekan **Aktifkan**.
 
-```powershell
-cd worker
-npx wrangler d1 execute kartidaya --remote --command "DELETE FROM sessions WHERE email='nama@kartidaya.org'"
-```
-
-Lalu minta orang itu membuat akun baru:
-
-1. Buat ulang baris di `users` dengan password baru — cara paling mudah:
-   hapus akunnya, buka pintu pendaftaran, minta dia mendaftar lagi dengan
-   email yang sama.
-
-```powershell
-npx wrangler d1 execute kartidaya --remote --command "DELETE FROM users WHERE email='nama@kartidaya.org'"
-```
-
-> Tombol "lupa password" yang mengirim email belum dibuat — itu perlu alamat
-> pengirim email tersendiri (§22.x di rencanakerja). Untuk 2–3 user, cara di
-> atas sudah cukup.
+Tidak ada tombol hapus — mematikan sudah cukup, dan catatan aktivitasnya
+tetap utuh.
 
 ---
 
-## 6. Password disimpan bagaimana
+## 6. Catatan aktivitas ("CCTV")
 
-Password **tidak pernah** disimpan sebagai tulisan biasa.
+Di aplikasi, buka menu **Akun** (hanya terlihat untuk admin). Ada dua bagian:
 
-| Yang disimpan | Isinya |
+| Bagian | Isi |
 |---|---|
-| `hash` | hasil acakan **PBKDF2-SHA256**, 100.000 putaran, 32 byte |
-| `salt` | angka acak 16 byte, berbeda untuk setiap akun |
-| `iter` | jumlah putaran (100.000) |
+| **Akun pengguna** | semua akun, perannya, kapan terakhir masuk, tombol matikan/aktifkan |
+| **Catatan aktivitas** | daftar kejadian terakhir: siapa, kapan, apa |
 
-Artinya: kalau database bocor, password **tidak terbaca**. Dua orang yang
-memakai password sama tetap menghasilkan hash berbeda, karena salt-nya berbeda.
+Yang dicatat:
 
-Konsekuensi yang perlu Anda tahu: password **tidak bisa dikembalikan**. Kalau
-hilang, harus diganti (bagian 5), bukan diingat-ingat.
-
----
-
-## 7. Pengaman yang sudah terpasang
-
-| Pengaman | Wujudnya |
+| Aksi | Contoh isi |
 |---|---|
-| **Password diacak** | PBKDF2 + salt, lihat bagian 6 |
-| **Batas percobaan** | 5 kali salah → email itu diblokir 15 menit. Password yang **benar** pun ditolak selama blokir |
-| **Pesan galat seragam** | selalu "Email atau password salah" — tidak memberi tahu mana yang salah |
-| **Waktu jawaban seragam** | hash tetap dihitung walau email tidak terdaftar, jadi tidak bisa dipakai menebak email mana yang ada |
-| **Token kedaluwarsa** | 12 jam |
-| **Token disimpan di server** | bisa dicabut sebelum waktunya (keluar, ganti password, akun dimatikan) |
-| **Ganti password = sesi lama mati** | semua sesi akun itu dicabut |
-| **Kunci aplikasi tetap wajib** | endpoint akun hanya bisa dipanggil aplikasi yang memegang `APP_KEY` |
-| **Pendaftaran butuh kode undangan** | dan bisa ditutup seketika |
+| `masuk` / `keluar` | login dan logout aplikasi |
+| `tambah` | membuat donor, transaksi keuangan, atau akun |
+| `ubah` | mengubah donor (termasuk kalau ID donor diganti) atau transaksi |
+| `hapus` | menghapus donor atau transaksi |
+
+Tujuannya: kalau ada data yang berubah dan tidak jelas sebabnya, tinggal buka
+menu Akun dan lihat siapa yang melakukannya, kapan, dan data mana.
+
+**Belum ada:** catatan untuk surat yang dikirim (rencana berikutnya).
 
 ---
 
-## 8. Apa yang BELUM dikerjakan (sengaja)
+## 7. Kalau lupa password
 
-Sesuai arahan §25 rencanakerja — **fase tes, sederhana dulu**:
+Belum ada tombol "lupa password". Untuk sementara, admin membuatkan akun baru
+dengan email yang sama:
 
-| Belum ada | Akibatnya | Kapan perlu |
-|---|---|---|
-| **Token dipakai untuk akses data** | `/data` masih cukup dengan kunci aplikasi. Artinya orang yang punya kunci aplikasi masih bisa membaca semua data tanpa login | saat aplikasi mandiri di perusahaan klien |
-| **Hak akses per peran** | `admin` dan `user` saat ini sama-sama bisa mengubah semua data. Peran hanya tercatat, belum membatasi | kalau ada staf yang hanya boleh melihat |
-| **Halaman kelola pengguna** | menambah/menonaktifkan akun masih lewat perintah di komputer | kalau sudah lebih dari 3 user |
-| **"Lupa password" lewat email** | belum ada, lihat bagian 5 | saat dipakai banyak orang |
-| **Verifikasi OAuth Google** | Gmail masih dibatasi 100 test user & token 7 hari | saat mandiri |
+1. Buka halaman akun, masuk sebagai admin
+2. Matikan akun lama (tombol **Matikan**)
+3. Buat akun baru dengan email yang sama dan password baru
 
-Semua ini tercatat di [rencanakerja.md](rencanakerja.md) bagian 20.
+Kalau yang lupa password adalah **admin**, akunnya perlu dibuat ulang lewat
+database (minta bantuan pembuat aplikasi). Karena itu simpan password admin di
+tempat aman.
 
 ---
 
-## 9. Ringkasan berkas
+## 8. Yang sengaja belum dibuat
+
+Ini masih fase tes, jadi dibuat sederhana dulu:
+
+| Belum ada | Akibatnya sekarang |
+|---|---|
+| Batas percobaan login | password boleh ditebak berkali-kali. Cukup untuk tes |
+| Hak akses per peran | `donor` dan `keuangan` sama-sama bisa membuka semua menu |
+| "Lupa password" lewat email | harus lewat admin |
+| Catatan aktivitas untuk surat | baru donor, keuangan, dan akun |
+
+Kalau nanti aplikasi dipakai dengan data sungguhan, tiga hal pertama itulah
+yang perlu dinyalakan lebih dulu.
+
+---
+
+## 9. Berkas terkait
 
 | Berkas | Isinya |
 |---|---|
-| [`akun.js`](../akun.js) | login, sesi, ganti password — sisi browser |
-| [`worker/index.js`](../worker/index.js) | endpoint `/akun/*` + halaman `/daftar` |
-| [`worker/schema.sql`](../worker/schema.sql) | tabel `users`, `sessions`, `invites`, `login_acuan` |
-| [`app.js`](../app.js) | layar masuk, tombol keluar, kartu **Akun saya** di Setelan |
+| [`akun.js`](../akun.js) | login, sesi, kelola akun — sisi browser |
+| [`worker/index.js`](../worker/index.js) | halaman `/daftar` + endpoint `/akun/*` |
+| [`worker/schema.sql`](../worker/schema.sql) | tabel `users`, `sessions`, `aktivitas` |
+| [`app.js`](../app.js) | layar masuk, menu Akun, tombol keluar |

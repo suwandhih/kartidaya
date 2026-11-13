@@ -35,7 +35,8 @@ Surat yang "dikirim" tercatat di buku donor, surat masuk bisa dicatat manual.
 | Cetak surat | `window.print()` per penerima |
 | Ekspor | JSON (backup/restore) + CSV (buka di Excel) |
 | Tema | Terang / gelap / ikut sistem |
-| **Akun & login** | Email + password per pengguna; halaman pendaftaran terpisah dengan kode undangan |
+| **Akun & login** | Email + password per pengguna. Akun pertama otomatis admin; akun berikutnya dibuat admin di halaman akun |
+| **Catatan aktivitas** | Siapa masuk/keluar, siapa menambah/mengubah/menghapus donor & keuangan |
 | Responsif | HP Android dan PC |
 
 ## Menjalankan di komputer
@@ -147,9 +148,9 @@ serve.bat           Peluncur Windows
 rencanakerja.md     Rencana kerja & keputusan desain
 PANDUAN-GMAIL.md    Panduan Google Cloud Console
 PANDUAN-WHATSAPP.md Panduan Meta + Cloudflare Worker
-PANDUAN-AKUN.md     Panduan akun: daftar, login, lupa password
-akun.js             Login pengguna (sesi, ganti password)
-worker/schema.sql   Skema database D1 (data bersama + akun)
+PANDUAN-AKUN.md     Panduan akun: buat akun, login, catatan aktivitas
+akun.js             Login pengguna (sesi, kelola akun, ganti password)
+worker/schema.sql   Skema database D1 (data bersama + akun + aktivitas)
 ```
 
 ## Penyimpanan data

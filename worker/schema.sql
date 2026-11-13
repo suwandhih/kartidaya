@@ -39,16 +39,17 @@ CREATE TABLE IF NOT EXISTS meta (
 -- yang punya kunci bisa membaca seluruh hash password. Tabel terpisah tidak
 -- pernah ikut terkirim oleh /data.
 --
--- Password TIDAK disimpan apa adanya, hanya hash PBKDF2 + salt.
+-- Password disimpan dalam bentuk hash + salt (bukan tulisan biasa), tetapi
+-- sengaja TIDAK dibuat berlapis-lapis: ini masih fase tes.
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS users (
   email          TEXT PRIMARY KEY,  -- alamat email, huruf kecil semua
   nama           TEXT NOT NULL,
-  hash           TEXT NOT NULL,     -- hash PBKDF2 (base64url)
+  hash           TEXT NOT NULL,     -- hash password (base64url)
   salt           TEXT NOT NULL,     -- salt acak (base64url)
-  iter           INTEGER NOT NULL,  -- jumlah putaran PBKDF2
-  peran          TEXT NOT NULL,     -- 'admin' | 'user'
+  iter           INTEGER NOT NULL,  -- jumlah putaran
+  peran          TEXT NOT NULL,     -- 'admin' | 'donor' | 'keuangan'
   aktif          INTEGER NOT NULL DEFAULT 1,
   dibuat         TEXT NOT NULL,
   masuk_terakhir TEXT
@@ -66,25 +67,27 @@ CREATE TABLE IF NOT EXISTS sessions (
 
 CREATE INDEX IF NOT EXISTS idx_sessions_email ON sessions (email);
 
--- Kode undangan. Selama baris ini ada, pintu pendaftaran terbuka.
--- Menghapus barisnya menutup pintu itu seketika, tanpa mengubah kode.
-CREATE TABLE IF NOT EXISTS invites (
-  kode    TEXT PRIMARY KEY,
-  dibuat  TEXT NOT NULL,
-  catatan TEXT
+-- ============================================================
+-- Catatan aktivitas ("CCTV")
+--
+-- Satu baris = satu kejadian: masuk, keluar, tambah, ubah, hapus.
+-- Gunanya kalau ada data yang berubah dan perlu ditelusuri siapa pelakunya.
+-- Hanya dicatat, tidak membatasi apa pun.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS aktivitas (
+  id       INTEGER PRIMARY KEY AUTOINCREMENT,
+  waktu    TEXT NOT NULL,          -- ISO
+  email    TEXT NOT NULL,          -- siapa yang melakukan
+  nama     TEXT,
+  aksi     TEXT NOT NULL,          -- 'masuk' | 'keluar' | 'tambah' | 'ubah' | 'hapus'
+  bagian   TEXT,                   -- 'donor' | 'surat' | 'keuangan' | 'akun' | ...
+  sasaran  TEXT,                   -- id/nama data yang disentuh
+  ket      TEXT                    -- keterangan singkat
 );
 
--- Penghitung percobaan login yang gagal, supaya password tidak bisa ditebak
--- paksa. Dihitung per email per 15 menit; 5 kali salah = tunggu 15 menit.
-CREATE TABLE IF NOT EXISTS login_acuan (
-  email        TEXT PRIMARY KEY,
-  menit        INTEGER NOT NULL DEFAULT 0,  -- menit ke berapa (epoch / 60000)
-  gagal        INTEGER NOT NULL DEFAULT 0,
-  sampai       TEXT                         -- kalau terisi, email ini sedang diblokir
-);
+CREATE INDEX IF NOT EXISTS idx_aktivitas_waktu ON aktivitas (waktu);
+CREATE INDEX IF NOT EXISTS idx_aktivitas_email ON aktivitas (email);
 
--- Akun pertama TIDAK dibuat di sini. Aturannya: akun pertama yang dibuat lewat
--- halaman /daftar otomatis menjadi admin. Jadi urutannya:
---   1. pasang kode undangan (INSERT ke `invites`)
---   2. buka /daftar, buat akun Anda → otomatis admin
---   3. hapus kode undangan → pintu pendaftaran tertutup
+-- Akun pertama dibuat dari halaman /daftar dan otomatis menjadi admin.
+-- Setelah itu hanya admin yang bisa membuat akun, dari dalam halaman /daftar.

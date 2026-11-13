@@ -3590,12 +3590,19 @@ dikirim ke server.
 ## 24. Login & akun pengguna — ✅ SELESAI (13 Nov 2026)
 
 **Keputusan Anda (13 Nov 2026):** *"aplikasi signup, aplikasi terpisah dari
-aplikasi kartidaya.. login untuk aplikasi kartidaya.."*
+aplikasi kartidaya.. login untuk aplikasi kartidaya.."* lalu diperjelas:
+*"buat yg sederhana .. ini supaya user mengerti saja"*.
 
-Jadi: **halaman pendaftaran berdiri sendiri** (di Worker), **login** di aplikasi
-Kartidaya. Rancangan di bawah dipertahankan apa adanya; yang berubah hanya satu
-hal — sesuai arahan §25, pengamanan dibuat **sederhana dulu**, tidak seketat
-rancangan awal. Bedanya dicatat di §24.9.
+Konsep yang dipakai (empat poin permintaan Anda):
+
+1. Buat akun = email + password + ulangi password
+2. Admin masuk ke halaman buat akun dengan email & password terdaftar
+3. Di halaman itu admin membuat akun **user donor** & **user keuangan**
+4. Ada catatan kapan user mengakses + catatan entry/edit/hapus ("CCTV")
+
+**Hasil: dibuat versi sederhana — tanpa kode undangan.** Rincian di §24.9.
+Rancangan awal di bawah dipertahankan sebagai catatan, tetapi beberapa bagian
+sengaja **tidak** diikuti karena terlalu rumit untuk fase tes.
 
 **Pertanyaan Anda sebelumnya:** *"selanjutnya dibuat form signup untuk buat username dan
 password .. apakah lebih baik terpisah dengan aplikasi kartidaya.. karena
@@ -3616,51 +3623,54 @@ kalau tidak justru lebih berbahaya daripada sekarang.
 
 ### 24.2 Dua hal yang harus diperbaiki
 
-**❌ 1. "Dimatikan" tidak cukup dengan menghapus halamannya**
+**1. Membatasi siapa yang boleh membuat akun**
 
-Kalau halaman signup dihapus tetapi **pintu di server masih terbuka**, siapa pun
-yang tahu alamatnya masih bisa membuat akun. Yang harus dimatikan adalah
-**pintunya di server**, bukan halamannya.
+Kalau halaman signup bisa dipakai siapa saja, siapa pun yang tahu alamatnya bisa
+membuat akun.
 
-Cara paling rapi: pintu signup butuh **kode undangan**. Setelah selesai menambah
-user, kode itu dihapus dari server → pintu tertutup **seketika**, tanpa perlu
-ubah kode. Kalau nanti perlu tambah user lagi, kode dipasang lagi.
+> **Dulu saya usulkan "kode undangan". TIDAK DIPAKAI** — lihat §24.9.
+> Yang dipakai sekarang: **akun pertama otomatis admin**, dan akun berikutnya
+> hanya bisa dibuat oleh admin dari halaman yang sama. Cukup untuk fase tes,
+> dan jauh lebih mudah dipahami.
 
-**❌ 2. Password tidak boleh disimpan apa adanya**
+**2. Password tidak boleh disimpan apa adanya**
 
-Ini yang paling penting. Kalau password disimpan mentah di database dan database
-bocor, **semua password terbaca** — dan karena orang sering memakai password
-yang sama, **email mereka ikut kena**.
+Kalau password disimpan mentah di database dan database bocor, **semua password
+terbaca** — dan karena orang sering memakai password yang sama, **email mereka
+ikut kena**.
 
-Harus disimpan dalam bentuk "acakan" (hash) yang tidak bisa dibalik. Cloudflare
+Disimpan dalam bentuk "acakan" (hash) yang tidak bisa dibalik. Cloudflare
 Worker sudah punya alatnya bawaan (`crypto.subtle`), tidak perlu tambahan.
+Ini **tetap dikerjakan** walaupun versinya sederhana, karena bukan soal "ketat"
+— hanya supaya password tidak terbaca.
 
 ### 24.3 Rancangan
 
 ```
-   Halaman Signup (terpisah)
-        |  butuh kode undangan
-        v
-   Server: buat akun  --->  Database: users (password diacak)
-        ^
-        |  email + password
-   Aplikasi Kartidaya  --->  Server: login
-        |                        |
-        |  token berlaku 12 jam  |
-        v                        v
-   Data donor & keuangan  <------+
+   Halaman/akun (terpisah)  ── daftar/sebut akun pertama ──►  otomatis ADMIN
+        │
+        │  admin masuk (email + password)
+        ▼
+   Admin membuat akun:  user donor  /  user keuangan  /  admin
+        │
+        │  email + password
+        ▼
+   Aplikasi Kartidaya  ──►  Server: login  ──►  token 12 jam
+        │                                          │
+        ▼                                          ▼
+   Data donor & keuangan  ◄────────────────────────┘
 
-   Kode undangan dihapus  -.->  pintu signup tertutup
+   Setiap aksi (masuk/keluar/tambah/ubah/hapus) dicatat di tabel `aktivitas`
 ```
 
 | Bagian | Perubahan |
 |---|---|
-| **Halaman signup** | Halaman terpisah, hanya untuk menambah user, butuh kode undangan |
-| **Aplikasi utama** | Layar login di depan; setelah masuk baru bisa dipakai |
-| **Server** | Tabel `users` baru + login + token + batas percobaan |
-| **Kunci lama** | Tetap jalan sebagai cadangan supaya Anda tidak terkunci sendiri |
+| **Halaman akun** | Terpisah. Buat akun pertama; setelah ada admin, jadi tempat admin membuat akun |
+| **Aplikasi utama** | Layar login di depan; setelah masuk baru bisa dipakai. Menu **Akun** (admin) berisi daftar akun + catatan aktivitas |
+| **Server** | Tabel `users`, `sessions`, `aktivitas` + login + token |
+| **Kunci aplikasi** | Tetap ada untuk Setelan (WhatsApp/majalah), tetapi tidak wajib untuk login |
 
-### 24.4 Tabel `users` yang akan dibuat
+### 24.4 Tabel `users` yang dibuat
 
 | Kolom | Isi |
 |---|---|
@@ -3668,44 +3678,53 @@ Worker sudah punya alatnya bawaan (`crypto.subtle`), tidak perlu tambahan.
 | `nama` | Nama orang, supaya kelihatan siapa yang mengubah data |
 | `hash` | Password dalam bentuk acakan — **bukan** password aslinya |
 | `salt` | Bumbu acak supaya dua password sama tetap menghasilkan acakan berbeda |
-| `peran` | `admin` atau `user` — admin boleh menambah/menghapus user |
+| `peran` | `admin` / `donor` / `keuangan` |
 | `aktif` | 1 = boleh masuk, 0 = dimatikan |
 | `dibuat` | Waktu akun dibuat |
 | `masuk_terakhir` | Waktu terakhir masuk |
 
-### 24.5 Pengaman yang wajib ada
+### 24.5 Pengaman yang dipakai (versi sederhana)
 
-| Pengaman | Kenapa |
-|---|---|
-| **Password diacak (PBKDF2)** | Kalau database bocor, password tidak terbaca |
-| **Batas percobaan login** | Mis. 5 kali salah → tunggu 15 menit. Tanpa ini, password bisa ditebak paksa |
-| **Token kedaluwarsa** | Berlaku 12 jam, lalu harus masuk lagi |
-| **Token disimpan di server** | Supaya bisa dicabut sebelum waktunya (mis. orang keluar) |
-| **Pesan galat seragam** | "Email atau password salah" — jangan bilang mana yang salah, itu memberi petunjuk ke penyerang |
-| **Kode undangan untuk signup** | Pintu signup bisa ditutup seketika |
+| Pengaman | Dipakai? | Catatan |
+|---|---|---|
+| **Password diacak (PBKDF2 + salt)** | ✅ | supaya password tidak terbaca |
+| **Token kedaluwarsa 12 jam** | ✅ | tidak perlu masuk ulang setiap memuat halaman |
+| **Token disimpan di server** | ✅ | bisa dicabut saat keluar / akun dimatikan |
+| **Hanya admin yang bisa membuat akun** | ✅ | akun pertama otomatis admin |
+| **Matikan akun** | ✅ | sesi langsung diputus |
+| **Catatan aktivitas** | ✅ | "CCTV" — siapa, kapan, apa |
+| **Batas percobaan login** | ❌ sengaja tidak | fase tes: user harus mudah masuk |
+| **Pesan galat seragam** | ✅ | tetap dipakai, tidak merepotkan |
+| ~~Kode undangan~~ | ❌ dibuang | lihat §24.9 |
 
 ### 24.6 Keputusan yang sudah diambil
 
 | # | Pertanyaan | Jawaban |
 |---|---|---|
-| 1 | Halaman signup diletakkan di mana? | **(a)** Di server (Worker) — halaman terpisah `/daftar`, butuh kode undangan |
-| 2 | Email untuk login pakai yang mana? | **(b)** Email apa saja sebagai nama pengguna — tidak harus Gmail yang tersambung |
-| 3 | Kunci aplikasi lama (`APP_KEY`) diapakan? | **(a)** Tetap jalan — endpoint akun sendiri juga butuh kunci itu, jadi tidak bisa terkunci di luar |
-| 4 | Kalau lupa password, siapa yang mengurus? | **(a)** Admin lewat perintah di komputer — lihat PANDUAN-AKUN.md bagian 5 |
+| 1 | Halaman signup diletakkan di mana? | **(a)** Di server (Worker) — halaman terpisah `/daftar` |
+| 2 | Cara membatasi pembuatan akun | **Konsep Anda (13 Nov):** tanpa kode undangan. Akun pertama = admin; akun berikutnya dibuat admin |
+| 3 | Kunci aplikasi lama (`APP_KEY`) | **Tetap ada**, tetapi tidak wajib untuk login (halaman akun tidak memegangnya) |
+| 4 | Kalau lupa password | Admin membuatkan akun baru — lihat PANDUAN-AKUN.md bagian 7 |
+
+**Yang TIDAK diikuti dari rancangan awal** — beserta alasannya:
+
+| Rancangan awal | Kenapa tidak dipakai |
+|---|---|
+| Kode undangan untuk signup | Ide saya sendiri, tidak diminta, dan membingungkan |
+| Batas 5 percobaan + blokir 15 menit | Fase tes: user harus mudah masuk |
+| Password lama wajib untuk ganti password sendiri | terlalu merepotkan untuk fase tes |
+| Token dipakai untuk semua akses data | data bersama tetap boleh dengan kunci aplikasi |
 
 ### 24.7 Perkiraan pekerjaan
 
-Ini perubahan **besar** — menyentuh database, server, dan aplikasi. Bukan
-pekerjaan 1 jam. Urutan yang disarankan:
-
 | # | Langkah | Perkiraan | Hasil |
 |---|---|---|---|
-| 1 | Tabel `users` + alat acak password di server | sedang | ✅ |
-| 2 | Pintu signup + kode undangan | sedang | ✅ |
-| 3 | Pintu login + token | sedang | ✅ |
-| 4 | Layar login di aplikasi | sedang | ✅ |
-| 5 | Ganti semua panggilan data dari kunci lama ke token | **besar** | ⏸ ditunda (§24.9) |
-| 6 | Uji: 2 user, salah password, token kedaluwarsa, akun dimatikan | sedang | ✅ 48 pemeriksaan |
+| 1 | Tabel `users`, `sessions`, `aktivitas` | sedang | ✅ |
+| 2 | Halaman akun `/daftar` (buat admin pertama + kelola akun) | sedang | ✅ |
+| 3 | Login + token | sedang | ✅ |
+| 4 | Layar masuk di aplikasi | sedang | ✅ |
+| 5 | Menu **Akun** di aplikasi (daftar akun + CCTV) | sedang | ✅ |
+| 6 | Uji | sedang | ✅ 35 pemeriksaan + uji browser |
 
 ### 24.8 Catatan penting
 
@@ -3719,65 +3738,84 @@ seperti sekarang. Jadi §22.1 sebaiknya diputuskan bersamaan dengan pekerjaan in
 sekarang** — karena memberi rasa aman yang palsu. Jadi harus lengkap: password
 diacak, batas percobaan login, dan token yang kedaluwarsa.
 
-### 24.9 Yang dikerjakan 13 Nov 2026 — dan yang sengaja ditunda
+### 24.9 Yang dikerjakan 13 Nov 2026 — versi sederhana
 
-**Dua aplikasi, sesuai permintaan Anda:**
+**Arahan Anda (13 Nov):** *"buat yg sederhana .. lagian data yg dipakai adalah
+data tes bukan serius .. ini supaya user mengerti saja"*.
+
+**Konsep yang Anda minta:**
+
+| # | Konsep | Hasil |
+|---|---|---|
+| 1 | Buat akun: email + password + ulangi password | ✅ |
+| 2 | Admin masuk ke halaman buat akun dengan email & password terdaftar | ✅ |
+| 3 | Di halaman itu admin membuat akun **user donor** & **user keuangan** | ✅ |
+| 4 | Laporan kapan user akses + catatan entry/edit/hapus ("CCTV") | ✅ |
+
+**Dua aplikasi:**
 
 | Aplikasi | Alamat | Isi |
 |---|---|---|
-| **Pendaftaran** (terpisah) | `https://kartidaya-wa.suwandhih.workers.dev/daftar` | formulir buat akun, butuh kode undangan |
-| **Kartidaya** | `https://suwandhih.github.io/kartidaya/` | layar masuk email + password |
+| **Halaman akun** (terpisah) | `https://kartidaya-wa.suwandhih.workers.dev/daftar` | buat akun + kelola akun |
+| **Kartidaya** | `https://suwandhih.github.io/kartidaya/` | layar masuk, aplikasi |
 
-**Yang sudah jadi:**
+**Alurnya:**
 
-| # | Bagian | Hasil |
-|---|---|---|
-| 1 | Tabel `users`, `sessions`, `invites`, `login_acuan` | ✅ terpasang di D1 (APAC) |
-| 2 | Endpoint `/akun/login`, `/saya`, `/keluar`, `/daftar`, `/daftar-terbuka`, `/pengguna`, `/ganti-password` | ✅ |
-| 3 | Halaman pendaftaran terpisah `/daftar` | ✅ tanpa kunci aplikasi, dijaga kode undangan |
-| 4 | Password diacak PBKDF2-SHA256, 100.000 putaran + salt 16 byte | ✅ |
-| 5 | Batas 5 percobaan salah → blokir 15 menit | ✅ |
-| 6 | Pesan galat seragam + waktu jawaban seragam | ✅ |
-| 7 | Token 12 jam, disimpan di server (bisa dicabut) | ✅ |
-| 8 | Ganti password → semua sesi akun itu dicabut | ✅ |
-| 9 | Layar masuk di aplikasi — menutup seluruh aplikasi | ✅ |
-| 10 | Nama pengguna + tombol Keluar di sidebar | ✅ |
-| 11 | Kartu **Akun saya** di Setelan + tombol **Cek pintu pendaftaran** | ✅ |
-| 12 | Alamat Worker bisa diperbaiki **dari layar masuk** | ✅ tanpa ini alamat yang salah membuat pengguna terkunci |
-| 13 | Sesi diperiksa ulang saat tab kembali aktif | ✅ |
-| 14 | Deploy Worker + skema D1 | ✅ versi `ad53d5c0` |
-
-**Uji:** 48 pemeriksaan otomatis lulus (pendaftaran, login, blokir, token,
-ganti password, keluar, kunci aplikasi), ditambah uji browser: login salah →
-pesan; login benar → data termuat; muat ulang → sesi bertahan; keluar → data
-donor tidak terlihat; kunci aplikasi salah → **sesi bertahan** dan yang tampil
-layar "tidak tersambung", bukan layar masuk.
-
-**Dua kesalahan yang ditemukan & diperbaiki saat uji (12→13 Nov):**
-
-| Kesalahan | Akibat sebelum diperbaiki |
-|---|---|
-| `/akun/daftar` ikut mewajibkan kunci aplikasi | halaman pendaftaran **tidak akan pernah berhasil** — ia tidak memegang kunci. Sekarang rute itu ditangani sebelum pemeriksaan kunci, dan tetap dijaga kode undangan |
-| `Akun.periksa()` menghapus sesi untuk **semua** galat | kunci aplikasi yang salah atau internet mati membuat pengguna terlempar ke layar masuk, padahal masalahnya bukan sesi. Sekarang hanya penolakan yang benar-benar soal sesi yang menghapus sesi |
-
-**Sengaja DITUNDA** (sesuai arahan §25 — fase tes, sederhana dulu):
-
-| Ditunda | Akibatnya sekarang | Kapan perlu |
-|---|---|---|
-| Token dipakai untuk `/data` | orang yang punya kunci aplikasi masih bisa membaca data tanpa login | saat aplikasi mandiri |
-| Hak akses per peran | `admin` dan `user` sama-sama bisa mengubah semua data | kalau ada staf yang hanya boleh melihat |
-| Halaman kelola pengguna | tambah/nonaktifkan akun lewat perintah `wrangler` | lebih dari 3 user |
-| "Lupa password" lewat email | admin mengganti lewat perintah | saat dipakai banyak orang |
-
-**Yang perlu Anda lakukan sekali:** buat akun admin pertama. Panduan langkahnya
-di **[PANDUAN-AKUN.md](PANDUAN-AKUN.md)**. Kode undangan
-`kartidaya-2026` **sudah dipasang** di server — setelah akun Anda jadi, tutup
-pintunya:
-
-```powershell
-cd worker
-npx wrangler d1 execute kartidaya --remote --command "DELETE FROM invites"
 ```
+Belum ada akun → buat akun di /daftar → otomatis ADMIN
+                          ↓
+        admin masuk di /daftar → membuat akun donor / keuangan
+                          ↓
+        setiap user masuk di aplikasi dengan email + password
+```
+
+**Yang dibuang dari rancangan sebelumnya (karena terlalu rumit):**
+
+| Dibuang | Alasan |
+|---|---|
+| **Kode undangan** | ide saya sendiri, tidak Anda minta, dan tidak dijelaskan di panduan. Alurnya membingungkan |
+| **Tabel `invites`** | ikut terhapus dari database |
+| **Batas 5 percobaan + blokir 15 menit** | fase tes: user harus mudah masuk |
+| **Tabel `login_acuan`** | ikut terhapus |
+| Wajib kunci aplikasi untuk login | halaman akun tidak memegang kunci, jadi login tidak boleh menuntutnya |
+
+**Yang tetap ada karena berguna:**
+
+| Hal | Kenapa tetap |
+|---|---|
+| Password diacak (hash + salt) | bukan untuk "ketat", tetapi supaya password tidak terbaca kalau database dilihat orang |
+| Token 12 jam | supaya tidak perlu masuk ulang setiap memuat halaman |
+| Matikan/aktifkan akun | kalau ada orang yang tidak lagi memakai aplikasi |
+| Admin saja yang bisa membuat akun | ini konsep Anda (poin 3) |
+
+**Yang sudah diuji:**
+
+| # | Uji | Hasil |
+|---|---|---|
+| 1 | Halaman `/daftar` tanpa kode undangan, ada kolom "ulangi password" | ✅ 35 pemeriksaan otomatis |
+| 2 | Ulangi password tidak sama → ditolak | ✅ |
+| 3 | Akun pertama otomatis admin | ✅ |
+| 4 | Daftar mandiri ditutup setelah ada admin | ✅ |
+| 5 | Admin membuat akun donor & keuangan | ✅ |
+| 6 | User donor tidak bisa membuat akun / melihat daftar akun | ✅ |
+| 7 | Matikan akun → tidak bisa masuk, sesi diputus | ✅ |
+| 8 | Aktivitas `masuk`, `tambah akun`, `tambah/hapus donor`, `ubah/hapus keuangan` tercatat | ✅ |
+| 9 | Uji browser: buat admin → langsung masuk → buat 2 akun → login aplikasi | ✅ |
+| 10 | Menu **Akun** hanya terlihat untuk admin | ✅ |
+
+**Catatan penting — mengubah kunci aplikasi:** login dan data bersama sekarang
+cukup dengan token login. Kunci aplikasi hanya dipakai untuk mengatur WhatsApp
+& majalah di Setelan. Jadi browser baru tidak perlu mengisi apa pun selain
+email + password.
+
+**Yang belum ada (rencana berikutnya, sesuai poin 4 Anda):**
+
+| Belum ada | Keterangan |
+|---|---|
+| Catatan aktivitas untuk **surat** | sekarang baru donor, keuangan, dan akun |
+| Catatan **ubah pada template/kategori/program** | belum dicatat |
+| Laporan aktivitas **per user** (ringkasan "kapan akses") | sekarang masih daftar kejadian, belum ringkasan per orang |
+| Batas percobaan login | dinyalakan lagi kalau sudah pakai data sungguhan |
 
 ---
 

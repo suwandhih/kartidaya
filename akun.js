@@ -66,8 +66,17 @@ const Akun = {
     return (this.pengguna && (this.pengguna.nama || this.pengguna.email)) || '';
   },
 
-  peran(){
-    return (this.pengguna && this.pengguna.peran) || 'user';
+  /* Peran pengguna: 'admin' | 'donor' | 'keuangan'.
+       Dipakai untuk menampilkan label & membuka halaman Akun (CCTV). */
+    peran(){
+      return (this.pengguna && this.pengguna.peran) || 'donor';
+    },
+    admin(){
+      return this.peran() === 'admin';
+    },
+    labelPeran(p){
+      const v = p || this.peran();
+      return v === 'admin' ? 'Admin' : v === 'keuangan' ? 'User keuangan' : 'User donor';
   },
 
   sisaMenit(){
@@ -77,12 +86,14 @@ const Akun = {
 
   /* ---------- panggilan ke Worker ---------- */
 
-  /* Memakai alamat Worker & kunci aplikasi yang sama dengan data bersama,
-     supaya pengguna tidak perlu mengisi apa pun lagi di layar login. */
+    /* Endpoint /akun/* di Worker sengaja TIDAK memakai kunci aplikasi (fase tes):
+       halaman akun berdiri sendiri dan tidak memegang kunci. Kalau kuncinya ada,
+       tetap dikirim — tidak ada ruginya, dan bisa dipakai lagi nanti. */
   async panggil(path, opsi){
     const base = workerBase();
-    if(!base) throw new Error('Alamat Worker belum diisi');
-    const headers = { 'X-App-Key': WhatsApp.appKey || '' };
+      if(!base) throw new Error('Alamat server belum diisi');
+      const headers = {};
+      if(WhatsApp.appKey) headers['X-App-Key'] = WhatsApp.appKey;
     if(this.token) headers['Authorization'] = 'Bearer ' + this.token;
     if((opsi && opsi.body) !== undefined) headers['Content-Type'] = 'application/json';
     const res = await fetch(base + path, {
@@ -157,10 +168,36 @@ const Akun = {
     return r;
   },
 
-  /* Keadaan pintu pendaftaran (untuk ditampilkan di Setelan). */
-  async daftarTerbuka(){
-    const r = await this.panggil('/akun/daftar-terbuka');
-    return !!r.terbuka;
+  /* ---------- kelola akun (hanya admin) ---------- */
+
+    async daftarPengguna(){
+      const r = await this.panggil('/akun/pengguna');
+      return Array.isArray(r.pengguna) ? r.pengguna : [];
+    },
+
+    async tambahAkun(o){
+      return this.panggil('/akun/tambah', {
+        method:'POST',
+        body: { nama:o.nama, email:o.email, password:o.password, ulangi:o.ulangi, peran:o.peran }
+      });
+    },
+
+    async setAktif(email, aktif){
+      return this.panggil('/akun/aktif', { method:'POST', body:{ email:email, aktif:!!aktif } });
+    },
+
+    async aktivitas(batas){
+      const r = await this.panggil('/akun/aktivitas?batas=' + (batas || 200));
+      return Array.isArray(r.aktivitas) ? r.aktivitas : [];
+    },
+
+    /* Catatan aktivitas dikirim dari aplikasi, supaya aturan "apa yang dicatat"
+       tetap di satu tempat. Kegagalan mencatat tidak boleh mengganggu pekerjaan
+       utama — jadi tidak pernah melempar galat. */
+    async catat(baris){
+      if(!this.masuk() || !Array.isArray(baris) || !baris.length) return;
+      try{ await this.panggil('/akun/catat', { method:'POST', body:{ baris:baris } }); }
+      catch(e){ /* abaikan */ }
   },
 
   alamatDaftar(){

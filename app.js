@@ -1072,21 +1072,29 @@ const Server = {
      keduanya milik komputer masing-masing. */
   koleksi: ['donors','categories','templates','messages','programs','finance'],
 
-  bisa(){
-    return !!(workerBase() && WhatsApp.appKey);
+  /* Data bersama cukup butuh alamat server. Kunci aplikasi TIDAK wajib:
+       server juga menerima token login. Kunci hanya diperlukan untuk mengatur
+       WhatsApp & majalah di Setelan. */
+    bisa(){
+      return !!workerBase();
   },
 
   async panggil(path, opsi){
     const base = workerBase();
-    const res = await fetch(base + path, Object.assign({
-      headers: { 'X-App-Key': WhatsApp.appKey || '', 'Content-Type': 'application/json' }
-    }, opsi || {}));
+      const headers = { 'Content-Type': 'application/json' };
+      if(WhatsApp.appKey) headers['X-App-Key'] = WhatsApp.appKey;
+      if(typeof Akun !== 'undefined' && Akun.token) headers['Authorization'] = 'Bearer ' + Akun.token;
+          const res = await fetch(base + path, Object.assign({ headers: headers }, opsi || {}));
     const teks = await res.text();
     let data = null;
     try{ data = JSON.parse(teks); }catch(e){ data = null; }
     if(!res.ok){
       const pesan = (data && (data.error || data.petunjuk)) || ('HTTP ' + res.status);
-      throw new Error(pesan);
+            /* Simpan statusnya: kalau 401 karena belum masuk, yang perlu dilakukan
+               adalah masuk — bukan mengisi kunci aplikasi. */
+            const err = new Error(pesan);
+            err.status = res.status;
+            throw err;
     }
     return data || {};
   },
@@ -1504,6 +1512,7 @@ const PAGES = [
   { id:'surat',      label:'Tulis',      ico:'✎' },
   { id:'keuangan',   label:'Keuangan',   ico:'◫' },
   { id:'kategori',   label:'Kategori',   ico:'▤' },
+    { id:'akun',       label:'Akun',       ico:'⚿' },
   { id:'pengaturan', label:'Setelan',    ico:'⚙' }
 ];
 let currentPage = 'beranda';
@@ -1519,12 +1528,18 @@ let terkunciLogin = null;
 function go(page, params){
   currentPage = page;
   pageParams = params || {};
+  /* Halaman Akun butuh data dari server — diambil saat dibuka, bukan saat
+     aplikasi dimuat, supaya tidak memperlambat pemakaian sehari-hari. */
+  if(page === 'akun') muatAkun();
   render();
   window.scrollTo(0,0);
 }
 function renderNav(){
   const unread = unreadCount();
-  const html = PAGES.map(function(p){
+  /* Halaman Akun hanya ditampilkan untuk admin — di sanalah akun dibuat
+     dan catatan aktivitas dibaca. */
+  const daftar = PAGES.filter(function(p){ return p.id !== 'akun' || Akun.admin(); });
+  const html = daftar.map(function(p){
     const active = p.id === currentPage ? ' active' : '';
     let badge = '';
     if(p.id === 'donor') badge = '<span class="badge">' + state.donors.length + '</span>';
@@ -1540,13 +1555,15 @@ function renderNav(){
     if(siapa){
       siapa.innerHTML = Akun.masuk()
         ? '<div class="who"><b>' + esc(Akun.nama()) + '</b>' +
-            '<span class="tiny muted">' + esc(Akun.peran()) + '</span></div>' +
+            '<span class="tiny muted">' + esc(Akun.labelPeran()) + '</span></div>' +
           '<button class="btn sm ghost" data-action="keluar-akun" title="Keluar dari aplikasi">Keluar</button>'
         : '<button class="btn sm" data-action="masuk">Masuk</button>';
     }
 
-  /* Kategori & Setelan tetap di sidebar; sisanya jadi tab bawah. */
-  const tabs = PAGES.filter(function(p){ return p.id !== 'kategori' && p.id !== 'pengaturan'; });
+              /* Kategori, Akun & Setelan tetap di sidebar; sisanya jadi tab bawah. */
+              const tabs = PAGES.filter(function(p){
+                return p.id !== 'kategori' && p.id !== 'pengaturan' && (p.id !== 'akun' || Akun.admin());
+              });
   document.getElementById('nav-mobile').innerHTML = tabs.map(function(p){
     const active = p.id === currentPage ? ' active' : '';
     let dot = '';
@@ -1566,11 +1583,9 @@ function setTitle(t, s){
 function layarMasuk(){
   const salah = (window._loginGalat || '');
   const alamatDaftar = Akun.alamatDaftar();
-  /* Pada pemakaian pertama di sebuah browser, kunci aplikasi belum ada.
-     Kalau kolomnya disembunyikan, pengguna hanya melihat "Kunci aplikasi
-     salah" tanpa tahu apa yang harus diisi. Jadi blok server dibuka sendiri
-     sampai kuncinya terisi. */
-  const perluServer = window._loginServer || !WhatsApp.appKey;
+    /* Alamat server hanya dibuka kalau diminta — login tidak butuh kunci
+       aplikasi lagi. */
+    const perluServer = !!window._loginServer;
   return '<div class="masuk">' +
     '<div class="masuk-kotak">' +
       '<div class="masuk-merek">' +
@@ -1591,28 +1606,22 @@ function layarMasuk(){
       '<p class="tiny muted" style="margin-top:12px;text-align:center">' +
         'Belum punya akun? ' +
         (alamatDaftar
-          ? '<a href="' + esc(alamatDaftar) + '" target="_blank" rel="noopener">Buat akun di halaman pendaftaran</a>'
+                ? '<a href="' + esc(alamatDaftar) + '" target="_blank" rel="noopener">Buat akun di halaman akun</a>'
           : 'Minta admin membuatkan akun') +
       '</p>' +
             (perluServer
               ? '<div class="sep"></div>' +
-                '<p class="tiny muted">' +
-                  (WhatsApp.appKey
-                    ? 'Alamat server aplikasi ini. Hanya perlu diubah kalau alamat Worker berubah atau baru dipasang.'
-                    : '<b>Pertama kali di browser ini.</b> Tempel <b>Kunci aplikasi</b> yang sama ' +
-                      'seperti di komputer lain. Alamat Worker sudah terisi otomatis.') +
-                '</p>' +
+                '<p class="tiny muted">Alamat server aplikasi ini. Hanya perlu diubah kalau ' +
+                  'alamat Worker berubah atau baru dipasang.</p>' +
                 '<div class="field"><label>Alamat Worker</label>' +
                   '<input type="text" id="login-endpoint" class="mono" value="' +
                     esc(WhatsApp.endpoint || state.settings.waEndpoint || DEFAULT_WORKER) + '"></div>' +
-                '<div class="field"><label>Kunci aplikasi</label>' +
+                '<div class="field"><label>Kunci aplikasi <span class="hint">— opsional</span></label>' +
                   '<input type="password" id="login-key" class="mono" value="' +
                     esc(WhatsApp.appKey || '') + '"></div>' +
                 '<div class="btn-row">' +
                   '<button class="btn sm primary" data-action="masuk-server-simpan">Simpan</button>' +
-                  (WhatsApp.appKey
-                    ? '<button class="btn sm ghost" data-action="masuk-server-batal">Batal</button>'
-                    : '') +
+                  '<button class="btn sm ghost" data-action="masuk-server-batal">Batal</button>' +
                 '</div>'
               : '<p class="tiny muted" style="margin-top:10px;text-align:center">' +
                   'Server: <span class="mono">' + esc(workerBase() || 'belum diisi') + '</span> · ' +
@@ -1621,9 +1630,9 @@ function layarMasuk(){
   '</div>';
 }
 
-      /* Alamat Worker & kunci aplikasi harus bisa diperbaiki dari layar masuk.
-         Kalau tidak, alamat yang salah membuat pengguna tidak bisa masuk sama sekali
-         — padahal Setelan baru bisa dibuka setelah masuk. */
+      /* Alamat server harus bisa diperbaiki dari layar masuk. Kalau tidak, alamat
+         yang salah membuat pengguna tidak bisa masuk sama sekali — padahal Setelan
+         baru bisa dibuka setelah masuk. */
       function simpanServerDariLogin(){
         const eEl = document.getElementById('login-endpoint');
         const kEl = document.getElementById('login-key');
@@ -1636,7 +1645,6 @@ function layarMasuk(){
           toast('Alamat harus diawali https:// (atau http://localhost untuk uji)', true);
           return;
         }
-        if(!appKey){ toast('Kunci aplikasi belum diisi', true); return; }
         WhatsApp.endpoint = endpoint;
         WhatsApp.appKey = appKey;
         state.settings.waEndpoint = endpoint;
@@ -1693,10 +1701,9 @@ async function loginKirim(){
     toast('Selamat datang, ' + (Akun.nama() || email));
   }catch(e){
     window._loginGalat = e.message || 'Gagal masuk';
-    if(e.status === 429) window._loginTerkunci = e.message || '';
-      /* Kalau yang salah kuncinya, buka blok server supaya bisa langsung
-         diperbaiki di layar ini — bukan dibiarkan mencari tautan "ubah". */
-      if(/kunci aplikasi/i.test(e.message || '')) window._loginServer = true;
+      /* Kalau alamat server yang bermasalah, buka blok servernya supaya bisa
+         langsung diperbaiki di layar ini. */
+      if(/alamat server|failed to fetch|network|load failed/i.test(e.message || '')) window._loginServer = true;
     render();
   }
 }
@@ -1778,6 +1785,7 @@ function render(){
   else if(currentPage === 'surat')      v.innerHTML = viewSurat();
   else if(currentPage === 'keuangan')   v.innerHTML = viewKeuangan();
   else if(currentPage === 'kategori')   v.innerHTML = viewKategori();
+    else if(currentPage === 'akun')       v.innerHTML = viewAkun();
   else if(currentPage === 'pengaturan') v.innerHTML = viewPengaturan();
   else v.innerHTML = '<div class="empty">Halaman tidak ditemukan</div>';
   afterRender();
@@ -3020,6 +3028,93 @@ function viewKategori(){
   '</div>';
 }
 
+/* ---------- AKUN (admin) ---------- */
+/* Satu halaman berisi dua hal: daftar akun (buat, matikan/hidupkan) dan
+   catatan aktivitas — "CCTV" supaya kalau ada data yang berubah bisa
+   ditelusuri siapa pelakunya. */
+let akunState = { pengguna:[], aktivitas:[], muat:false, galat:'' };
+
+function viewAkun(){
+  setTitle('Akun','Pengguna aplikasi & catatan aktivitas');
+  if(!Akun.admin()){
+    return '<div class="empty">Halaman ini hanya untuk admin.</div>';
+  }
+  const list = akunState.pengguna;
+  const cctv = akunState.aktivitas;
+
+  const barisAkun = list.map(function(u){
+    return '<tr>' +
+      '<td><b>' + esc(u.nama) + '</b><br><span class="tiny muted mono">' + esc(u.email) + '</span><br>' +
+        '<span class="chip' + (u.aktif ? '' : ' plain') + '">' + esc(Akun.labelPeran(u.peran)) +
+        (u.aktif ? '' : ' · dimatikan') + '</span></td>' +
+      '<td class="tiny muted">' + (u.masuk_terakhir ? fmtDateTime(u.masuk_terakhir) : 'belum pernah') + '</td>' +
+      '<td class="right nowrap">' +
+        '<button class="btn sm ' + (u.aktif ? 'ghost' : 'primary') + '" data-action="akun-set-aktif" ' +
+          'data-email="' + esc(u.email) + '" data-aktif="' + (u.aktif ? '0' : '1') + '">' +
+          (u.aktif ? 'Matikan' : 'Aktifkan') + '</button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+
+  const barisCctv = cctv.map(function(a){
+    return '<tr>' +
+      '<td class="tiny muted nowrap">' + esc(a.waktu ? fmtDateTime(a.waktu) : '') + '</td>' +
+      '<td><b>' + esc(a.nama || a.email) + '</b>' +
+        (a.nama && a.email ? '<br><span class="tiny muted mono">' + esc(a.email) + '</span>' : '') + '</td>' +
+      '<td><span class="chip plain">' + esc(a.aksi) + '</span> <span class="small">' + esc(a.bagian || '') + '</span></td>' +
+      '<td class="small">' + esc(a.sasaran || '') +
+        (a.ket ? '<br><span class="tiny muted">' + esc(a.ket) + '</span>' : '') + '</td>' +
+    '</tr>';
+  }).join('');
+
+  return '<div class="card">' +
+      '<div class="card-head"><h2>Akun pengguna</h2>' +
+        '<span class="chip plain">' + list.length + ' akun</span></div>' +
+      (akunState.galat ? '<div class="warnbox">' + esc(akunState.galat) + '</div>' : '') +
+      '<p class="small muted">Akun dibuat di <b>halaman akun</b> — halaman terpisah, supaya pintu ' +
+        'membuat akun tidak menempel di aplikasi sehari-hari. Halaman itu juga dipakai membuat ' +
+        'akun pertama, yang otomatis menjadi admin.</p>' +
+      '<div class="btn-row">' +
+        '<button class="btn primary" data-action="akun-buka-daftar">⚿ Buka halaman buat akun</button>' +
+        '<button class="btn" data-action="akun-muat">⟳ Muat ulang</button>' +
+      '</div>' +
+      '<p class="tiny muted" style="margin-top:8px">Alamat: <span class="mono">' +
+        esc(Akun.alamatDaftar() || '—') + '</span></p>' +
+      (list.length
+        ? '<div class="sep"></div><div class="table-wrap"><table>' +
+            '<thead><tr><th>Nama / email</th><th>Terakhir masuk</th><th></th></tr></thead>' +
+            '<tbody>' + barisAkun + '</tbody></table></div>'
+        : '<p class="small muted">Belum ada akun.</p>') +
+    '</div>' +
+
+    '<div class="card">' +
+      '<div class="card-head"><h2>Catatan aktivitas</h2>' +
+        '<span class="chip plain">' + cctv.length + ' kejadian terakhir</span></div>' +
+      '<p class="small muted">Setiap masuk, keluar, tambah, ubah, dan hapus dicatat — supaya kalau ' +
+        'ada data yang berubah, bisa dilihat siapa pelakunya dan kapan.</p>' +
+      (cctv.length
+        ? '<div class="table-wrap" style="max-height:520px;overflow:auto"><table>' +
+            '<thead><tr><th>Waktu</th><th>Siapa</th><th>Aksi</th><th>Data</th></tr></thead>' +
+            '<tbody>' + barisCctv + '</tbody></table></div>'
+        : '<p class="small muted">Belum ada catatan.</p>') +
+    '</div>';
+}
+
+function muatAkun(){
+  if(!Akun.admin()) return;
+  akunState.galat = '';
+  Promise.all([Akun.daftarPengguna(), Akun.aktivitas(200)])
+    .then(function(hasil){
+      akunState.pengguna = hasil[0];
+      akunState.aktivitas = hasil[1];
+      if(currentPage === 'akun') render();
+    })
+    .catch(function(e){
+      akunState.galat = e.message || String(e);
+      if(currentPage === 'akun') render();
+    });
+}
+
 /* ---------- KEUANGAN ---------- */
 let finFilter = { q:'', program:'', uang:'', dari:'', sampai:'', kirim:'' };
 
@@ -3519,12 +3614,17 @@ function simpanFinForm(id){
     if(!f){ toast('Transaksi tidak ditemukan', true); return; }
     f.donorId = donorId; f.tanggal = tanggal; f.mataUang = mataUang;
     f.program = program; f.catatan = catatan;
+      catatAksi('ubah', 'keuangan', f.kode || id,
+        (findDonor(donorId) ? donorName(findDonor(donorId)) : donorId) + ' · ' + tanggal);
     toast('Transaksi diperbarui');
   }else{
-    state.finance.push({
+      const baru = {
       id:uid('fin'), donorId:donorId, tanggal:tanggal, mataUang:mataUang,
       program:program, catatan:catatan, createdAt:new Date().toISOString()
-    });
+      };
+      state.finance.push(baru);
+      catatAksi('tambah', 'keuangan', baru.kode || baru.id,
+        (findDonor(donorId) ? donorName(findDonor(donorId)) : donorId) + ' · ' + tanggal);
     toast('Transaksi ditambahkan');
   }
   save('finance');
@@ -3539,6 +3639,8 @@ function hapusFin(id){
   if(!confirm('Hapus transaksi ' + (d ? donorName(d) : f.donorId) + ' tanggal ' + f.tanggal + '?')) return;
   state.finance = state.finance.filter(function(x){ return x.id !== id; });
   save('finance');
+    catatAksi('hapus', 'keuangan', f.kode || id,
+      (d ? donorName(d) : f.donorId) + ' · ' + (f.tanggal || ''));
   toast('Transaksi dihapus');
   render();
 }
@@ -4617,6 +4719,7 @@ function saveDonorFromForm(isNew, oldId){
   if(isNew){
     f.createdAt = new Date().toISOString();
     state.donors.push(f);
+      catatAksi('tambah', 'donor', f.id, donorName(f));
     toast('Donor ' + f.id + ' ditambahkan');
   }else{
     const i = state.donors.findIndex(function(d){ return d.id === oldId; });
@@ -4626,6 +4729,9 @@ function saveDonorFromForm(isNew, oldId){
     if(oldId !== f.id){
       state.messages.forEach(function(m){ if(m.donorId === oldId) m.donorId = f.id; });
       save('messages');
+        catatAksi('ubah', 'donor', f.id, 'ID diubah dari ' + oldId);
+      }else{
+        catatAksi('ubah', 'donor', f.id, donorName(f));
     }
     toast('Donor ' + f.id + ' diperbarui');
   }
@@ -4642,10 +4748,20 @@ function deleteDonor(id){
   state.donors = state.donors.filter(function(x){ return x.id !== id; });
   state.messages = state.messages.filter(function(m){ return m.donorId !== id; });
   save('donors'); save('messages');
+    catatAksi('hapus', 'donor', id, donorName(d) + (n ? ' (+' + n + ' surat)' : ''));
   closeModal();
   toast('Donor dihapus');
   render();
 }
+
+  /* ---------- CATATAN AKTIVITAS ---------- */
+  /* Catatan "CCTV" dikirim ke server dalam satu permintaan per aksi. Kegagalan
+     mencatat tidak mengganggu pekerjaan pengguna — jadi tidak pernah melempar
+     galat dan tidak menampilkan pesan apa pun. */
+  function catatAksi(aksi, bagian, sasaran, ket){
+    if(typeof Akun === 'undefined' || !Akun.masuk()) return;
+    Akun.catat([{ aksi:aksi, bagian:bagian, sasaran:sasaran, ket:ket || '' }]);
+  }
 
 /* Bungkus isi surat + kwitansi jadi satu HTML untuk badan email. Gaya ditulis
    inline karena klien email membuang <style>. */
@@ -5554,6 +5670,22 @@ document.addEventListener('click', function(e){
         }
         case 'akun-ganti-password': openGantiPassword(); break;
         case 'akun-password-simpan': simpanGantiPassword(); break;
+        case 'akun-buka-daftar': {
+          const a = Akun.alamatDaftar();
+          if(!a){ toast('Alamat Worker belum diisi', true); break; }
+          window.open(a, '_blank', 'noopener');
+          break;
+        }
+        case 'akun-muat': muatAkun(); break;
+        case 'akun-set-aktif': {
+          const email = act.getAttribute('data-email');
+          const jadi = act.getAttribute('data-aktif') === '1';
+          if(!jadi && !confirm('Matikan akun ' + email + '?\n\nAkun itu tidak bisa masuk lagi sampai diaktifkan.')) break;
+          Akun.setAktif(email, jadi)
+            .then(function(){ toast(jadi ? 'Akun diaktifkan' : 'Akun dimatikan'); muatAkun(); })
+            .catch(function(e){ toast('Gagal: ' + (e.message || e), true); });
+          break;
+        }
     case 'donor-baru': openDonorForm(null); break;
     case 'donor-ubah': closeModal(); openDonorForm(id); break;
     case 'donor-hapus': deleteDonor(id); break;
@@ -6191,9 +6323,9 @@ render();
      mengedit data yang sebenarnya sudah tidak terhubung ke server — dan
      editannya hilang begitu halaman dimuat ulang. */
   if(!Server.bisa()){
-    Server.tandai('mati', 'Isi alamat Worker & kunci aplikasi di Setelan');
-    kunciServer('Data bersama belum diatur',
-      'Isi <b>Alamat Worker</b> dan <b>Kunci aplikasi</b> di halaman Setelan.');
+      Server.tandai('mati', 'Alamat server belum diisi');
+      kunciServer('Alamat server belum diisi',
+        'Isi <b>Alamat Worker</b> di halaman Setelan, lalu coba lagi.');
     return;
   }
   /* Kalau ada perubahan yang belum sempat terkirim (mis. internet putus saat
