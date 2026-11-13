@@ -1466,17 +1466,28 @@ function emailUtama(d){
   if(!d) return '';
   return pilihUtama(d.emailUtama, d.email, d.email2);
 }
+/* Email kedua — yaitu kolom yang TIDAK dipakai sebagai utama. Kalau kolom
+   utama kosong, `emailUtama()` meminjam kolom satunya; dalam keadaan itu tidak
+   ada email kedua, jadi kembalikan kosong. Tanpa ini alamat yang sama tampil
+   dua kali ("a@x.id / a@x.id"). */
 function emailLain(d){
   if(!d) return '';
-  return Number(d.emailUtama) === 2 ? String(d.email || '').trim() : String(d.email2 || '').trim();
+  const utama = emailUtama(d);
+  const satu = String(d.email || '').trim();
+  const lain = utama === satu ? String(d.email2 || '').trim() : satu;
+  return lain === utama ? '' : lain;
 }
 function hpUtama(d){
   if(!d) return '';
   return pilihUtama(d.hpUtama, d.hp1, d.hp2);
 }
+/* Nomor HP kedua — sama alasannya dengan `emailLain()`. */
 function hpLain(d){
   if(!d) return '';
-  return Number(d.hpUtama) === 2 ? String(d.hp1 || '').trim() : String(d.hp2 || '').trim();
+  const utama = hpUtama(d);
+  const satu = String(d.hp1 || '').trim();
+  const lain = utama === satu ? String(d.hp2 || '').trim() : satu;
+  return lain === utama ? '' : lain;
 }
 /* Semua alamat email donor, untuk pencocokan surat masuk. */
 function emailDonor(d){
@@ -4566,7 +4577,7 @@ document.addEventListener('keydown', function(e){ if(e.key === 'Escape') closeMo
    Kalau kolomnya kosong, centangnya dimatikan supaya tidak bisa dipilih. */
 function pasanganField(judul, nama, id1, v1, id2, v2, ph1, ph2, utama){
   const u = Number(utama) === 2 ? 2 : 1;
-  const tipe = nama === 'Email' ? 'email' : 'tel';
+  const tipe = String(nama).toLowerCase() === 'email' ? 'email' : 'tel';
   function baris(n, id, nilai, ph){
     const kosong = !String(nilai || '').trim();
     return '<div class="pasangan-baris">' +
@@ -4804,7 +4815,7 @@ function pratinjauLampiran(m, d){
     for(let i = 1; i <= pakai.halaman; i++){
       const src = workerBase() ? workerBase() + '/majalah/' + pakai.id + '/' + i : '';
       if(!src) break;
-      halaman.push('<img src="' + esc(src) + '" alt="Halaman ' + i + '" loading="lazy">');
+      halaman.push('<img src="' + esc(src) + '" alt="Halaman ' + i + '">');
     }
     bagian.push('<div class="lampiran-blok">' +
       '<div class="lampiran-head"><b>Majalah yang terkirim</b>' +

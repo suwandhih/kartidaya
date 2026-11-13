@@ -3632,6 +3632,76 @@ Fungsinya `pilihUtama()`, `emailUtama()`, `emailLain()`, `hpUtama()`, `hpLain()`
 
 **Berkas yang berubah:** `app.js`, `app.css`, `index.html` (versi aset `v=65`).
 
+### 22.17 Tiga bug hasil audit diperbaiki (13 Nov 2026)
+
+**Arahan Anda:** *"ok di proses 1,2,7"* — tiga bug pertama dari tujuh temuan
+audit §22.18.
+
+| # | Bug | Sebelum | Sesudah |
+|---|---|---|---|
+| 1 | Email/HP tampil dobel | Kalau kolom utama kosong, `emailLain()` mengembalikan alamat yang sama dengan `emailUtama()` → tampil `a@x.id / a@x.id` | `emailLain()`/`hpLain()` mengembalikan **kosong** kalau tidak ada kolom kedua yang benar-benar berbeda |
+| 2 | Kolom email bertipe `tel` | `pasanganField()` membandingkan `nama === 'Email'` padahal yang dikirim `'email'` → kolom email memakai `type="tel"`, keyboard angka muncul di HP | Perbandingan dibuat tidak peka huruf besar/kecil → `type="email"` |
+| 7 | Halaman majalah 2+ bisa kosong | `loading="lazy"` pada gambar di dalam kotak bergulir (`.mj-preview`) — browser menunda memuat gambar di luar layar, dan di dalam kotak bergulir gambar itu bisa tidak pernah dimuat | `loading="lazy"` dihapus dari pratinjau majalah |
+
+**Cara kerja perbaikan #1.** `emailUtama()` meminjam kolom satunya kalau kolom
+utama kosong — itu disengaja supaya surat tidak gagal terkirim. Akibatnya
+`emailLain()` harus tahu bahwa dalam keadaan itu **tidak ada** email kedua:
+
+```js
+function emailLain(d){
+  const utama = emailUtama(d);
+  const satu = String(d.email || '').trim();
+  const lain = utama === satu ? String(d.email2 || '').trim() : satu;
+  return lain === utama ? '' : lain;
+}
+```
+
+Jadi tiga keadaan menjadi:
+
+| Keadaan | `emailUtama()` | `emailLain()` | Tampil |
+|---|---|---|---|
+| Hanya Email 1 terisi | Email 1 | *(kosong)* | `a@x.id` |
+| Hanya Email 2 terisi | Email 2 | *(kosong)* | `a@x.id` |
+| Keduanya terisi | yang dicentang | yang satunya | `a@x.id / b@x.id` |
+
+`hpLain()` memakai pola yang sama.
+
+**Yang tidak berubah:** `emailDonor()` tetap mengembalikan **kedua** alamat untuk
+pencocokan surat masuk, dan token `{/EMAIL2}`/`{/HP2}` tetap berisi kolom kedua
+(kosong kalau memang tidak ada). Ekspor CSV/Excel tidak terpengaruh karena
+membaca kolom mentah, bukan hasil `emailLain()`.
+
+**Berkas yang berubah:** `app.js`, `index.html` (versi aset `v=66`).
+
+**Pengujian:** 15/15 uji logika `emailUtama`/`emailLain`/`hpUtama`/`hpLain`/
+`emailDonor` (termasuk data lama tanpa penanda, dua kolom berisi alamat sama,
+dan donor kosong), 11/11 uji `pasanganField` (tipe input & keadaan radio), plus
+verifikasi di browser: simpan donor dengan hanya Email 2 → daftar & detail
+menampilkan satu alamat; isi kedua email → tampil `a / b`; pratinjau majalah
+3 halaman memuat ketiga gambar (1440×1026).
+
+### 22.18 Tujuh temuan audit — status (13 Nov 2026)
+
+Audit baca-saja atas seluruh aplikasi. Ketujuh temuan sudah **direproduksi**,
+bukan dugaan.
+
+| # | Temuan | Tingkat | Status |
+|---|---|---|---|
+| 1 | Email/HP tampil dobel saat kolom utama kosong | 🔴 | ✅ diperbaiki (§22.17) |
+| 2 | Kolom email bertipe `tel` | 🟠 | ✅ diperbaiki (§22.17) |
+| 3 | `settings.majalah` tidak pernah dikirim ke server — user kedua tidak bisa mengirim majalah, dan catatan majalah tidak dipulihkan dari `majalahDaftar` | 🟠 | ⏳ menunggu izin |
+| 4 | Penanda `_miring_` merusak nama berkas: `laporan_2026_final.pdf` → `laporan<i>2026</i>final.pdf` | 🟡 | ⏳ menunggu izin |
+| 5 | Impor JSON hanya memulihkan 6 koleksi (bukan `settings`, `isian`, `uji`) dan tidak pernah sampai ke server | 🟡 | ⏳ menunggu izin |
+| 6 | Teks Setelan masih menyebut "kode undangan" yang sudah lama dihapus | 🟡 | ⏳ menunggu izin |
+| 7 | `loading="lazy"` pada pratinjau majalah | 🟡 | ✅ diperbaiki (§22.17) |
+
+**Yang diperiksa dan dinyatakan aman:** tidak ada deklarasi ganda; tidak ada
+fungsi yang benar-benar tidak terdefinisi; semua atribut HTML dinamis melewati
+`esc()`; Worker memakai `escHtml()` pada `/terima` dan `/baca`; penghapusan donor
+ikut menghapus suratnya di server; pencocokan surat masuk memakai kedua email
+dan kedua nomor; peran admin diperiksa di sisi server; `terbilang()`,
+`fmtUang()`, dan `totalPerUang()` benar untuk multi-mata-uang.
+
 ---
 
 ## 23. Data bersama — beberapa orang, satu data (12 Nov 2026) ✅ SELESAI
