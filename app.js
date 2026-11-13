@@ -2088,6 +2088,7 @@ function viewKotak(arah){
       '<div class="mail-foot">' +
         kanalChip(m) +
         '<span class="chip ' + statusChipClass(m.status) + '">' + esc(m.status) + '</span>' +
+        chipLampiranSurat(m) +
         (!isMasuk && m.pixelId
           ? (m.dibacaPenerima
               ? '<span class="chip st-dibaca" title="Dibuka ' + esc(fmtDateTime(m.dibacaPenerima)) + '">✓✓ Dibaca</span>'
@@ -2181,6 +2182,71 @@ function donorCard(d){
 }
 
 /* ---------- BUKU DONOR (thread) ---------- */
+/* Penanda lampiran untuk daftar/gelembung riwayat surat. Tanpa ini, surat yang
+   dikirim dengan kwitansi atau majalah terlihat sama saja dengan surat biasa —
+   padahal isinya berbeda. Ditampilkan ringkas sebagai chip supaya bisa dilihat
+   sekilas tanpa harus membuka suratnya. */
+function chipLampiranSurat(m){
+  if(!m || m.arah !== 'keluar') return '';
+  const out = [];
+  if(m.kwitansiHTML || m.kwitansiFinId){
+    out.push('<span class="chip ok" title="Kwitansi ikut tercetak di dalam email">🧾 Kwitansi</span>');
+  }
+  if(m.majalah && m.majalah.halaman){
+    out.push('<span class="chip ok" title="' + esc(m.majalah.judul || 'Majalah') + '">📖 Majalah ' +
+      m.majalah.halaman + ' hal</span>');
+  }
+  if(Array.isArray(m.lampiranBerkas) && m.lampiranBerkas.length){
+    out.push('<span class="chip plain" title="' +
+      esc(m.lampiranBerkas.map(function(l){ return l.nama; }).join(', ')) + '">📎 ' +
+      m.lampiranBerkas.length + ' berkas</span>');
+  }
+  return out.join('');
+}
+
+/* Ringkasan lampiran di dalam gelembung riwayat donor. Chip saja sering tidak
+   cukup — user ingin melihat APA yang ikut terkirim tanpa harus membuka
+   suratnya. Jadi ditampilkan satu baris ringkas: nomor kwitansi + jumlahnya,
+   judul majalah + sampul kecil, dan nama berkas. */
+function ringkasLampiranSurat(m, d){
+  if(!m || m.arah !== 'keluar') return '';
+  const baris = [];
+
+  if(m.kwitansiHTML || m.kwitansiFinId){
+    const fin = state.finance.filter(function(f){ return f.id === m.kwitansiFinId; })[0];
+    const kode = fin ? (fin.kode || '') : '';
+    const jumlah = d ? totalTransaksiRingkas(d, m.kwitansiFinId) : '';
+    baris.push('<div class="b-lampiran-baris">🧾 <b>Kwitansi</b>' +
+      (kode ? ' <span class="mono">' + esc(kode) + '</span>' : '') +
+      (jumlah ? ' · <b>' + esc(jumlah) + '</b>' : '') + '</div>');
+  }
+
+  if(m.majalah && m.majalah.halaman){
+    const simpan = state.settings.majalah;
+    const pakai = (simpan && simpan.id === m.majalah.id) ? simpan : m.majalah;
+    const sampul = workerBase() ? workerBase() + '/majalah/' + pakai.id + '/1' : '';
+    /* Sampul hanya hiasan. Kalau gambarnya tidak ada (majalah sudah dihapus
+       dari Worker), gambarnya disembunyikan — jangan sampai yang tampil ikon
+       gambar rusak, karena itu terlihat seperti aplikasi yang rusak.
+       `loading="lazy"` sengaja tidak dipakai: gambar 34px ini terlalu kecil
+       untuk ditunda, dan kalau ditunda `onerror` baru jalan setelah digulir. */
+    baris.push('<div class="b-lampiran-baris">📖 <b>' + esc(pakai.judul || 'Majalah') + '</b> · ' +
+      pakai.halaman + ' halaman' +
+      (sampul ? '<img class="b-sampul" src="' + esc(sampul) + '" alt="" ' +
+        'onerror="this.style.display=\'none\'">' : '') +
+      '</div>');
+  }
+
+  if(Array.isArray(m.lampiranBerkas) && m.lampiranBerkas.length){
+    baris.push('<div class="b-lampiran-baris">📎 ' + m.lampiranBerkas.map(function(l){
+      return esc(l.nama);
+    }).join(', ') + '</div>');
+  }
+
+  if(!baris.length) return '';
+  return '<div class="b-lampiran">' + baris.join('') + '</div>';
+}
+
 function viewBuku(donorId){
   const d = findDonor(donorId);
   if(!d){ go('donor'); return ''; }
@@ -2228,6 +2294,7 @@ function viewBuku(donorId){
         '</div>' +
         '<div class="b-subj">' + esc(m.subjek) + '</div>' +
         '<div class="b-body">' + esc(String(m.isi || '').slice(0, 220)) + '</div>' +
+        ringkasLampiranSurat(m, d) +
       '</div>';
     }).join('') + '</div>'
       : '<div class="empty"><span class="big">✉</span>Belum ada surat untuk donor ini.<br>' +
@@ -5299,6 +5366,16 @@ async function kirimSurat(asDraft){
       ? ('tr-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10))
       : '';
 
+    /* Salinan kwitansi dibuat SEBELUM pengiriman, bukan di dalam cabang Gmail.
+       Kalau dibuat di dalam cabang Gmail, kwitansi tidak pernah tersimpan saat
+       aplikasi berjalan dalam mode simulasi (Gmail belum terhubung) — akibatnya
+       riwayat surat tampak "tanpa kwitansi" padahal kwitansinya ikut dicetak. */
+    if(suratState.kwitansi){
+      kwitansiSalinan = kwitansiHTML(d, suratState.kwitansiBahasa, suratState.kwitansiFinId,
+        { kodeKiriman: kodeKrm, waktuKirim: waktuKrm });
+      kwitansiBahasaSalinan = suratState.kwitansiBahasa;
+    }
+
     if(useGmail){
       if(!d.email){
         status = 'Gagal';
@@ -5326,14 +5403,6 @@ async function kirimSurat(asDraft){
                 }
               })
             : '';
-          /* Salinan kwitansi disimpan apa adanya. Kalau nanti data keuangan
-             diubah, isi surat yang sudah terkirim tetap bisa diperiksa persis
-             seperti yang diterima donor. */
-          if(suratState.kwitansi){
-            kwitansiSalinan = kwitansiHTML(d, suratState.kwitansiBahasa, suratState.kwitansiFinId,
-              { kodeKiriman: kodeKrm, waktuKirim: waktuKrm });
-            kwitansiBahasaSalinan = suratState.kwitansiBahasa;
-          }
           const r = await Gmail.send({
             from: Gmail.email || '', to: d.email, cc: ccBersih, subject: subjek,
             body: formatTeksPolos(isi), html: html
