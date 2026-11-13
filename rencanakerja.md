@@ -3791,6 +3791,72 @@ tetap berjalan tanpa regresi.
 
 ---
 
+### 22.20 Tombol format di kotak tulis surat (13 Nov 2026)
+
+**Pertanyaan Anda:** *"apakah bagian 'tulis surat' khusus di editor bisa dibuat
+tambah toolbar — bullet, number, bold, italic, stabilo dll — supaya template
+lebih keren?"*
+
+**Jawaban singkat: bisa, dan sudah dibuat.** Tapi tidak dengan editor seperti
+Word. Yang dipakai adalah **tombol yang menuliskan penanda** ke dalam kotak
+tulis biasa, ditambah **pratinjau langsung** di bawahnya.
+
+**Kenapa tidak dibuat seperti Word?** Empat hal ini akan merepotkan:
+
+| Masalah | Akibatnya |
+|---|---|
+| Token `{/NAMA}` bisa terpotong format | `{/**NAMA**}` tidak dikenali → surat keluar bertuliskan `{/NAMA}` |
+| Email butuh versi teks biasa | Perlu alat tambahan untuk mengubah HTML jadi teks; kalau salah, WhatsApp ikut rusak |
+| WhatsApp memakai teks yang sama | Sama seperti di atas |
+| Menempel dari Word membawa CSS | Tampilan surat bisa berubah sendiri, perlu pembersih HTML |
+
+Dengan penanda, isi surat tetap **teks biasa**. Semua bagian lain (email, versi
+teks, WhatsApp, riwayat, cetak) tidak perlu diubah.
+
+**Tombol yang tersedia** (di antara deretan token dan kotak tulis):
+
+| Tombol | Yang ditulis | Hasil untuk penerima |
+|---|---|---|
+| **B** | `**teks**` | **teks** tebal |
+| *I* | `*teks*` | *teks* miring |
+| 🖍 | `==teks==` | teks disorot kuning |
+| • | `- ` di awal baris | daftar berpoin |
+| 1. | `1. `, `2. `, `3. ` … | daftar bernomor |
+| Hapus format | — | membuang semua penanda di bagian yang dipilih |
+
+Cara pakai: **blok dulu teksnya, lalu tekan tombol.** Kalau tidak ada yang
+diblok, tombol menulis penanda kosong dan kursor ditaruh di tengahnya. Menekan
+tombol yang sama dua kali membatalkan formatnya.
+
+**Penanda baru: `==stabilo==`.** Sebelumnya hanya ada tebal, miring, poin, dan
+nomor. Stabilo ditambahkan karena Anda menyebutnya.
+
+**Pratinjau langsung.** Di bawah kotak tulis ada kotak "Hasil yang dilihat
+penerima" yang diperbarui sambil mengetik. Jadi tidak perlu menekan tombol
+pratinjau hanya untuk tahu apakah formatnya sudah benar.
+
+**Dua hal yang ditemukan dan diperbaiki saat pengujian:**
+
+| Masalah | Perbaikan |
+|---|---|
+| Daftar bernomor jadi `1. 1. 1.` | Diberi nomor berurutan `1. 2. 3.` — penting karena versi teks (WhatsApp) tidak bisa menomori sendiri |
+| "Hapus format" tidak membuang nomor/poin | Sekarang ikut dibuang |
+
+**Berkas yang berubah:** `app.js`, `app.css`, `index.html` (versi aset `v=68`).
+
+**Pengujian:** 12/12 uji stabilo + regresi format lama, 19/19 uji logika tombol,
+10/10 uji ulang setelah perbaikan nomor & hapus format. Di browser: tombol
+tampil, pratinjau langsung ikut berubah, tebal pada token tidak memotong token,
+stabilo/poin/nomor bekerja, dan surat uji terkirim (simulasi) dengan badan email
+berisi `<b>`, `<span style="background:#fff3a3">`, `<ul>`, dan `<ol>` — sedangkan
+versi teksnya bersih tanpa penanda.
+
+**Kalau nanti kurang:** pilihan editor penuh seperti Word masih terbuka. Yang
+perlu disiapkan lebih dulu adalah pengubah HTML → teks biasa dan pembersih HTML
+tempelan. Untuk tahap uji ini, penanda sudah cukup.
+
+---
+
 ## 23. Data bersama — beberapa orang, satu data (12 Nov 2026) ✅ SELESAI
 
 **Pertanyaan Anda:** *"minimal ada 2 user menggunakan aplikasi ini, bagian keuangan

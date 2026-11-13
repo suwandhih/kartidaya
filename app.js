@@ -2545,6 +2545,120 @@ function kv(k,v){
 let suratState = { tplId:'', subjek:'', isi:'', selected:{}, previewId:'', q:'', replyTo:'', kanal:'email',
   cc:'', lampiran:[], kwitansi:false, kwitansiBahasa:'id', kwitansiFinId:'', majalah:false, kirimSendiri:false, dariPeriksa:false };
 
+/* ---------- TOOLBAR FORMAT ISI SURAT ----------
+   Tombol yang menyisipkan penanda di sekitar teks yang sedang dipilih (atau di
+   posisi kursor kalau tidak ada yang dipilih). Semuanya bekerja pada <textarea>
+   biasa — isi surat tetap teks, bukan HTML. Lihat catatan di formatTeksHTML
+   untuk alasan pilihan ini.
+
+   `buka`/`tutup` adalah penanda pembungkus. Untuk daftar, `awalan` disisipkan
+   di awal setiap baris yang tersentuh pilihan. */
+const TOOLBAR_SURAT = [
+  { aksi:'tebal',    label:'B',   judul:'Tebal',            buka:'**', tutup:'**', kelas:'tb-tebal' },
+  { aksi:'miring',   label:'I',   judul:'Miring',           buka:'*',  tutup:'*',  kelas:'tb-miring' },
+  { aksi:'stabilo',  label:'🖍',  judul:'Stabilo (sorot kuning)', buka:'==', tutup:'==', kelas:'tb-stabilo' },
+  { aksi:'poin',     label:'•',   judul:'Daftar berpoin',   awalan:'- ',  kelas:'tb-poin' },
+  { aksi:'nomor',    label:'1.',  judul:'Daftar bernomor',  awalan:'1. ', kelas:'tb-nomor' }
+];
+
+function toolbarSurat(){
+  return '<div class="toolbar-surat">' +
+    TOOLBAR_SURAT.map(function(t){
+      return '<button type="button" class="tb ' + t.kelas + '" data-action="format-surat" ' +
+        'data-format="' + t.aksi + '" title="' + esc(t.judul) + '">' + t.label + '</button>';
+    }).join('') +
+    '<span class="tb-pisah"></span>' +
+    '<button type="button" class="tb" data-action="format-surat" data-format="bersihkan" ' +
+      'title="Hapus semua penanda format di bagian yang dipilih">Hapus format</button>' +
+  '</div>';
+}
+
+/* Terapkan satu penanda ke <textarea> isi surat. Mengembalikan fokus ke kotak
+   tulis pada posisi yang masuk akal supaya bisa langsung lanjut mengetik. */
+function terapkanFormatSurat(aksi){
+  const ta = document.getElementById('s-isi');
+  if(!ta) return;
+  const t = TOOLBAR_SURAT.filter(function(x){ return x.aksi === aksi; })[0];
+  const awal = ta.selectionStart;
+  const akhir = ta.selectionEnd;
+  const nilai = ta.value;
+  const terpilih = nilai.slice(awal, akhir);
+  let hasil = nilai;
+  let posAwal = awal;
+  let posAkhir = akhir;
+
+  if(aksi === 'bersihkan'){
+    /* Buang penanda di bagian yang dipilih saja — sisanya tidak disentuh.
+       Awalan daftar (`- `, `1. `) ikut dibuang supaya hasilnya benar-benar
+       teks biasa. */
+    if(!terpilih){ toast('Pilih dulu bagian yang mau dibersihkan', true); ta.focus(); return; }
+    const bersih = terpilih
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .replace(/(^|[^*])\*([^*\n]+)\*/g, '$1$2')
+      .replace(/==([^=\n]+)==/g, '$1')
+      .replace(/^[ \t]*(?:[-•]|\d+[.)])[ \t]+/gm, '');
+    hasil = nilai.slice(0, awal) + bersih + nilai.slice(akhir);
+    posAkhir = awal + bersih.length;
+  }else if(t.awalan){
+    /* Daftar: beri awalan pada setiap baris yang tersentuh pilihan. Kalau
+       tidak ada yang dipilih, kerjakan baris tempat kursor berada. */
+    const dariBaris = nilai.lastIndexOf('\n', awal - 1) + 1;
+    let sampaiBaris = nilai.indexOf('\n', akhir);
+    if(sampaiBaris < 0) sampaiBaris = nilai.length;
+    const blok = nilai.slice(dariBaris, sampaiBaris);
+    let urut = 0;
+    const barisBaru = blok.split('\n').map(function(b){
+      /* Baris kosong tidak diberi awalan — kalau diberi, muncul poin kosong. */
+      if(!b.trim()) return b;
+      /* Ganti awalan daftar yang sudah ada supaya tidak menumpuk. */
+      const isi = b.replace(/^\s*(?:[-•]|\d+[.)])\s+/, '');
+      /* Nomor dibuat berurutan (1, 2, 3, …). Kalau semua baris ditandai "1.",
+         versi teks biasa — yang dipakai WhatsApp — akan tampil "1. 1. 1.". */
+      if(t.aksi === 'nomor'){ urut++; return urut + '. ' + isi; }
+      return t.awalan + isi;
+    }).join('\n');
+    hasil = nilai.slice(0, dariBaris) + barisBaru + nilai.slice(sampaiBaris);
+    posAwal = dariBaris;
+    posAkhir = dariBaris + barisBaru.length;
+  }else{
+    /* Pembungkus: kalau sudah terbungkus, lepaskan (tombol jadi sakelar). */
+    const sebelum = nilai.slice(Math.max(0, awal - t.buka.length), awal);
+    const sesudah = nilai.slice(akhir, akhir + t.tutup.length);
+    if(sebelum === t.buka && sesudah === t.tutup){
+      hasil = nilai.slice(0, awal - t.buka.length) + terpilih + nilai.slice(akhir + t.tutup.length);
+      posAwal = awal - t.buka.length;
+      posAkhir = posAwal + terpilih.length;
+    }else{
+      hasil = nilai.slice(0, awal) + t.buka + terpilih + t.tutup + nilai.slice(akhir);
+      posAwal = awal + t.buka.length;
+      posAkhir = posAwal + terpilih.length;
+    }
+  }
+
+  ta.value = hasil;
+  suratState.isi = hasil;
+  ta.focus();
+  ta.setSelectionRange(posAwal, posAkhir);
+  segarkanPratinjauIsi();
+  refreshPreview();
+}
+
+/* Pratinjau langsung di bawah kotak tulis. Memakai donor yang sama dengan
+   panel "3 · Pratinjau" supaya yang terlihat konsisten. */
+function segarkanPratinjauIsi(){
+  const el = document.getElementById('s-isi-pratinjau');
+  if(!el) return;
+  const ids = Object.keys(suratState.selected).filter(function(k){ return suratState.selected[k]; });
+  const d = findDonor(suratState.previewId) || (ids.length ? findDonor(ids[0]) : null) || state.donors[0] || null;
+  const isi = fillTemplate(suratState.isi, d || {});
+  if(!String(isi).trim()){
+    el.innerHTML = '<span class="muted">Belum ada isi. Mulai menulis di kotak di atas — ' +
+      'hasilnya muncul di sini.</span>';
+    return;
+  }
+  el.innerHTML = formatTeksHTML(isi);
+}
+
 function viewSurat(){
   setTitle('Tulis Surat','Susun surat dengan template, kirim ke banyak penerima');
   if(!suratState.tplId && state.templates.length) suratState.tplId = state.templates[0].id;
@@ -2613,11 +2727,18 @@ function viewSurat(){
         '<div class="tokenbar">' + TOKENS.map(function(t){
           return '<button type="button" class="token" data-token="' + esc(t[0]) + '" title="' + esc(t[1]) + '">' + esc(t[0]) + '</button>';
         }).join('') + '</div>' +
+        toolbarSurat() +
         '<textarea id="s-isi" style="min-height:230px" placeholder="Tulis isi surat di sini…">' + esc(suratState.isi) + '</textarea>' +
         '<p class="tiny muted" style="margin:6px 0 0">Boleh diberi format: ' +
           '<b class="mono">**tebal**</b> · <i class="mono">*miring*</i> · ' +
+          '<span class="mono">==stabilo==</span> · ' +
           '<span class="mono">- poin</span> di awal baris · ' +
           '<span class="mono">1. nomor</span> di awal baris.</p>' +
+        '<div class="pratinjau-langsung">' +
+          '<div class="pl-kepala">Hasil yang dilihat penerima ' +
+            '<span class="hint">— diperbarui sambil Anda mengetik</span></div>' +
+          '<div class="letter" id="s-isi-pratinjau"></div>' +
+        '</div>' +
       '</div>' +
       (kanal === 'email' ? blokKwitansi() + blokMajalah() + blokLampiran() : '') +
       blokIsian() +
@@ -3443,7 +3564,12 @@ function bindSurat(){
     render();
   });
   const isi = document.getElementById('s-isi');
-  if(isi) isi.addEventListener('input', function(){ suratState.isi = this.value; refreshPreview(); });
+  if(isi) isi.addEventListener('input', function(){
+    suratState.isi = this.value;
+    segarkanPratinjauIsi();
+    refreshPreview();
+  });
+  segarkanPratinjauIsi();
   const kwFin = document.getElementById('s-kw-fin');
   if(kwFin) kwFin.addEventListener('change', function(){
     suratState.kwitansiFinId = this.value;
@@ -5497,6 +5623,7 @@ function catatAksi(aksi, bagian, sasaran, ket){
 
      **tebal**      → huruf tebal
      *miring*       → huruf miring
+     ==stabilo==    → huruf disorot kuning
      - awal baris   → daftar berpoin
      1. awal baris  → daftar bernomor
 
@@ -5518,7 +5645,8 @@ function formatTeksHTML(teks){
   const sebaris = function(s){
     return esc(s)
       .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
-      .replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<i>$2</i>');
+      .replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<i>$2</i>')
+      .replace(/==([^=\n]+)==/g, '<span style="background:#fff3a3">$1</span>');
   };
 
   baris.forEach(function(b){
@@ -5547,7 +5675,8 @@ function formatTeksHTML(teks){
 function formatTeksPolos(teks){
   return String(teks || '')
     .replace(/\*\*([^*]+)\*\*/g, '$1')
-    .replace(/(^|[^*])\*([^*\n]+)\*/g, '$1$2');
+    .replace(/(^|[^*])\*([^*\n]+)\*/g, '$1$2')
+    .replace(/==([^=\n]+)==/g, '$1');
 }
 
 function isiHTML(d, isiTeks, bahasa, finId, opts){
@@ -6575,6 +6704,7 @@ document.addEventListener('click', function(e){
       ta.focus();
       ta.setSelectionRange(s + t.length, s + t.length);
       suratState.isi = ta.value;
+      segarkanPratinjauIsi();
       refreshPreview();
     }
     return;
@@ -6945,6 +7075,9 @@ document.addEventListener('click', function(e){
       /* WhatsApp tidak bisa menampilkan tabel HTML, jadi kwitansi dimatikan. */
       if(suratState.kanal === 'whatsapp') suratState.kwitansi = false;
       render();
+      break;
+    case 'format-surat':
+      terapkanFormatSurat(act.getAttribute('data-format'));
       break;
     case 'kw-toggle':
       suratState.kwitansi = !suratState.kwitansi;

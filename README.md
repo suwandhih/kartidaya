@@ -25,7 +25,7 @@ Surat yang "dikirim" tercatat di buku donor, surat masuk bisa dicatat manual.
 | Kategori | 5 kategori awal, bisa ditambah/ubah/hapus |
 | ID-DONOR otomatis | Format `[X]99999[Z]` — X dari Instansi (atau PIC bila kosong) |
 | Template surat | Token `{/PIC}`, `{/INST}`, `{/TANGGAL}`, `{/EMAIL}`, `{/EMAIL2}`, `{/HP}`, `{/HP2}`, dll. |
-| **Format sederhana** | `**tebal**`, `*miring*`, `- poin`, `1. nomor` di isi surat |
+| **Format sederhana** | `**tebal**`, `*miring*`, `==stabilo==`, `- poin`, `1. nomor` di isi surat — ada tombolnya di atas kotak tulis |
 | Kirim massal | Pilih banyak penerima, kirim sekaligus |
 | **Cc** | Kirim salinan ke alamat lain, ikut tersimpan di riwayat |
 | **Balas semua / Teruskan** | Balas semua mengisi Cc otomatis; Teruskan menyalin isi + kepala surat |
