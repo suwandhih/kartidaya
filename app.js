@@ -2207,7 +2207,12 @@ function chipLampiranSurat(m){
 /* Ringkasan lampiran di dalam gelembung riwayat donor. Chip saja sering tidak
    cukup — user ingin melihat APA yang ikut terkirim tanpa harus membuka
    suratnya. Jadi ditampilkan satu baris ringkas: nomor kwitansi + jumlahnya,
-   judul majalah + sampul kecil, dan nama berkas. */
+   judul majalah + sampul kecil, dan nama berkas.
+
+   Setiap baris BISA DIKLIK untuk langsung membuka isinya — kwitansi dibuka
+   sebagai salinan yang terkirim, majalah dibuka di halaman pembaca, berkas
+   dibuka di tab baru. Tanpa ini, satu-satunya jalan adalah membuka suratnya
+   dulu, dan itu tidak jelas bagi pengguna. */
 function ringkasLampiranSurat(m, d){
   if(!m || m.arah !== 'keluar') return '';
   const baris = [];
@@ -2216,9 +2221,14 @@ function ringkasLampiranSurat(m, d){
     const fin = state.finance.filter(function(f){ return f.id === m.kwitansiFinId; })[0];
     const kode = fin ? (fin.kode || '') : '';
     const jumlah = d ? totalTransaksiRingkas(d, m.kwitansiFinId) : '';
-    baris.push('<div class="b-lampiran-baris">🧾 <b>Kwitansi</b>' +
-      (kode ? ' <span class="mono">' + esc(kode) + '</span>' : '') +
-      (jumlah ? ' · <b>' + esc(jumlah) + '</b>' : '') + '</div>');
+    baris.push('<button type="button" class="b-lampiran-baris bisa-klik" ' +
+      'data-action="lihat-kwitansi" data-msg="' + esc(m.id) + '" ' +
+      'title="Klik untuk membuka kwitansi">' +
+      '<span class="b-lampiran-ikon">🧾</span>' +
+      '<span class="b-lampiran-teks"><b>Kwitansi</b>' +
+        (kode ? ' <span class="mono">' + esc(kode) + '</span>' : '') +
+        (jumlah ? ' · <b>' + esc(jumlah) + '</b>' : '') + '</span>' +
+      '<span class="b-lampiran-buka">Buka →</span></button>');
   }
 
   if(m.majalah && m.majalah.halaman){
@@ -2230,21 +2240,154 @@ function ringkasLampiranSurat(m, d){
        gambar rusak, karena itu terlihat seperti aplikasi yang rusak.
        `loading="lazy"` sengaja tidak dipakai: gambar 34px ini terlalu kecil
        untuk ditunda, dan kalau ditunda `onerror` baru jalan setelah digulir. */
-    baris.push('<div class="b-lampiran-baris">📖 <b>' + esc(pakai.judul || 'Majalah') + '</b> · ' +
-      pakai.halaman + ' halaman' +
+    baris.push('<button type="button" class="b-lampiran-baris bisa-klik" ' +
+      'data-action="lihat-majalah" data-msg="' + esc(m.id) + '" ' +
+      'title="Klik untuk membaca majalah">' +
+      '<span class="b-lampiran-ikon">📖</span>' +
+      '<span class="b-lampiran-teks"><b>' + esc(pakai.judul || 'Majalah') + '</b> · ' +
+        pakai.halaman + ' halaman</span>' +
       (sampul ? '<img class="b-sampul" src="' + esc(sampul) + '" alt="" ' +
         'onerror="this.style.display=\'none\'">' : '') +
-      '</div>');
+      '<span class="b-lampiran-buka">Baca →</span></button>');
   }
 
   if(Array.isArray(m.lampiranBerkas) && m.lampiranBerkas.length){
-    baris.push('<div class="b-lampiran-baris">📎 ' + m.lampiranBerkas.map(function(l){
-      return esc(l.nama);
-    }).join(', ') + '</div>');
+    baris.push('<button type="button" class="b-lampiran-baris bisa-klik" ' +
+      'data-action="lihat-berkas" data-msg="' + esc(m.id) + '" ' +
+      'title="Klik untuk membuka berkas">' +
+      '<span class="b-lampiran-ikon">📎</span>' +
+      '<span class="b-lampiran-teks">' + m.lampiranBerkas.map(function(l){
+        return esc(l.nama);
+      }).join(', ') + '</span>' +
+      '<span class="b-lampiran-buka">Buka →</span></button>');
   }
 
   if(!baris.length) return '';
   return '<div class="b-lampiran">' + baris.join('') + '</div>';
+}
+
+/* ---------- PENAMPIL LAMPIRAN SURAT ----------
+   Dibuka dari baris ringkasan di riwayat surat. Tujuannya supaya isi yang
+   pernah dikirim bisa dilihat lagi tanpa harus mencari suratnya dulu.
+
+   Kwitansi memakai salinan yang tersimpan saat surat dikirim (persis seperti
+   yang diterima donor). Kalau surat lama belum punya salinan, kwitansi dibuat
+   ulang dari data keuangan sekarang dan diberi keterangan jelas — supaya tidak
+   ada yang mengira itu salinan asli. */
+function bukaKwitansiSurat(msgId){
+  const m = state.messages.filter(function(x){ return x.id === msgId; })[0];
+  if(!m){ toast('Surat tidak ditemukan', true); return; }
+  const d = findDonor(m.donorId);
+  const fin = state.finance.filter(function(f){ return f.id === m.kwitansiFinId; })[0];
+  const kode = fin ? (fin.kode || '') : '';
+  const jumlah = d ? totalTransaksiRingkas(d, m.kwitansiFinId) : '';
+
+  let isi, catatan;
+  if(m.kwitansiHTML){
+    isi = '<div class="kwitansi-preview">' + m.kwitansiHTML + '</div>';
+    catatan = '<p class="tiny muted" style="margin:8px 0 0">Salinan tersimpan — persis seperti ' +
+      'yang diterima donor saat surat dikirim.</p>';
+  }else if(d){
+    isi = '<div class="kwitansi-preview">' + kwitansiHTML(d, m.kwitansiBahasa || 'id', m.kwitansiFinId) + '</div>';
+    catatan = '<div class="warnbox" style="margin-top:10px">Surat ini dikirim sebelum salinan kwitansi ' +
+      'disimpan, jadi kwitansi di atas <b>dibuat ulang</b> dari data keuangan sekarang. ' +
+      'Isinya bisa berbeda kalau data keuangan sudah diubah.</div>';
+  }else{
+    isi = '<div class="warnbox">Kwitansi tidak bisa ditampilkan — donor surat ini sudah dihapus.</div>';
+    catatan = '';
+  }
+
+  openModal({
+    title: 'Kwitansi — ' + (m.subjek || '(tanpa subjek)'),
+    body: '<div class="kv" style="margin-bottom:12px">' +
+        kv('Donor', d ? donorName(d) + ' (' + d.id + ')' : '—') +
+        kv('Kode kwitansi', kode) +
+        kv('Jumlah', jumlah) +
+        kv('Dikirim', fmtDateTime(m.tanggal)) +
+      '</div>' + isi + catatan,
+    footer: '<button class="btn" data-close>Tutup</button>' +
+      (d ? '<button class="btn" data-action="buku" data-id="' + esc(d.id) + '">Buka Riwayat</button>' : ''),
+    wide: true
+  });
+}
+
+/* Buka majalah yang pernah dikirim. Halaman pembaca dibuka di tab baru —
+   tampilannya sudah dibuat untuk HP (satu halaman per layar). Kalau majalahnya
+   sudah tidak ada di Worker, pengguna diberi tahu dan diberi jalan untuk
+   mengunggah ulang, bukan sekadar halaman kosong. */
+function bukaMajalahSurat(msgId){
+  const m = state.messages.filter(function(x){ return x.id === msgId; })[0];
+  if(!m || !m.majalah){ toast('Surat ini tidak memuat majalah', true); return; }
+  const simpan = state.settings.majalah;
+  const pakai = (simpan && simpan.id === m.majalah.id) ? simpan : m.majalah;
+  const base = workerBase();
+  if(!base){ toast('Alamat Worker belum diisi — majalah tidak bisa dibuka', true); return; }
+
+  const urlBaca = base + '/baca/' + pakai.id;
+  const halaman = [];
+  for(let i = 1; i <= (pakai.halaman || 0); i++){
+    /* Tanpa `loading="lazy"`: di dalam kotak bergulir, browser menunda gambar
+       yang belum terlihat dan sering tidak pernah memuatnya — akibatnya
+       halaman 2 dan seterusnya tampak kosong. Jumlah halaman majalah kecil
+       (puluhan), jadi memuat semuanya sekaligus tidak berat. */
+    halaman.push('<img src="' + esc(base + '/majalah/' + pakai.id + '/' + i) + '" ' +
+      'alt="Halaman ' + i + '" ' +
+      'onerror="this.parentNode.classList.add(\'mj-hilang\')">');
+  }
+
+  openModal({
+    title: 'Majalah — ' + (pakai.judul || 'Majalah Kartidaya'),
+    body: '<div class="kv" style="margin-bottom:12px">' +
+        kv('Edisi', pakai.judul || 'Majalah Kartidaya') +
+        kv('Halaman', String(pakai.halaman || 0)) +
+        kv('Dikirim', fmtDateTime(m.tanggal)) +
+      '</div>' +
+      '<div class="btn-row" style="margin-bottom:12px">' +
+        '<a class="btn primary" href="' + esc(urlBaca) + '" target="_blank" rel="noopener">' +
+          '👁 Baca di halaman pembaca</a>' +
+        '<button class="btn" data-action="lihat-majalah-stat" data-id="' + esc(pakai.id) + '" ' +
+          'data-judul="' + esc(pakai.judul || 'Majalah Kartidaya') + '" ' +
+          'data-halaman="' + (pakai.halaman || 1) + '">' +
+          '📊 Statistik pembaca</button>' +
+      '</div>' +
+      (halaman.length
+        ? '<div class="mj-preview">' + halaman.join('') + '</div>' +
+          '<p class="tiny muted" style="margin:8px 0 0">Halaman yang tidak bisa dimuat akan ' +
+          'disembunyikan. Kalau semuanya kosong, majalahnya sudah tidak ada di Worker — ' +
+          'unggah ulang lewat <b>Tulis Surat → Kelola majalah</b>.</p>'
+        : '<div class="warnbox">Catatan majalah ini tidak menyimpan jumlah halaman.</div>'),
+    footer: '<button class="btn" data-close>Tutup</button>',
+    wide: true
+  });
+}
+
+/* Buka berkas lampiran yang pernah dikirim. Satu berkas → langsung dibuka di
+   tab baru. Lebih dari satu → daftar dulu supaya pengguna memilih. */
+function bukaBerkasSurat(msgId){
+  const m = state.messages.filter(function(x){ return x.id === msgId; })[0];
+  if(!m || !Array.isArray(m.lampiranBerkas) || !m.lampiranBerkas.length){
+    toast('Surat ini tidak memuat berkas', true);
+    return;
+  }
+  const daftar = m.lampiranBerkas.map(function(l){
+    return { nama: l.nama, ukuran: l.ukuran, url: l.url || WhatsApp.lampiranURL(l.id) };
+  });
+  if(daftar.length === 1 && daftar[0].url){
+    window.open(daftar[0].url, '_blank', 'noopener');
+    return;
+  }
+  openModal({
+    title: 'Berkas yang ikut terkirim',
+    body: '<div class="lampiran-daftar">' + daftar.map(function(l){
+      return '<div class="lampiran-baris">' +
+        '<span class="lampiran-ikon">' + ikonBerkas(l.nama) + '</span>' +
+        '<span class="lampiran-nama">' + esc(l.nama) + '</span>' +
+        '<span class="tiny muted mono">' + ukuranBerkas(l.ukuran) + '</span>' +
+        (l.url ? '<a class="btn sm" href="' + esc(l.url) + '" target="_blank" rel="noopener">Buka</a>' : '') +
+      '</div>';
+    }).join('') + '</div>',
+    footer: '<button class="btn" data-close>Tutup</button>'
+  });
 }
 
 function viewBuku(donorId){
@@ -6602,6 +6745,27 @@ document.addEventListener('click', function(e){
       break;
     }
     case 'mj-statistik': bukaStatistikMajalah(); break;
+    case 'lihat-kwitansi': bukaKwitansiSurat(act.getAttribute('data-msg') || ''); break;
+    case 'lihat-majalah': bukaMajalahSurat(act.getAttribute('data-msg') || ''); break;
+    case 'lihat-berkas': bukaBerkasSurat(act.getAttribute('data-msg') || ''); break;
+    case 'lihat-majalah-stat': {
+      const idMj = act.getAttribute('data-id') || '';
+      const judulMj = act.getAttribute('data-judul') || 'Majalah Kartidaya';
+      const halMj = parseInt(act.getAttribute('data-halaman'), 10) || 1;
+      const simpanMj = state.settings.majalah;
+      if(simpanMj && simpanMj.id !== idMj){
+        /* Statistik dibaca per edisi. Kalau yang dibuka bukan edisi aktif,
+           jadikan dulu edisi aktif supaya fungsi statistik yang sudah ada
+           bisa dipakai — lalu kembalikan setelah selesai. Judul & jumlah
+           halaman diambil dari tombolnya, jadi modal tidak berjudul generik. */
+        const asli = JSON.parse(JSON.stringify(simpanMj));
+        state.settings.majalah = { id: idMj, judul: judulMj, halaman: halMj };
+        bukaStatistikMajalah().then(function(){ state.settings.majalah = asli; });
+      }else{
+        bukaStatistikMajalah();
+      }
+      break;
+    }
     case 'lampiran-pilih': {
       const el = document.getElementById('s-lampiran-file');
       if(el) el.click();
