@@ -241,12 +241,21 @@ function tanggalKwitansi(iso){
   if(isNaN(d)) return '';
   return d.toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' });
 }
-/* Ambil transaksi keuangan milik donor. Kalau `finId` diisi, pakai itu saja. */
+/* Ambil transaksi keuangan milik donor. Kalau `finId` diisi, pakai itu saja.
+   Kalau `finId` ternyata milik donor LAIN (mis. penerima diganti setelah
+   transaksi dipilih), jangan kembalikan kosong: kwitansinya akan tercetak
+   Rp 0 tanpa sebab yang bisa dilihat pengguna. Pakai transaksi terbaru donor
+   yang sedang dipilih — sama dengan yang ditampilkan kotak pilihan. */
 function kwitansiDonor(donorId, finId){
-  const list = state.finance.filter(function(f){
-    return f.donorId === donorId && (!finId || f.id === finId);
+  const milik = state.finance.filter(function(f){
+    return f.donorId === donorId;
   }).sort(function(a,b){ return String(b.tanggal).localeCompare(String(a.tanggal)); });
-  return list[0] || null;
+  if(!milik.length) return null;
+  if(finId){
+    const pilih = milik.filter(function(f){ return f.id === finId; })[0];
+    if(pilih) return pilih;
+  }
+  return milik[0];
 }
 /* Nomor kwitansi dibuat dari tanggal + ID donor supaya stabil dan mudah dicari:
    KWT/20261111/F00004R */
@@ -967,10 +976,20 @@ function nominalProgram(f, programId){
   const baris = (f.program || []).filter(function(x){ return x.id === programId; })[0];
   return baris ? Number(baris.jumlah) || 0 : 0;
 }
-/* Total satu transaksi, dipisah per mata uang. */
+/* Total satu transaksi, dipisah per mata uang.
+   Transaksi lama (sebelum ada pilihan program per baris) hanya punya
+   `mataUang` + `jumlah` di tingkat transaksi, tanpa array `program`. Tanpa
+   cabang di bawah, transaksi seperti itu dihitung Rp 0 — kwitansinya tercetak
+   nol padahal catatannya ada. */
 function totalPerUangTransaksi(f){
   const map = {};
-  (f.program || []).forEach(function(x){
+  if(!Array.isArray(f.program) || !f.program.length){
+    const k = f.mataUang || 'IDR';
+    const jml = Number(f.jumlah) || 0;
+    if(jml) map[k] = jml;
+    return map;
+  }
+  f.program.forEach(function(x){
     const k = mataUangBaris(x, f);
     map[k] = (map[k] || 0) + (Number(x.jumlah) || 0);
   });
@@ -1212,6 +1231,13 @@ const Server = {
         Server.tertunda.majalah = true;
         this.simpanTertunda();
       }
+      /* Transaksi yang datang dari server bisa belum punya kode kwitansi:
+         lengkapiKodeKwitansi() di loadState() berjalan SEBELUM data server
+         dimuat, jadi yang diberi kode saat itu hanya data di browser. Tanpa
+         panggilan di sini, kwitansi transaksi dari server tercetak
+         "KWT-20261101-????". Dijalankan setelah `siap` & `diketahui` benar,
+         supaya save() mengirim kode barunya ke server. */
+      lengkapiKodeKwitansi();
       if(perluUnggah.length){
         /* Tandai supaya dikirim ke server — bukan dibuang. */
         perluUnggah.forEach(function(nama){ Server.tertunda[nama] = true; });
@@ -2740,7 +2766,7 @@ function viewSurat(){
           '<div class="letter" id="s-isi-pratinjau"></div>' +
         '</div>' +
       '</div>' +
-      (kanal === 'email' ? blokKwitansi() + blokMajalah() + blokLampiran() : '') +
+      (kanal === 'email' ? '<div id="kw-blok">' + blokKwitansi() + '</div>' + blokMajalah() + blokLampiran() : '') +
       blokIsian() +
     '</div>' +
 
@@ -3086,10 +3112,15 @@ function openPeriksaKirim(){
     const d = findDonor(id);
     if(!d) return '';
     const alamat = wa ? (donorWa(d) ? waPhonePretty(donorWa(d)) : '') : (emailUtama(d) || '');
-    const fin = state.finance.filter(function(f){ return f.donorId === id; });
-    const total = fin.length ? Object.keys(totalPerUang(fin)).sort().map(function(k){
-      return fmtUang(totalPerUang(fin)[k], k);
-    }).join(' + ') : '';
+    /* Jumlah yang ditampilkan harus jumlah kwitansi yang AKAN DIKIRIM, bukan
+       total semua transaksi donor. Kalau donor punya beberapa transaksi dan
+       hanya satu yang dipilih, total semua membuat angkanya tidak cocok
+       dengan kwitansi di bawahnya — dan itu membuat layar periksa ini justru
+       menyesatkan. */
+    const k = pakaiKwitansi ? dataKwitansi(d, suratState.kwitansiFinId) : null;
+    const total = (k && k.ada)
+      ? k.kodeUang.map(function(u){ return fmtUang(k.perUang[u] || 0, u); }).join(' + ')
+      : '';
     return '<tr>' +
       '<td class="mono nowrap">' + esc(d.id) + '</td>' +
       '<td><b>' + esc(donorName(d)) + '</b></td>' +
@@ -3321,6 +3352,13 @@ function blokKwitansi(){
   const d = findDonor(suratState.previewId) || findDonor(Object.keys(suratState.selected).filter(function(k){ return suratState.selected[k]; })[0]);
   const finDonor = d ? state.finance.filter(function(f){ return f.donorId === d.id; })
     .sort(function(a,b){ return String(b.tanggal).localeCompare(String(a.tanggal)); }) : [];
+  /* Kalau transaksi yang tadi dipilih milik donor lain (penerima diganti),
+     lupakan pilihannya. Tanpa ini kotak pilihan menampilkan transaksi donor
+     sebelumnya sementara kwitansinya sudah memakai transaksi donor yang baru —
+     dua hal berbeda di satu layar. */
+  if(suratState.kwitansiFinId && !finDonor.some(function(f){ return f.id === suratState.kwitansiFinId; })){
+    suratState.kwitansiFinId = '';
+  }
   const finOpts = '<option value="">Transaksi terbaru</option>' + finDonor.map(function(f){
     return '<option value="' + esc(f.id) + '"' + (suratState.kwitansiFinId === f.id ? ' selected' : '') + '>' +
       esc(f.tanggal + ' · ' + Object.keys(totalPerUangTransaksi(f)).sort().map(function(k){
@@ -3774,9 +3812,13 @@ let finFilter = { q:'', program:'', uang:'', dari:'', sampai:'', kirim:'' };
 function finList(){
   const q = finFilter.q.toLowerCase();
   return state.finance.filter(function(f){
-    if(finFilter.program && !(f.program || []).some(function(x){ return x.id === finFilter.program; })) return false;
+    /* Transaksi lama tidak punya array `program` — hanya `mataUang` + `jumlah`.
+       Tanpa cabang di bawah, transaksi seperti itu hilang dari daftar begitu
+       filter program atau mata uang dipakai. */
+    const baris = Array.isArray(f.program) ? f.program : [];
+    if(finFilter.program && !baris.some(function(x){ return x.id === finFilter.program; })) return false;
     /* Filter mata uang mencocokkan baris program, bukan hanya label transaksi. */
-    if(finFilter.uang && !(f.program || []).some(function(x){ return mataUangBaris(x, f) === finFilter.uang; })) return false;
+    if(finFilter.uang && !Object.prototype.hasOwnProperty.call(totalPerUangTransaksi(f), finFilter.uang)) return false;
     if(finFilter.dari && String(f.tanggal || '') < finFilter.dari) return false;
     if(finFilter.sampai && String(f.tanggal || '') > finFilter.sampai) return false;
     /* Filter status kirim: memisahkan kwitansi yang sudah pernah dikirim dari
@@ -3789,9 +3831,9 @@ function finList(){
     if(!q) return true;
     const d = findDonor(f.donorId);
     const teks = [f.donorId, f.kode, d ? donorName(d) : '', d ? d.kategori : '',
-      (f.program || []).map(function(x){ return programNama(x.id); }).join(' '),
+      baris.map(function(x){ return programNama(x.id); }).join(' '),
       f.catatan, f.mataUang,
-      (f.program || []).map(function(x){ return mataUangBaris(x, f); }).join(' ')].join(' ').toLowerCase();
+      Object.keys(totalPerUangTransaksi(f)).join(' ')].join(' ').toLowerCase();
     return teks.indexOf(q) >= 0;
   }).sort(function(a,b){ return String(b.tanggal || '').localeCompare(String(a.tanggal || '')); });
 }
@@ -3830,8 +3872,11 @@ function viewKeuangan(){
     (kodeUang.length
       ? '<div class="grid stats">' + kodeUang.map(function(k){
           return stat('Total ' + k, fmtUang(total[k], k),
+            /* Dihitung dari totalPerUangTransaksi(), bukan dari `f.program`:
+               transaksi lama tidak punya array program, jadi kalau dihitung
+               dari situ jumlahnya kurang dari yang sebenarnya. */
             list.filter(function(f){
-              return (f.program || []).some(function(x){ return mataUangBaris(x, f) === k; });
+              return Object.prototype.hasOwnProperty.call(totalPerUangTransaksi(f), k);
             }).length + ' transaksi');
         }).join('') + '</div>'
       : '<p class="small muted">Belum ada transaksi. Klik <b>+ Tambah</b> untuk mencatat donor masuk.</p>') +
@@ -3871,7 +3916,9 @@ function viewKeuangan(){
           '<th class="right">Jumlah</th><th>Terakhir dikirim</th><th></th></tr></thead><tbody>' +
           list.map(function(f){
             const d = findDonor(f.donorId);
-            const prog = (f.program || []).map(function(x){
+            /* Transaksi lama tidak punya array program — tampilkan "—" apa
+               adanya, jangan mengarang nama program. */
+            const prog = (Array.isArray(f.program) ? f.program : []).map(function(x){
               return '<div>' + esc(programNama(x.id)) +
                 '<span class="mono muted"> · ' + esc(fmtUang(x.jumlah, mataUangBaris(x, f))) + '</span></div>';
             }).join('') || '<span class="muted">—</span>';
@@ -4276,6 +4323,10 @@ function simpanFinForm(id){
       program:program, catatan:catatan, createdAt:new Date().toISOString()
       };
       state.finance.push(baru);
+      /* Beri kode kwitansi sekarang juga. Tanpa ini, kwitansi yang dikirim
+         tepat setelah transaksi dicatat tercetak "KWT-20261113-????" —
+         lengkapiKodeKwitansi() hanya berjalan saat aplikasi dibuka. */
+      lengkapiKodeKwitansi();
       catatAksi('tambah', 'keuangan', baru.kode || baru.id,
         (findDonor(donorId) ? donorName(findDonor(donorId)) : donorId) + ' · ' + tanggal);
     toast('Transaksi ditambahkan');
@@ -7317,6 +7368,11 @@ document.addEventListener('change', function(e){
     const id = r.getAttribute('data-recip');
     suratState.selected[id] = r.checked;
     if(r.checked) suratState.previewId = id;
+    /* Kotak pilihan transaksi kwitansi harus ikut digambar ulang: daftarnya
+       milik donor yang sedang dipratinjau. Tanpa ini, setelah penerima
+       diganti kotak itu masih menampilkan transaksi donor sebelumnya. */
+    const kw = document.getElementById('kw-blok');
+    if(kw) kw.innerHTML = blokKwitansi();
     refreshRecipients(); refreshPreview();
     return;
   }

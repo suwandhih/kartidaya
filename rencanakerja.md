@@ -3407,6 +3407,10 @@ Ini **bukan pekerjaan kode** — hanya perlu diisi. Tapi tanpa ini, kwitansi yan
 dikirim ke donor akan berisi angka nol, jadi sebaiknya diisi **sebelum kirim
 sungguhan**.
 
+**Diperiksa ulang 13 Nov 2026 — ternyata ada 5 bug nyata di area ini.**
+Kwitansi Rp 0 bukan hanya soal data kosong; ada kesalahan kode yang membuat
+kwitansi tetap Rp 0 walau datanya ada. Semuanya sudah diperbaiki — lihat §22.21.
+
 ### 22.12 Ringkasan prioritas
 
 | Prioritas | Pekerjaan | Perkiraan | Perlu keputusan Anda? | Status |
@@ -3854,6 +3858,83 @@ versi teksnya bersih tanpa penanda.
 **Kalau nanti kurang:** pilihan editor penuh seperti Word masih terbuka. Yang
 perlu disiapkan lebih dulu adalah pengubah HTML → teks biasa dan pembersih HTML
 tempelan. Untuk tahap uji ini, penanda sudah cukup.
+
+---
+
+### 22.21 Lima bug kwitansi diperbaiki (13 Nov 2026)
+
+**Arahan Anda:** *"22.11 bisa dibenahi"* — lalu *"jujur kurang paham.. hanya rasa
+ini seperti bug disini"*.
+
+**Anda benar. Itu memang bug, bukan sekadar data kosong.** Saya periksa ulang
+dan menemukan lima kesalahan kode yang membuat kwitansi tercetak Rp 0 atau
+tercetak angka yang salah, walaupun datanya ada.
+
+**Bug 1 — kwitansi jadi Rp 0 setelah penerima diganti.**
+
+Kalau Anda memilih transaksi untuk donor A, lalu mengganti penerima ke donor B,
+pilihan transaksi donor A masih tersimpan. Kwitansi donor B lalu mencari
+transaksi yang bukan miliknya, tidak ketemu, dan tercetak **Rp 0**.
+
+| Sebelum | Sesudah |
+|---|---|
+| Transaksi milik donor lain → kwitansi Rp 0 | Transaksi milik donor lain → pakai transaksi terbaru donor itu |
+| Kotak pilihan masih menampilkan transaksi donor lama | Kotak pilihan ikut digambar ulang, pilihan lama dilupakan |
+
+**Bug 2 — transaksi bentuk lama dihitung Rp 0.**
+
+Transaksi yang dicatat sebelum ada pilihan program per baris hanya punya
+`mataUang` + `jumlah`, tanpa daftar `program`. Perhitungan total hanya membaca
+daftar `program`, jadi transaksi seperti itu dianggap nol.
+
+| Sebelum | Sesudah |
+|---|---|
+| Transaksi lama → Rp 0 | Transaksi lama → jumlahnya dibaca dari `jumlah` |
+| Hilang dari filter program/mata uang | Tetap muncul di filter |
+| "1 transaksi" padahal ada 3 | Jumlah transaksi dihitung benar |
+
+**Bug 3 — kode kwitansi tercetak `KWT-20261101-????`.**
+
+Pemberian kode kwitansi hanya berjalan saat aplikasi dibuka — **sebelum** data
+diambil dari server. Jadi transaksi yang datang dari server tidak pernah
+mendapat kode, dan kwitansinya mencetak tanda tanya.
+
+| Sebelum | Sesudah |
+|---|---|
+| `KWT-20261101-????` | `KWT-20261101-0001` |
+| Hanya data di browser yang diberi kode | Data dari server juga diberi kode, lalu dikirim balik |
+
+**Bug 4 — transaksi baru belum punya kode.**
+
+Kwitansi yang dikirim tepat setelah mencatat transaksi juga mencetak `????`,
+karena kode baru diberikan saat halaman dimuat ulang.
+
+| Sebelum | Sesudah |
+|---|---|
+| `KWT-20261113-????` | `KWT-20261113-0001` langsung saat disimpan |
+
+**Bug 5 — layar "Periksa sebelum kirim" menampilkan jumlah yang salah.**
+
+Kolom "Jumlah kwitansi" menjumlahkan **semua** transaksi donor, bukan transaksi
+yang dipilih. Kalau donor punya dua transaksi (Rp 750.000 dan Rp 2.500.000) dan
+yang dipilih hanya Rp 750.000, layar itu menulis **Rp 3.250.000** — berbeda
+dengan kwitansi di bawahnya. Layar pemeriksa justru menyesatkan.
+
+| Sebelum | Sesudah |
+|---|---|
+| Rp 3.250.000 (semua transaksi) | Rp 750.000 (yang benar-benar dikirim) |
+
+**Berkas yang berubah:** `app.js`, `index.html` (versi aset `v=69`).
+
+**Pengujian:** 19/19 uji logika (kwitansi donor lain, transaksi bentuk lama,
+kode otomatis, nomor urut tidak bertabrakan, campur mata uang, jumlah 0,
+program kosong). Di browser dengan Worker + D1 + KV tiruan: transaksi bentuk
+lama tercetak "Dua juta lima ratus ribu rupiah", kode `KWT-20261101-0001`,
+ganti penerima tidak lagi menghasilkan Rp 0, kotak pilihan transaksi ikut
+berganti, dan layar periksa menampilkan jumlah yang sama dengan kwitansinya.
+
+**Catatan:** §22.11 tetap perlu data sungguhan dari client. Yang diperbaiki di
+sini adalah kodenya — supaya begitu data diisi, kwitansinya langsung benar.
 
 ---
 
