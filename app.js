@@ -5225,12 +5225,60 @@ async function hapusMajalah(){
 }
 
 /* ---------- 10. AKSI ---------- */
+/* Cari donor lain yang memakai email, nomor HP, atau nama PIC yang sama.
+   Hasilnya dipakai untuk MEMPERINGATKAN, bukan menolak: data tes boleh kembar,
+   tapi pengguna perlu tahu akibatnya — surat masuk hanya masuk ke satu donor
+   saja, yaitu donor pertama yang cocok (lihat donorByEmail / donorByPhone).
+   Nama PIC dibandingkan karena satu orang bisa terdaftar dua kali dengan email
+   berbeda; itu juga membuat suratnya terbelah ke dua riwayat. */
+function namaSama(a, b){
+  const rapi = function(s){ return String(s || '').toLowerCase().replace(/\s+/g, ' ').trim(); };
+  const x = rapi(a), y = rapi(b);
+  return !!x && x === y;
+}
+function donorKembar(f, oldId){
+  const email = String(f.email || '').trim().toLowerCase();
+  const nomor = [waPhone(f.hp1), waPhone(f.hp2)].filter(Boolean);
+  const hasil = [];
+  state.donors.forEach(function(d){
+    if(d.id === oldId) return;
+    if(email && String(d.email || '').trim().toLowerCase() === email){
+      hasil.push({ donor:d, jenis:'Email', nilai:f.email });
+    }
+    const punyaDia = [waPhone(d.hp1), waPhone(d.hp2)].filter(Boolean);
+    const sama = nomor.filter(function(n){ return punyaDia.indexOf(n) >= 0; });
+    if(sama.length) hasil.push({ donor:d, jenis:'Nomor HP', nilai:waPhonePretty(sama[0]) });
+    if(namaSama(f.pic, d.pic)){
+      hasil.push({ donor:d, jenis:'Nama PIC', nilai:f.pic });
+    }
+  });
+  return hasil;
+}
+
 function saveDonorFromForm(isNew, oldId){
   const f = readDonorForm();
   if(!f.pic && !f.instansi){ toast('Isi minimal PIC atau Instansi', true); return; }
   if(!f.id) f.id = nextDonorId(f.pic, f.instansi, 'R');
   const dup = state.donors.filter(function(d){ return d.id === f.id && d.id !== oldId; });
   if(dup.length){ toast('ID ' + f.id + ' sudah dipakai', true); return; }
+
+  const kembar = donorKembar(f, oldId);
+  if(kembar.length){
+    const daftar = kembar.map(function(k){
+      return '• ' + k.jenis + ' "' + k.nilai + '" sudah dipakai ' +
+        k.donor.id + ' — ' + donorName(k.donor);
+    }).join('\n');
+    const adaAlamat = kembar.some(function(k){ return k.jenis !== 'Nama PIC'; });
+    const akibat = (adaAlamat
+        ? 'Surat masuk ke alamat itu hanya akan masuk ke SATU donor (yang pertama ' +
+          'cocok), donor lainnya tidak menerima suratnya.'
+        : 'Nama PIC yang sama membuat dua donor mudah tertukar saat memilih penerima.') +
+      (kembar.some(function(k){ return k.jenis === 'Nama PIC'; }) && adaAlamat
+        ? '\nNama PIC yang sama juga membuat dua donor mudah tertukar.'
+        : '');
+    if(!confirm('Perhatian — data ini sudah dipakai donor lain:\n\n' + daftar +
+        '\n\n' + akibat + '\n\nTetap simpan?')) return;
+  }
 
   if(isNew){
     f.createdAt = new Date().toISOString();

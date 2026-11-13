@@ -3489,6 +3489,36 @@ supaya catatan yang sudah menumpuk tetap mudah dibaca.
 **Berkas yang berubah:** `app.js`, `app.css`, `whatsapp.js`, `worker/index.js`,
 `index.html` (versi aset `v=61`).
 
+### 22.15 Peringatan data donor kembar (13 Nov 2026)
+
+**Pertanyaan Anda:** *"ferry kangsadjaja menggunakan email suwandhih@gmail.com,
+lalu amir samosir menggunakan email suwandhih@gmail.com juga — apa yang
+terjadi?"*
+
+**Jawabannya: surat masuk akan salah alamat, tanpa tanda apa pun.**
+`donorByEmail()` berhenti pada donor **pertama** yang cocok, jadi semua surat
+dari alamat itu masuk ke satu donor saja; donor kedua riwayatnya tetap kosong.
+Hal yang sama berlaku untuk `donorByPhone()` pada WhatsApp. Surat **keluar**
+tidak terpengaruh karena penerima dipilih manual.
+
+Sesuai pilihan Anda, yang ditambahkan **hanya peringatan** — data tidak
+ditolak, karena ini masih tahap tes dan data kembar boleh saja terjadi:
+
+- Saat menyimpan donor, dicari donor lain yang memakai **email**, **nomor HP**
+  (HP 1 maupun HP 2, setelah dinormalkan sehingga `0811…`, `62811…`, dan
+  `+62 811…` dianggap sama), atau **nama PIC** yang sama.
+- Kalau ada, muncul konfirmasi yang menyebutkan donor mana yang sudah memakai
+  data itu beserta akibatnya. **Tetap simpan** meneruskan, **Batal** membatalkan.
+- Donor yang sedang diubah tidak diperingatkan terhadap dirinya sendiri.
+- Nama PIC dibandingkan tanpa membedakan huruf besar/kecil dan spasi berlebih,
+  karena satu orang yang terdaftar dua kali dengan email berbeda juga membuat
+  suratnya terbelah ke dua riwayat.
+
+Fungsinya `donorKembar()` dan `namaSama()` di `app.js`, dipanggil dari
+`saveDonorFromForm()`.
+
+**Berkas yang berubah:** `app.js`, `index.html` (versi aset `v=64`).
+
 ---
 
 ## 23. Data bersama — beberapa orang, satu data (12 Nov 2026) ✅ SELESAI

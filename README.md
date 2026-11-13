@@ -20,6 +20,7 @@ Surat yang "dikirim" tercatat di buku donor, surat masuk bisa dicatat manual.
 | Fitur | Keterangan |
 |---|---|
 | Data donor | Form isi seperti Excel, 18 donor contoh sudah terisi |
+| **Peringatan data kembar** | Saat menyimpan donor, diberi tahu kalau email / nomor HP / nama PIC sudah dipakai donor lain |
 | Kategori | 5 kategori awal, bisa ditambah/ubah/hapus |
 | ID-DONOR otomatis | Format `[X]99999[Z]` — X dari Instansi (atau PIC bila kosong) |
 | Template surat | Token `{/PIC}`, `{/INST}`, `{/TANGGAL}`, dll. |
