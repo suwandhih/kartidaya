@@ -33,7 +33,9 @@ const WhatsApp = {
   /* ---------- konfigurasi ---------- */
 
   isConfigured(){
-    return !!(this.endpoint && this.appKey);
+    /* Alamat Worker saja sudah cukup: akun yang sudah masuk memakai tokennya
+       sendiri, jadi kunci aplikasi tidak wajib ada di komputer ini. */
+    return !!this.endpoint;
   },
   status(){
     if(!this.isConfigured()) return 'unconfigured';
@@ -47,13 +49,18 @@ const WhatsApp = {
 
   async api(path, opts){
     opts = opts || {};
-    if(!this.isConfigured()) throw new Error('Alamat Worker / kunci aplikasi belum diisi');
-    const base = String(this.endpoint).replace(/\/+$/, '');
+    const base = String(this.endpoint || '').replace(/\/+$/, '');
+    if(!base) throw new Error('Alamat Worker belum diisi');
+    /* Akun yang sudah masuk boleh memakai tokennya sendiri — jadi kunci
+       aplikasi tidak wajib ada di komputer ini. */
+    const headers = {};
+    if(this.appKey) headers['X-App-Key'] = this.appKey;
+    const token = (typeof Akun !== 'undefined' && Akun.token) ? Akun.token : '';
+    if(token) headers['Authorization'] = 'Bearer ' + token;
     const res = await fetch(base + path, {
       method: opts.method || 'GET',
-      headers: Object.assign({
-        'X-App-Key': this.appKey
-      }, opts.body ? { 'Content-Type': 'application/json' } : {}, opts.headers || {}),
+      headers: Object.assign(headers,
+        opts.body ? { 'Content-Type': 'application/json' } : {}, opts.headers || {}),
       body: opts.body ? JSON.stringify(opts.body) : undefined
     });
     let data = null;
@@ -122,6 +129,39 @@ const WhatsApp = {
     });
     return { id: r.id || '', to: r.to || '', jenis: r.jenis || 'image' };
   },
+  /* ---------- lampiran berkas ---------- */
+
+  /* Unggah satu berkas lampiran ke Worker. Berkas dibaca sebagai base64 lalu
+     dikirim lewat JSON — sama seperti kwitansi & majalah, jadi tidak perlu
+     unggahan multipart. Mengembalikan alamat publik berkasnya. */
+  async unggahLampiran(id, file){
+    if(!file) throw new Error('Berkas kosong');
+    if(file.size > 10 * 1024 * 1024) throw new Error('Berkas maksimal 10 MB');
+    const data = await new Promise(function(resolve, reject){
+      const fr = new FileReader();
+      fr.onload = function(){ resolve(String(fr.result || '').replace(/^data:[^,]*,/, '')); };
+      fr.onerror = function(){ reject(new Error('Berkas tidak bisa dibaca')); };
+      fr.readAsDataURL(file);
+    });
+    const r = await this.api('/lampiran', {
+      method:'POST',
+      body:{ id: id, nama: file.name || 'lampiran', tipe: file.type || '', data: data }
+    });
+    return { id: r.id || id, nama: r.nama || file.name, tipe: r.tipe || file.type,
+      ukuran: r.ukuran || file.size, url: r.url || '' };
+  },
+
+  /* Alamat publik satu lampiran. */
+  lampiranURL(id){
+    const base = String(this.endpoint || '').replace(/\/+$/, '');
+    return (base && id) ? base + '/lampiran/' + id : '';
+  },
+
+  async hapusLampiran(id){
+    if(!id) return { ok: true };
+    return this.api('/lampiran/' + encodeURIComponent(id), { method:'DELETE' });
+  },
+
   /* ---------- terima ---------- */
 
   async fetchInbox(){

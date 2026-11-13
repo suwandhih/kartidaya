@@ -334,6 +334,34 @@ const MAJALAH_PDF_MAX_BAGIAN = 8;
 function majalahPdfKey(id, n){ return 'majalah-pdf:' + id + (n ? ':' + n : ''); }
 function majalahPdfMetaKey(id){ return 'majalah-pdf-meta:' + id; }
 
+/* ---------- penghitung pembaca majalah ----------
+   Dicatat per edisi, bukan per pembaca: yang ingin diketahui hanya "berapa
+   kali dibuka" dan "halaman mana yang paling dilihat". Tidak ada data pribadi
+   yang disimpan — hanya angka. Disimpan di KV dengan satu key per edisi
+   supaya pembacaan cukup sekali ambil. */
+function majalahBacaKey(id){ return 'majalah-baca:' + id; }
+
+async function catatBacaMajalah(env, id, halaman){
+  if (!env.WA_INBOX || !id) return;
+  const key = majalahBacaKey(id);
+  let data = { buka: 0, halaman: {}, terakhir: '' };
+  try {
+    const raw = await env.WA_INBOX.get(key);
+    if (raw) data = JSON.parse(raw);
+  } catch (e) { /* catatan rusak — mulai dari kosong */ }
+  if (!data.halaman || typeof data.halaman !== 'object') data.halaman = {};
+  const n = Number(halaman);
+  if (n >= 1) {
+    data.halaman[n] = (data.halaman[n] || 0) + 1;
+  } else {
+    data.buka = (data.buka || 0) + 1;
+  }
+  data.terakhir = new Date().toISOString();
+  try {
+    await env.WA_INBOX.put(key, JSON.stringify(data));
+  } catch (e) { /* penghitung tidak boleh menggagalkan pembacaan majalah */ }
+}
+
 /* ---------- kwitansi PNG ----------
    WhatsApp mengambil berkas dari alamat publik, jadi gambar kwitansi harus
    punya alamat yang bisa diakses tanpa kunci. Disimpan sebentar saja
@@ -350,6 +378,44 @@ function b64ToBytes(b64){
   const out = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
   return out;
+}
+
+/* ---------- lampiran berkas ----------
+   Berkas lampiran disimpan di KV supaya bisa dibuka lagi kapan saja — baik
+   berkas yang dikirim donor lewat email maupun berkas yang kita lampirkan
+   pada surat keluar. Batasnya 10 MB per berkas: cukup untuk dokumen & foto,
+   dan masih di bawah batas KV Cloudflare (25 MiB per key). */
+const LAMPIRAN_MAX_BYTE = 10 * 1024 * 1024;
+const LAMPIRAN_TIPE = {
+  pdf: 'application/pdf',
+  jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif',
+  doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xls: 'application/vnd.ms-excel',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  ppt: 'application/vnd.ms-powerpoint',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  txt: 'text/plain', csv: 'text/csv', zip: 'application/zip'
+};
+
+function lampiranKey(id){ return 'lampiran:' + id; }
+function lampiranMetaKey(id){ return 'lampiran-meta:' + id; }
+
+/* Tebak tipe berkas dari namanya — dipakai kalau pengirim tidak menyebutkan
+   tipe. Tanpa ini, browser akan mengunduh berkas sebagai "application/
+   octet-stream" dan penerima tidak bisa membukanya langsung. */
+function tipeLampiran(nama, tipeDiberi){
+  const t = String(tipeDiberi || '').trim();
+  if (t && t !== 'application/octet-stream') return t;
+  const ext = String(nama || '').split('.').pop().toLowerCase();
+  return LAMPIRAN_TIPE[ext] || 'application/octet-stream';
+}
+
+/* Nama berkas yang aman dipakai di header Content-Disposition. */
+function namaAman(nama){
+  return String(nama || 'lampiran')
+    .replace(/[\\/:*?"<>|\r\n]/g, '_')
+    .slice(0, 120) || 'lampiran';
 }
 
 /* ============================================================
@@ -377,7 +443,7 @@ function halamanBaca(meta, base, id){
   const gambar = [];
   for (let i = 1; i <= n; i++) {
     gambar.push(
-      '<figure class="hal">' +
+      '<figure class="hal" data-hal="' + i + '">' +
         '<img src="' + base + '/majalah/' + id + '/' + i + '" alt="Halaman ' + i + '" loading="' +
         (i <= 2 ? 'eager' : 'lazy') + '">' +
         '<figcaption>Halaman ' + i + ' dari ' + n + '</figcaption>' +
@@ -423,6 +489,22 @@ function halamanBaca(meta, base, id){
       'var b=document.getElementById("naik");' +
       'addEventListener("scroll",function(){b.hidden=scrollY<600;},{passive:true});' +
       'b.addEventListener("click",function(){scrollTo({top:0,behavior:"smooth"});});' +
+      /* Penghitung pembaca: satu kiriman saat halaman dibuka, lalu satu
+         kiriman setiap halaman yang benar-benar terlihat. Sengaja memakai
+         IntersectionObserver supaya halaman yang tidak pernah digeser tidak
+         ikut terhitung. Kegagalan kirim diabaikan — tidak boleh mengganggu
+         pembacaan. */
+      'function hit(n){try{var u="' + base + '/baca/' + id + '/hal/"+(n||0);' +
+        'if(navigator.sendBeacon){navigator.sendBeacon(u);}else{fetch(u,{method:"POST",keepalive:true});}}catch(e){}}' +
+      'hit(0);' +
+      'if(window.IntersectionObserver){' +
+        'var io=new IntersectionObserver(function(es){es.forEach(function(en){' +
+          'if(!en.isIntersecting)return;' +
+          'var f=en.target.getAttribute("data-hal");' +
+          'if(f&&!en.target.getAttribute("data-tercatat")){en.target.setAttribute("data-tercatat","1");hit(f);}' +
+        '});},{threshold:0.5});' +
+        'document.querySelectorAll(".hal").forEach(function(el){io.observe(el);});' +
+      '}' +
     '<\/script>' +
   '</body></html>';
 }
@@ -727,7 +809,7 @@ async function catatTerima(env, id, info){
 /* Daftar koleksi yang boleh disimpan. Dibatasi supaya permintaan dengan nama
    koleksi sembarangan tidak bisa menulis ke tabel. */
 const KOLEKSI = ['donors', 'messages', 'templates', 'categories', 'programs', 'finance'];
-const META_KUNCI = ['isian', 'majalah'];
+const META_KUNCI = ['isian', 'majalah', 'majalahDaftar'];
 
 /* Baca semua data sekaligus. Aplikasi memanggil ini sekali saat dibuka, jadi
    satu permintaan cukup — tidak perlu satu permintaan per koleksi. */
@@ -1303,6 +1385,37 @@ export default {
         });
       }
 
+      /* --- lampiran berkas (tanpa X-App-Key untuk pengambilan) ---
+         Berkas harus bisa diambil klien email dan tautan di riwayat surat,
+         jadi pengambilannya tidak memakai kunci. Yang dilindungi hanya
+         unggah dan hapus. */
+      const lampiranGet = path.match(/^\/lampiran\/([A-Za-z0-9_-]{4,64})$/);
+      if (lampiranGet && req.method === 'GET') {
+        const metaRaw = await env.WA_INBOX.get(lampiranMetaKey(lampiranGet[1]));
+        if (!metaRaw) return new Response('Not Found', { status: 404 });
+        const meta = JSON.parse(metaRaw);
+        const buf = await env.WA_INBOX.get(lampiranKey(lampiranGet[1]), { type: 'arrayBuffer' });
+        if (!buf) return new Response('Not Found', { status: 404 });
+        const nama = namaAman(meta.nama);
+        return new Response(buf, {
+          status: 200,
+          headers: {
+            'Content-Type': meta.tipe || 'application/octet-stream',
+            'Content-Disposition': 'inline; filename="' + nama + '"',
+            'Cache-Control': 'public, max-age=31536000, immutable'
+          }
+        });
+      }
+
+      /* --- penghitung pembaca majalah (tanpa X-App-Key) ---
+         Dipanggil halaman pembaca lewat sendBeacon. Tidak menyimpan data
+         pribadi apa pun — hanya angka per edisi. */
+      const bh = path.match(/^\/baca\/([A-Za-z0-9_-]{4,64})\/hal\/(\d{1,2})$/);
+      if (bh && (req.method === 'POST' || req.method === 'GET')) {
+        await catatBacaMajalah(env, bh[1], Number(bh[2]));
+        return new Response(null, { status: 204, headers: { 'Access-Control-Allow-Origin': '*' } });
+      }
+
       /* --- halaman pembaca majalah (tanpa X-App-Key) ---
          Email hanya memuat sampul + tombol; halaman penuh dibuka di sini
          supaya email tetap ringan dan tidak dianggap spam. */
@@ -1499,7 +1612,7 @@ export default {
       }
 
       /* Simpan data berbentuk satu nilai: POST /data/meta/<kunci> */
-      const simpanMeta = path.match(/^\/data\/meta\/([a-z]+)$/);
+      const simpanMeta = path.match(/^\/data\/meta\/([A-Za-z]+)$/);
       if (simpanMeta && req.method === 'POST') {
         if (!env.DB) {
           return withCors(json({ ok: false, error: 'Database D1 belum dipasang di Worker' }, 500), req);
@@ -1701,6 +1814,14 @@ export default {
         if (!raw) return withCors(json({ ok: false, error: 'Majalah tidak ditemukan' }, 404), req);
         return withCors(json(Object.assign({ ok: true }, JSON.parse(raw))), req);
       }
+      /* Statistik pembaca satu edisi — dipakai halaman Setelan/Tulis Surat. */
+      const mjBaca = path.match(/^\/majalah\/([A-Za-z0-9_-]{4,64})\/baca$/);
+      if (mjBaca && req.method === 'GET') {
+        const raw = await env.WA_INBOX.get(majalahBacaKey(mjBaca[1]));
+        const data = raw ? JSON.parse(raw) : { buka: 0, halaman: {}, terakhir: '' };
+        return withCors(json({ ok: true, buka: data.buka || 0,
+          halaman: data.halaman || {}, terakhir: data.terakhir || '' }), req);
+      }
       if (mjMeta && req.method === 'DELETE') {
         const raw = await env.WA_INBOX.get(majalahMetaKey(mjMeta[1]));
         if (raw) {
@@ -1718,6 +1839,49 @@ export default {
           }
           await env.WA_INBOX.delete(majalahPdfMetaKey(mjMeta[1]));
         }
+        return withCors(json({ ok: true }), req);
+      }
+
+      /* ---------- lampiran berkas ---------- */
+      /* Unggah satu berkas lampiran. Isinya base64 supaya bisa lewat JSON
+         seperti endpoint lain — tidak perlu unggahan multipart. */
+      if (path === '/lampiran' && req.method === 'POST') {
+        const body = await req.json().catch(function () { return null; });
+        if (!body) return withCors(json({ ok: false, error: 'Body bukan JSON' }, 400), req);
+        const id = String(body.id || '').replace(/[^A-Za-z0-9_-]/g, '');
+        if (id.length < 4) return withCors(json({ ok: false, error: 'ID lampiran tidak sah' }, 400), req);
+        let bytes;
+        try { bytes = b64ToBytes(body.data); }
+        catch (e) { return withCors(json({ ok: false, error: 'Data berkas tidak sah' }, 400), req); }
+        if (!bytes.length) return withCors(json({ ok: false, error: 'Berkas kosong' }, 400), req);
+        if (bytes.length > LAMPIRAN_MAX_BYTE) {
+          return withCors(json({ ok: false, error: 'Berkas maksimal 10 MB' }, 413), req);
+        }
+        const nama = namaAman(body.nama);
+        const tipe = tipeLampiran(nama, body.tipe);
+        await env.WA_INBOX.put(lampiranKey(id), bytes);
+        await env.WA_INBOX.put(lampiranMetaKey(id), JSON.stringify({
+          id: id, nama: nama, tipe: tipe, ukuran: bytes.length,
+          diunggah: new Date().toISOString()
+        }));
+        return withCors(json({
+          ok: true, id: id, nama: nama, tipe: tipe, ukuran: bytes.length,
+          url: url.origin + '/lampiran/' + id
+        }), req);
+      }
+
+      /* Info satu lampiran (tanpa isi berkasnya). */
+      const lampiranMeta = path.match(/^\/lampiran\/([A-Za-z0-9_-]{4,64})\/info$/);
+      if (lampiranMeta && req.method === 'GET') {
+        const raw = await env.WA_INBOX.get(lampiranMetaKey(lampiranMeta[1]));
+        if (!raw) return withCors(json({ ok: false, error: 'Lampiran tidak ditemukan' }, 404), req);
+        return withCors(json(Object.assign({ ok: true }, JSON.parse(raw))), req);
+      }
+
+      /* Hapus satu lampiran. */
+      if (lampiranGet && req.method === 'DELETE') {
+        await env.WA_INBOX.delete(lampiranKey(lampiranGet[1]));
+        await env.WA_INBOX.delete(lampiranMetaKey(lampiranGet[1]));
         return withCors(json({ ok: true }), req);
       }
 

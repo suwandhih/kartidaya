@@ -3236,7 +3236,7 @@ internet hanya data karangan. Aplikasi tetap jalan penuh.
 **Setelan → Ekspor JSON**, simpan berkasnya. Setelah itu saya kosongkan data
 contoh, dan Anda impor kembali berkas itu di komputer Anda sendiri.
 
-### 22.2 🟠 Belum ada peringatan mencadangkan data
+### 22.2 ✅ SELESAI — peringatan mencadangkan data
 
 **Masalahnya:** semua data (donor, surat, keuangan, template) hanya tersimpan di
 **localStorage browser**. Kalau Anda menekan **Hapus semua data**, atau memakai
@@ -3254,7 +3254,7 @@ ada yang mengingatkan untuk memakainya.
 **Perkiraan:** ±30 menit. **Risiko kalau tidak dikerjakan:** kehilangan seluruh
 data secara mendadak.
 
-### 22.3 🟠 Majalah hanya bisa satu edisi
+### 22.3 ✅ SELESAI — daftar edisi majalah
 
 Sekarang mengunggah majalah baru **mengganti** edisi lama. Kalau nanti Anda
 ingin mengirim **edisi Oktober** ke sebagian donor dan **edisi November** ke
@@ -3279,7 +3279,7 @@ Sudah ada `noindex,nofollow` (tidak didaftarkan mesin pencari), tetapi itu
 (mis. 90 hari). **Perkiraan:** ±1 jam. **Tergantung keputusan Anda** — kalau
 majalah memang untuk umum, tidak perlu diubah.
 
-### 22.5 🟡 Belum ada penghitung pembaca majalah
+### 22.5 ✅ SELESAI — penghitung pembaca majalah
 
 Tidak ada cara mengetahui **berapa orang** membuka majalah, atau halaman mana
 yang paling dibaca. Padahal tanda dibaca email sudah ada — jadi ini tinggal
@@ -3288,7 +3288,7 @@ menambahkan pencatatan serupa di halaman pembaca.
 **Usulan:** catat pembukaan per halaman, tampilkan ringkasannya di halaman
 majalah. **Perkiraan:** ±1,5 jam. **Nilai tambah**, bukan kebutuhan.
 
-### 22.6 🟡 Belum ada "Balas semua" & "Teruskan"
+### 22.6 ✅ SELESAI — "Balas semua" & "Teruskan"
 
 Sekarang hanya ada tombol **Balas**. Untuk surat masuk dari satu donor ini sudah
 cukup. **Balas semua** baru perlu kalau nanti surat dikirim ke beberapa alamat
@@ -3296,7 +3296,7 @@ sekaligus (Cc). **Teruskan** berguna untuk meneruskan surat donor ke pihak lain.
 
 **Perkiraan:** ±1 jam untuk keduanya. **Belum mendesak.**
 
-### 22.7 🟡 Belum ada lampiran berkas sungguhan
+### 22.7 ✅ SELESAI — lampiran berkas sungguhan
 
 Sekarang "lampiran" hanya **catatan nama berkas** — berkasnya tidak ikut
 tersimpan atau terkirim. Kalau donor mengirim dokumen lewat email, dokumen itu
@@ -3304,7 +3304,7 @@ tidak bisa dibuka dari aplikasi.
 
 **Perkiraan:** ±2 jam (perlu menyimpan berkas di Worker). **Belum mendesak.**
 
-### 22.8 🟡 Belum ada template berformat (tebal/miring)
+### 22.8 ✅ SELESAI — template berformat (tebal/miring)
 
 Isi surat sekarang **teks biasa**. Tidak bisa menebalkan, memiringkan, atau
 membuat daftar bernomor. Untuk surat resmi biasanya cukup, tetapi undangan
@@ -3347,22 +3347,23 @@ sungguhan**.
 
 ### 22.12 Ringkasan prioritas
 
-| Prioritas | Pekerjaan | Perkiraan | Perlu keputusan Anda? |
-|---|---|---|---|
-| 🔴 1 | **Kosongkan data donor asli dari repo publik** (§22.1) | ±30 menit | **ya** — pilih A / B / C |
-| 🟠 2 | Pengingat mencadangkan data (§22.2) | ±30 menit | tidak |
-| 🟠 3 | Isi data Keuangan & Alamat Lengkap (§22.11) | — | **ya** — data dari Anda |
-| 🟡 4 | Daftar edisi majalah (§22.3) | ±2 jam | **ya** — perlu lebih dari 1 edisi? |
-| 🟡 5 | Kata sandi halaman pembaca (§22.4) | ±1 jam | **ya** — majalah untuk umum? |
-| 🟡 6 | Penghitung pembaca majalah (§22.5) | ±1,5 jam | tidak |
-| 🟡 7 | Balas semua & Teruskan (§22.6) | ±1 jam | tidak |
-| 🟡 8 | Lampiran berkas sungguhan (§22.7) | ±2 jam | tidak |
-| 🟡 9 | Template berformat (§22.8) | ±3 jam | tidak |
-| 🟡 10 | Verifikasi OAuth Google (§22.10) | proses 1–4 minggu | **ya** — kapan diajukan? |
-| 🟡 11 | Login / multi-user (§22.9) | ±1–2 hari | **ya** — rencana hosting? |
+| Prioritas | Pekerjaan | Perkiraan | Perlu keputusan Anda? | Status |
+|---|---|---|---|---|
+| 🔴 1 | **Kosongkan data donor asli dari repo publik** (§22.1) | ±30 menit | **ya** — pilih A / B / C | ⏳ belum |
+| 🟠 2 | Pengingat mencadangkan data (§22.2) | ±30 menit | tidak | ✅ selesai |
+| 🟠 3 | Isi data Keuangan & Alamat Lengkap (§22.11) | — | **ya** — data dari Anda | ⏳ belum |
+| 🟡 4 | Daftar edisi majalah (§22.3) | ±2 jam | tidak lagi | ✅ selesai |
+| 🟡 5 | Kata sandi halaman pembaca (§22.4) | ±1 jam | **ya** — majalah untuk umum? | ⏳ belum |
+| 🟡 6 | Penghitung pembaca majalah (§22.5) | ±1,5 jam | tidak | ✅ selesai |
+| 🟡 7 | Balas semua & Teruskan (§22.6) | ±1 jam | tidak | ✅ selesai |
+| 🟡 8 | Lampiran berkas sungguhan (§22.7) | ±2 jam | tidak | ✅ selesai |
+| 🟡 9 | Template berformat (§22.8) | ±3 jam | tidak | ✅ selesai |
+| 🟡 10 | Verifikasi OAuth Google (§22.10) | proses 1–4 minggu | **ya** — kapan diajukan? | ⏳ belum |
+| 🟡 11 | Login / multi-user (§22.9) | ±1–2 hari | tidak lagi | ✅ selesai (§24) |
 
-**Catatan:** §22.1 dan §22.2 saya sarankan dikerjakan **lebih dulu** — keduanya
-kecil, tetapi melindungi data yang sudah ada.
+**Catatan:** §22.1 masih yang paling perlu dikerjakan — repo publik memuat data
+donor asli. Yang tersisa sekarang hanya §22.1, §22.4, §22.10, dan §22.11; tiga
+di antaranya menunggu keputusan/data dari Anda.
 
 ### 22.13 Pemeriksaan ulang isi Cloudflare — 12 Nov 2026, 21:15 WIB
 
@@ -3420,6 +3421,73 @@ baru.
 `https://dash.cloudflare.com` → **Workers & Pages** → **KV** → **WA_INBOX**.
 Semua kunci yang ada di sana berawalan `majalah`, `pixel`, `terima`, atau
 `kwitansi` — tidak akan ada nama donor.
+
+---
+
+### 22.14 Yang dikerjakan 13 Nov 2026 — §22.2, §22.3, §22.5–§22.8
+
+Kelima pekerjaan ini dikerjakan dengan aturan §25: **sederhana, bisa dipakai,
+tanpa menambah kerumitan yang tidak perlu.**
+
+**§22.2 Pengingat mencadangkan data.** Kartu peringatan muncul di Beranda kalau
+belum pernah mencadangkan atau sudah lebih dari **7 hari**. Tombol **Ekspor
+sekarang** langsung mengunduh JSON dan menghentikan pengingat; tombol **Nanti
+saja** menundanya **3 hari**. Waktu terakhir mencadangkan disimpan di
+`settings.cadanganTerakhir`.
+
+**§22.3 Daftar edisi majalah.** Setiap unggahan sekarang dicatat ke
+`settings.majalahDaftar` (maksimal 24 edisi). Kalau ada lebih dari satu edisi,
+di **Tulis Surat** muncul pilihan **"Edisi yang dilampirkan"** — jadi edisi
+Oktober bisa dikirim ke sebagian donor dan edisi November ke donor lain tanpa
+mengunggah ulang. Daftar ini ikut tersimpan di server (meta `majalahDaftar`).
+
+**§22.5 Penghitung pembaca majalah.** Halaman pembaca `/baca/<id>` sekarang
+mengirim satu catatan saat dibuka dan satu catatan per halaman yang benar-benar
+terlihat (memakai `IntersectionObserver`, jadi halaman yang tidak digeser tidak
+ikut terhitung). Angkanya disimpan di KV per edisi. Tombol **📊 Statistik
+pembaca** di Tulis Surat menampilkan jumlah pembukaan dan halaman mana yang
+paling dilihat. **Tidak ada data pribadi yang disimpan** — hanya angka.
+
+**§22.6 Balas semua & Teruskan.** Di layar surat sekarang ada tombol
+**↩ Balas semua** (muncul kalau surat punya Cc) dan **↪ Teruskan**.
+- *Balas semua* mengisi kolom **Cc** dengan penerima Cc surat asal, tanpa
+  alamat donor sendiri dan tanpa alamat kita.
+- *Teruskan* menyalin subjek dengan awalan `Fwd: ` dan isi surat dengan kepala
+  keterangan (dari, kepada, Cc, tanggal, subjek), lalu mengosongkan penerima
+  supaya dipilih sendiri.
+
+Kolom **Cc** juga ditambahkan di Tulis Surat dan ikut terkirim lewat Gmail
+serta tersimpan di riwayat surat.
+
+**§22.7 Lampiran berkas sungguhan.** Berkas (PDF, foto, dokumen; maks. 10 MB)
+diunggah ke Worker dan disimpan di KV, lalu alamatnya disimpan di riwayat
+surat. Berkas bisa dibuka lagi kapan saja dari layar surat. Kalau unggahan
+gagal, surat tetap dikirim tanpa berkas itu dan pengguna diberitahukan — bukan
+digagalkan seluruhnya.
+
+**§22.8 Template berformat.** Isi surat tetap teks biasa, tetapi sekarang
+mengerti penanda yang sudah lazim dipakai:
+
+| Ditulis | Hasil |
+|---|---|
+| `**tebal**` | **tebal** |
+| `*miring*` atau `_miring_` | *miring* |
+| `- poin` di awal baris | daftar berpoin |
+| `1. nomor` di awal baris | daftar bernomor |
+
+Cara ini dipilih **bukan** karena malas: editor HTML berformat memerlukan
+penyaring HTML (sanitizer) yang rumit, dan salah sedikit bisa membuat email
+donor rusak atau tidak aman. Dengan penanda teks, isinya tetap bisa dibaca apa
+adanya di mana pun, dan tidak ada HTML asing yang masuk ke email penerima.
+
+**Tambahan: catatan CCTV diperluas.** Sesuai permintaan Anda ("entry hapus edit
+semua ada record"), catatan aktivitas sekarang juga mencakup **surat**
+(kirim/simpan/hapus), **template**, dan **kategori** — bukan hanya donor dan
+keuangan. Halaman **Akun** juga diberi penyaring **bagian** dan **jenis aksi**,
+supaya catatan yang sudah menumpuk tetap mudah dibaca.
+
+**Berkas yang berubah:** `app.js`, `app.css`, `whatsapp.js`, `worker/index.js`,
+`index.html` (versi aset `v=61`).
 
 ---
 

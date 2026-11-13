@@ -337,6 +337,28 @@ tbody tr:last-child td{border-bottom:0}
 .banner-offline[hidden]{display:none}
 .banner-offline .btn{margin-left:auto}
 
+/* ---------- PENGINGAT CADANGKAN DATA ----------
+   Sengaja berwarna peringatan tapi tidak menutupi isi halaman: pengingat,
+   bukan penghalang. Hilang sendiri setelah Ekspor JSON atau ditunda. */
+.cadangan-ingat{
+  border-color:var(--warn);background:var(--warn-soft);
+  border-left:4px solid var(--warn);
+}
+.cadangan-judul{font-weight:700;color:var(--warn);font-size:13.5px}
+
+/* ---------- DAFTAR LAMPIRAN BERKAS ----------
+   Satu baris per berkas: ikon, nama, ukuran, status, tombol. Dibuat ringkas
+   supaya beberapa berkas masih muat dalam satu layar. */
+.lampiran-daftar{margin-top:10px;border:1px solid var(--line);border-radius:var(--radius-sm);overflow:hidden}
+.lampiran-baris{
+  display:flex;align-items:center;gap:10px;padding:8px 12px;
+  border-bottom:1px solid var(--line);font-size:13px;background:var(--surface);
+}
+.lampiran-baris:last-child{border-bottom:0}
+.lampiran-ikon{font-size:16px;line-height:1}
+.lampiran-nama{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lampiran-baris .btn{margin-left:auto}
+
 /* Pratinjau kwitansi di halaman Tulis — diperkecil supaya tidak mendominasi
    layar, tapi tetap terbaca. */
 .kwitansi-preview{

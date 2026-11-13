@@ -23,7 +23,11 @@ Surat yang "dikirim" tercatat di buku donor, surat masuk bisa dicatat manual.
 | Kategori | 5 kategori awal, bisa ditambah/ubah/hapus |
 | ID-DONOR otomatis | Format `[X]99999[Z]` — X dari Instansi (atau PIC bila kosong) |
 | Template surat | Token `{/PIC}`, `{/INST}`, `{/TANGGAL}`, dll. |
+| **Format sederhana** | `**tebal**`, `*miring*`, `- poin`, `1. nomor` di isi surat |
 | Kirim massal | Pilih banyak penerima, kirim sekaligus |
+| **Cc** | Kirim salinan ke alamat lain, ikut tersimpan di riwayat |
+| **Balas semua / Teruskan** | Balas semua mengisi Cc otomatis; Teruskan menyalin isi + kepala surat |
+| **Lampiran berkas** | PDF/foto/dokumen maks. 10 MB, tersimpan di Worker, bisa dibuka lagi |
 | **Dua kanal** | Email dan WhatsApp, dipilih per pengiriman |
 | **Buku per donor** | Surat keluar + masuk urut waktu, bubble masuk/keluar |
 | **Kotak Masuk / Keluar** | Tampilan global semua donor, bisa dicari & difilter per kanal |
@@ -32,11 +36,14 @@ Surat yang "dikirim" tercatat di buku donor, surat masuk bisa dicatat manual.
 | **Sinkron Gmail** | Tarik inbox, cocokkan otomatis lewat alamat email |
 | **Sinkron WhatsApp** | Tarik pesan masuk lewat webhook, cocokkan lewat nomor HP |
 | **Sinkron otomatis** | Kedua kanal ditarik sendiri di latar belakang |
+| **Majalah** | Unggah PDF → jadi halaman gambar; banyak edisi bisa disimpan |
+| **Statistik pembaca majalah** | Berapa kali dibuka & halaman mana yang paling dilihat |
 | Cetak surat | `window.print()` per penerima |
 | Ekspor | JSON (backup/restore) + CSV (buka di Excel) |
+| **Pengingat cadangan** | Muncul di Beranda kalau >7 hari belum ekspor JSON |
 | Tema | Terang / gelap / ikut sistem |
 | **Akun & login** | Email + password per pengguna. Akun pertama otomatis admin; akun berikutnya dibuat admin di halaman akun |
-| **Catatan aktivitas** | Siapa masuk/keluar, siapa menambah/mengubah/menghapus donor & keuangan |
+| **Catatan aktivitas** | Siapa masuk/keluar, siapa menambah/mengubah/menghapus donor, keuangan, surat, template & kategori — bisa disaring |
 | Responsif | HP Android dan PC |
 
 ## Menjalankan di komputer
@@ -170,7 +177,10 @@ Hal yang perlu diketahui:
 - Aplikasi bekerja **online**. Kalau internet mati, aplikasi dikunci sampai
   sambungan kembali — supaya tidak ada perubahan yang tampak tersimpan
   padahal hilang
-- **Rutin ekspor JSON** lewat Setelan sebagai cadangan
+- **Rutin ekspor JSON** lewat Setelan sebagai cadangan. Beranda mengingatkan
+  sendiri kalau sudah lebih dari 7 hari tidak mencadangkan
+- **Lampiran berkas & majalah** disimpan di Cloudflare KV (bukan di D1),
+  karena isinya berkas, bukan data tabel
 
 ## Teknologi
 

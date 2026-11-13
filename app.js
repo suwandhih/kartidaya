@@ -675,6 +675,41 @@ function majalahInfo(){
   if(!m || !m.id || !m.halaman) return null;
   return m;
 }
+
+/* ---------- DAFTAR EDISI MAJALAH ----------
+   Satu edisi aktif disimpan di `settings.majalah` (dipakai saat mengirim).
+   Daftar seluruh edisi disimpan di `settings.majalahDaftar` supaya edisi lama
+   tidak hilang saat edisi baru diunggah — jadi bisa mengirim edisi Oktober ke
+   sebagian donor dan edisi November ke donor lain. */
+function daftarMajalah(){
+  if(!Array.isArray(state.settings.majalahDaftar)) state.settings.majalahDaftar = [];
+  return state.settings.majalahDaftar;
+}
+
+/* Tambahkan/perbarui satu edisi di daftar. Edisi terbaru ditaruh paling atas. */
+function simpanKeDaftarMajalah(info){
+  if(!info || !info.id) return;
+  const daftar = daftarMajalah().filter(function(x){ return x.id !== info.id; });
+  daftar.unshift({
+    id: info.id, judul: info.judul || 'Majalah Kartidaya',
+    halaman: info.halaman || 0, pdf: !!info.pdf,
+    dariPdf: !!info.dariPdf, diunggah: info.diunggah || new Date().toISOString()
+  });
+  state.settings.majalahDaftar = daftar.slice(0, 24);
+  save('majalahDaftar');
+}
+
+/* Pakai satu edisi dari daftar sebagai edisi aktif. */
+function pakaiEdisiMajalah(id){
+  const e = daftarMajalah().filter(function(x){ return x.id === id; })[0];
+  if(!e) return false;
+  state.settings.majalah = {
+    id: e.id, judul: e.judul, halaman: e.halaman,
+    pdf: !!e.pdf, dariPdf: !!e.dariPdf, diunggah: e.diunggah
+  };
+  save('settings');
+  return true;
+}
 function workerBase(){
   return String(WhatsApp.endpoint || state.settings.waEndpoint || DEFAULT_WORKER).replace(/\/+$/, '');
 }
@@ -983,7 +1018,7 @@ function save(what){
      tidak pernah sampai ke server — dan hilang saat halaman dimuat ulang.
      Pengecualian: `settings` & `uji` memang milik komputer ini sendiri, dan
      Setelan harus tetap bisa disimpan supaya alamat/kunci bisa diperbaiki. */
-  if(terkunciServer && what && what !== 'settings' && what !== 'uji') return;
+  if(terkunciServer && what && what !== 'settings' && what !== 'uji' && what !== 'majalahDaftar') return;
   /* Catat penghapusan SEBELUM data dikirim. Pembandingnya `Server.diketahui`
      (id yang kita tahu ada di server), bukan localStorage — lihat catatHapus. */
   const namaKoleksi = what ? [what] : Server.koleksi;
@@ -996,6 +1031,7 @@ function save(what){
   if(!what || what === 'templates')  writeLS(LS.templates, state.templates);
   if(!what || what === 'messages')   writeLS(LS.messages, state.messages);
   if(!what || what === 'settings')   writeLS(LS.settings, state.settings);
+  if(!what || what === 'majalahDaftar') writeLS(LS.settings, state.settings);
   if(!what || what === 'programs')   writeLS(LS.programs, state.programs);
   if(!what || what === 'finance')    writeLS(LS.finance, state.finance);
   if(!what || what === 'isian')      writeLS(LS.isian, state.isian);
@@ -1128,6 +1164,7 @@ const Server = {
       });
       if(r.meta && Array.isArray(r.meta.isian)) state.isian = r.meta.isian;
       if(r.meta && r.meta.majalah) state.settings.majalah = r.meta.majalah;
+      if(r.meta && Array.isArray(r.meta.majalahDaftar)) state.settings.majalahDaftar = r.meta.majalahDaftar;
       /* Perbarui daftar id yang kita tahu ada di server. Ini pembanding untuk
          mendeteksi penghapusan — lihat catatHapus. */
       const ini = this;
@@ -1165,7 +1202,7 @@ const Server = {
   /* Kirim satu koleksi ke server. Dipanggil dari save(). */
   async kirim(nama){
     if(!this.bisa() || !this.siap) return;
-    if(this.koleksi.indexOf(nama) < 0 && nama !== 'isian' && nama !== 'majalah') return;
+    if(this.koleksi.indexOf(nama) < 0 && nama !== 'isian' && nama !== 'majalah' && nama !== 'majalahDaftar') return;
     this.sibuk++;
     this.tandai('simpan', 'Menyimpan…');
     try{
@@ -1173,6 +1210,8 @@ const Server = {
         await this.panggil('/data/meta/isian', { method:'POST', body: JSON.stringify({ data: state.isian }) });
       }else if(nama === 'majalah'){
         await this.panggil('/data/meta/majalah', { method:'POST', body: JSON.stringify({ data: state.settings.majalah || null }) });
+      }else if(nama === 'majalahDaftar'){
+        await this.panggil('/data/meta/majalahDaftar', { method:'POST', body: JSON.stringify({ data: daftarMajalah() }) });
       }else{
         /* Kirim seluruh koleksi: yang sudah ada diganti, yang baru ditambah.
            Cara ini sederhana dan aman untuk jumlah data sekecil ini
@@ -1310,6 +1349,11 @@ function loadState(){
      kirim" muncul lebih dulu. Aktif secara bawaan karena ini pengaman utama
      terhadap salah kirim — bisa dimatikan di Setelan kalau dirasa mengganggu. */
   if(state.settings.wajibPeriksa === undefined) state.settings.wajibPeriksa = true;
+  /* Pengingat mencadangkan data. `cadanganTerakhir` diisi setiap kali Ekspor
+     JSON ditekan; `cadanganTunda` diisi kalau pengingat ditunda. Keduanya
+     disimpan di settings supaya tidak muncul lagi setelah ditunda. */
+  if(state.settings.cadanganTerakhir === undefined) state.settings.cadanganTerakhir = '';
+  if(state.settings.cadanganTunda === undefined) state.settings.cadanganTunda = '';
   /* Lima isian serba guna — selalu ada 5 baris supaya token {/ISI1}…{/ISI5}
      tidak pernah kosong tanpa penjelasan. */
   while(state.isian.length < ISIAN_MAKS) state.isian.push('');
@@ -1479,7 +1523,7 @@ function addMessage(m){
   state.messages.push(Object.assign({
     id:uid('msg'), donorId:'', arah:'keluar', tanggal:new Date().toISOString(),
     subjek:'', isi:'', status:'Terkirim', from:'', to:'', cc:'',
-    gmailId:'', threadId:'', lampiran:'', catatan:'', dibaca:true,
+    gmailId:'', threadId:'', lampiran:'', lampiranBerkas:[], catatan:'', dibaca:true,
     kanal:'email', waId:'', waNama:''
   }, m));
   save('messages');
@@ -1793,6 +1837,7 @@ function render(){
 function afterRender(){
   if(currentPage === 'surat') bindSurat();
   if(currentPage === 'keuangan') bindKeuangan();
+  if(currentPage === 'akun') bindAkun();
 }
 /* Filter halaman Keuangan — dipasang ulang setiap halaman digambar. */
 function bindKeuangan(){
@@ -1854,6 +1899,7 @@ function viewBeranda(){
     : 'Sinkron otomatis mati';
 
   return '' +
+  kartuCadangan() +
   '<div class="grid stats" style="margin-bottom:14px">' +
     stat('Total Donor', state.donors.length, state.categories.length + ' kategori') +
     stat('Belum Dibaca', unread, masuk + ' surat masuk') +
@@ -2195,7 +2241,7 @@ function kv(k,v){
 
 /* ---------- TULIS SURAT ---------- */
 let suratState = { tplId:'', subjek:'', isi:'', selected:{}, previewId:'', q:'', replyTo:'', kanal:'email',
-  kwitansi:false, kwitansiBahasa:'id', kwitansiFinId:'', majalah:false, kirimSendiri:false, dariPeriksa:false };
+  cc:'', lampiran:[], kwitansi:false, kwitansiBahasa:'id', kwitansiFinId:'', majalah:false, kirimSendiri:false, dariPeriksa:false };
 
 function viewSurat(){
   setTitle('Tulis Surat','Susun surat dengan template, kirim ke banyak penerima');
@@ -2256,13 +2302,22 @@ function viewSurat(){
           '</label>' +
           '<input type="text" id="s-subjek" value="' + esc(suratState.subjek) + '" placeholder="Subjek surat…"></div>' +
       '</div>' +
+      (kanal === 'email'
+        ? '<div class="field"><label>Cc <span class="hint">— opsional, pisahkan dengan koma</span></label>' +
+            '<input type="text" id="s-cc" value="' + esc(suratState.cc) + '" ' +
+              'placeholder="mis. bendahara@kartidaya.org, pimpinan@kartidaya.org"></div>'
+        : '') +
       '<div class="field"><label>Isi Surat <span class="hint">— klik token untuk menyisipkan</span></label>' +
         '<div class="tokenbar">' + TOKENS.map(function(t){
           return '<button type="button" class="token" data-token="' + esc(t[0]) + '" title="' + esc(t[1]) + '">' + esc(t[0]) + '</button>';
         }).join('') + '</div>' +
         '<textarea id="s-isi" style="min-height:230px" placeholder="Tulis isi surat di sini…">' + esc(suratState.isi) + '</textarea>' +
+        '<p class="tiny muted" style="margin:6px 0 0">Boleh diberi format: ' +
+          '<b class="mono">**tebal**</b> · <i class="mono">*miring*</i> · ' +
+          '<span class="mono">- poin</span> di awal baris · ' +
+          '<span class="mono">1. nomor</span> di awal baris.</p>' +
       '</div>' +
-      (kanal === 'email' ? blokKwitansi() + blokMajalah() : '') +
+      (kanal === 'email' ? blokKwitansi() + blokMajalah() + blokLampiran() : '') +
       blokIsian() +
     '</div>' +
 
@@ -2639,6 +2694,7 @@ function openPeriksaKirim(){
     '<div class="kv">' +
       kv('Subjek', subjek) +
       kv('Kepada', contoh ? donorLabel(contoh) + ' · ' + (wa ? waPhonePretty(donorWa(contoh)) : contoh.email) : '—') +
+      (!wa && rapikanCc(suratState.cc) ? kv('Cc', rapikanCc(suratState.cc)) : '') +
     '</div>' +
     (wa
       ? '<div class="wa-preview"><div class="wa-bubble">' + esc(isi) + '</div></div>'
@@ -2867,6 +2923,88 @@ function blokKwitansi(){
       : '<p class="tiny muted" style="margin-top:6px">Kalau aktif, setiap penerima menerima kwitansi ' +
         'dengan nama &amp; jumlah sesuai data Keuangan miliknya.</p>');
 }
+/* ---------- LAMPIRAN BERKAS ----------
+   Berkas sungguhan (PDF, foto, dokumen) yang ikut terkirim bersama surat.
+   Berkasnya disimpan di Worker, bukan di browser: supaya bisa dibuka lagi
+   dari riwayat surat kapan saja, dan supaya penerima bisa mengunduhnya. */
+function lampiranSurat(){
+  if(!Array.isArray(suratState.lampiran)) suratState.lampiran = [];
+  return suratState.lampiran;
+}
+
+function ukuranBerkas(n){
+  const b = Number(n) || 0;
+  if(b < 1024) return b + ' B';
+  if(b < 1024 * 1024) return (b / 1024).toFixed(0) + ' KB';
+  return (b / 1024 / 1024).toFixed(1) + ' MB';
+}
+
+function blokLampiran(){
+  const daftar = lampiranSurat();
+  const siap = WhatsApp.isConfigured();
+  return '<div class="sep"></div>' +
+    '<div class="row" style="justify-content:space-between">' +
+      '<span class="small"><b>Lampiran berkas</b> ' +
+        '<span class="hint">— PDF, foto, atau dokumen (maks. 10 MB per berkas)</span></span>' +
+      '<button class="btn sm" data-action="lampiran-pilih"' + (siap ? '' : ' disabled') + '>' +
+        '+ Pilih berkas</button>' +
+    '</div>' +
+    (siap ? '' :
+      '<div class="warnbox" style="margin-top:8px">Alamat Worker belum diisi, jadi lampiran ' +
+      'belum bisa disimpan. Isi dulu di <b>Setelan → Worker Cloudflare</b>.</div>') +
+    (daftar.length
+      ? '<div class="lampiran-daftar">' + daftar.map(function(l, i){
+          return '<div class="lampiran-baris">' +
+            '<span class="lampiran-ikon">' + ikonBerkas(l.nama) + '</span>' +
+            '<span class="lampiran-nama">' + esc(l.nama) + '</span>' +
+            '<span class="tiny muted mono">' + ukuranBerkas(l.ukuran) + '</span>' +
+            (l.naik
+              ? '<span class="chip ok">tersimpan</span>'
+              : '<span class="chip warn">belum terunggah</span>') +
+            '<button class="btn sm ghost" data-action="lampiran-hapus" data-i="' + i + '">Hapus</button>' +
+          '</div>';
+        }).join('') + '</div>'
+      : '<p class="tiny muted" style="margin-top:6px">Belum ada lampiran. Surat tanpa lampiran ' +
+        'tetap bisa dikirim seperti biasa.</p>') +
+    '<input type="file" id="s-lampiran-file" class="hidden" multiple>';
+}
+
+/* Ikon sederhana menurut jenis berkas — supaya daftar lampiran cepat dibaca. */
+function ikonBerkas(nama){
+  const ext = String(nama || '').split('.').pop().toLowerCase();
+  if(ext === 'pdf') return '📕';
+  if(['jpg','jpeg','png','webp','gif'].indexOf(ext) >= 0) return '🖼';
+  if(['doc','docx'].indexOf(ext) >= 0) return '📄';
+  if(['xls','xlsx','csv'].indexOf(ext) >= 0) return '📊';
+  if(['ppt','pptx'].indexOf(ext) >= 0) return '📽';
+  if(['zip','rar','7z'].indexOf(ext) >= 0) return '🗜';
+  return '📎';
+}
+
+/* Unggah semua lampiran yang belum tersimpan. Dipanggil sebelum surat
+   dikirim — kalau ada yang gagal, surat tetap dikirim tanpa berkas itu dan
+   pengguna diberi tahu, bukan digagalkan seluruhnya. */
+async function unggahLampiranSurat(){
+  const daftar = lampiranSurat();
+  const belum = daftar.filter(function(l){ return !l.naik && l.berkas; });
+  if(!belum.length) return { ok: 0, gagal: 0, pesan: '' };
+  let ok = 0, gagal = 0, pesan = '';
+  for(const l of belum){
+    try{
+      const r = await WhatsApp.unggahLampiran(l.id, l.berkas);
+      l.naik = true;
+      l.url = r.url || WhatsApp.lampiranURL(l.id);
+      l.ukuran = r.ukuran || l.ukuran;
+      delete l.berkas;          /* berkas tidak disimpan di localStorage */
+      ok++;
+    }catch(e){
+      gagal++;
+      pesan = e.message || String(e);
+    }
+  }
+  return { ok: ok, gagal: gagal, pesan: pesan };
+}
+
 /* Kotak pilihan majalah di halaman Tulis. Halaman majalah disimpan sekali di
    Worker, lalu dipakai ulang untuk semua penerima. */
 /* Periksa apakah majalah yang dicatat di browser benar-benar masih ada di
@@ -2897,6 +3035,25 @@ async function cekMajalahAda(){
   }
 }
 
+/* Pemilih edisi majalah — hanya muncul kalau ada lebih dari satu edisi.
+   Dengan ini edisi Oktober bisa dikirim ke sebagian donor dan edisi November
+   ke donor lain, tanpa perlu mengunggah ulang. */
+function pemilihEdisiMajalah(){
+  const daftar = daftarMajalah();
+  if(daftar.length < 2) return '';
+  const aktif = (state.settings.majalah || {}).id || '';
+  return '<div class="field" style="margin:10px 0 0;max-width:420px">' +
+    '<label>Edisi yang dilampirkan</label>' +
+    '<select id="s-mj-edisi">' + daftar.map(function(e){
+      return '<option value="' + esc(e.id) + '"' + (e.id === aktif ? ' selected' : '') + '>' +
+        esc(e.judul) + ' · ' + e.halaman + ' hal' +
+        (e.diunggah ? ' · ' + esc(fmtDate(e.diunggah)) : '') + '</option>';
+    }).join('') + '</select>' +
+    '<p class="tiny muted" style="margin:4px 0 0">' + daftar.length +
+      ' edisi tersimpan. Edisi lama tetap bisa dipakai kapan saja.</p>' +
+  '</div>';
+}
+
 function blokMajalah(){
   const m = majalahInfo();
   const on = !!suratState.majalah;
@@ -2922,6 +3079,7 @@ function blokMajalah(){
       ? '<p class="tiny muted" style="margin:6px 0 0">' + esc(m.judul || 'Majalah') + ' · ' +
           m.halaman + ' halaman · disimpan sekali, dipakai untuk semua penerima.' +
           (m.diunggah ? ' · diunggah ' + esc(fmtDate(m.diunggah)) : '') + '</p>' +
+        pemilihEdisiMajalah() +
         (on ? '<div class="mj-preview">' + majalahHTML() + '</div>' : '')
       : '<div class="warnbox" style="margin-top:8px">' +
         (hilang
@@ -2940,6 +3098,7 @@ function blokMajalah(){
       '<button class="btn sm' + (hilang ? ' primary' : '') + '" data-action="mj-kelola">' +
         (siap ? 'Kelola majalah' : 'Unggah majalah') + '</button>' +
       (siap ? '<button class="btn sm" data-action="mj-baca">👁 Buka halaman pembaca</button>' : '') +
+      (siap ? '<button class="btn sm" data-action="mj-statistik">📊 Statistik pembaca</button>' : '') +
       (siap ? '<button class="btn sm ghost" data-action="mj-hapus">Hapus majalah</button>' : '') +
       (hilang ? '<button class="btn sm ghost" data-action="mj-lupakan">Lupakan catatan ini</button>' : '') +
       (!siap && !hilang && !s.siap
@@ -2957,6 +3116,28 @@ function bindSurat(){
   });
   const subj = document.getElementById('s-subjek');
   if(subj) subj.addEventListener('input', function(){ suratState.subjek = this.value; });
+  const cc = document.getElementById('s-cc');
+  if(cc) cc.addEventListener('input', function(){ suratState.cc = this.value; });
+  const mjEd = document.getElementById('s-mj-edisi');
+  if(mjEd) mjEd.addEventListener('change', function(){
+    if(pakaiEdisiMajalah(this.value)){
+      toast('Edisi majalah diganti');
+      render();
+    }
+  });
+  const fileLamp = document.getElementById('s-lampiran-file');
+  if(fileLamp) fileLamp.addEventListener('change', function(){
+    const daftar = lampiranSurat();
+    Array.prototype.forEach.call(this.files || [], function(f){
+      if(f.size > 10 * 1024 * 1024){ toast(f.name + ' lebih dari 10 MB — dilewati', true); return; }
+      daftar.push({
+        id: 'lp-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+        nama: f.name, tipe: f.type, ukuran: f.size, naik: false, berkas: f
+      });
+    });
+    this.value = '';
+    render();
+  });
   const isi = document.getElementById('s-isi');
   if(isi) isi.addEventListener('input', function(){ suratState.isi = this.value; refreshPreview(); });
   const kwFin = document.getElementById('s-kw-fin');
@@ -3032,7 +3213,7 @@ function viewKategori(){
 /* Satu halaman berisi dua hal: daftar akun (buat, matikan/hidupkan) dan
    catatan aktivitas — "CCTV" supaya kalau ada data yang berubah bisa
    ditelusuri siapa pelakunya. */
-let akunState = { pengguna:[], aktivitas:[], muat:false, galat:'' };
+let akunState = { pengguna:[], aktivitas:[], muat:false, galat:'', bagian:'', aksi:'' };
 
 function viewAkun(){
   setTitle('Akun','Pengguna aplikasi & catatan aktivitas');
@@ -3040,7 +3221,21 @@ function viewAkun(){
     return '<div class="empty">Halaman ini hanya untuk admin.</div>';
   }
   const list = akunState.pengguna;
-  const cctv = akunState.aktivitas;
+  const semua = akunState.aktivitas;
+  /* Penyaring sederhana: bagian (donor/keuangan/surat/…) dan jenis aksi.
+     Tanpa ini, catatan aktivitas cepat menumpuk dan sulit dibaca. */
+  const cctv = semua.filter(function(a){
+    if(akunState.bagian && (a.bagian || '') !== akunState.bagian) return false;
+    if(akunState.aksi && (a.aksi || '') !== akunState.aksi) return false;
+    return true;
+  });
+  const daftarBagian = [];
+  const daftarAksi = [];
+  semua.forEach(function(a){
+    if(a.bagian && daftarBagian.indexOf(a.bagian) < 0) daftarBagian.push(a.bagian);
+    if(a.aksi && daftarAksi.indexOf(a.aksi) < 0) daftarAksi.push(a.aksi);
+  });
+  daftarBagian.sort(); daftarAksi.sort();
 
   const barisAkun = list.map(function(u){
     return '<tr>' +
@@ -3089,14 +3284,33 @@ function viewAkun(){
 
     '<div class="card">' +
       '<div class="card-head"><h2>Catatan aktivitas</h2>' +
-        '<span class="chip plain">' + cctv.length + ' kejadian terakhir</span></div>' +
+        '<span class="chip plain">' + cctv.length + ' dari ' + semua.length + ' kejadian</span></div>' +
       '<p class="small muted">Setiap masuk, keluar, tambah, ubah, dan hapus dicatat — supaya kalau ' +
         'ada data yang berubah, bisa dilihat siapa pelakunya dan kapan.</p>' +
+      (semua.length
+        ? '<div class="toolbar" style="margin-bottom:10px">' +
+            '<select id="akun-f-bagian" class="grow">' +
+              '<option value="">Semua bagian</option>' +
+              daftarBagian.map(function(b){
+                return '<option value="' + esc(b) + '"' + (akunState.bagian === b ? ' selected' : '') + '>' +
+                  esc(b) + '</option>';
+              }).join('') + '</select>' +
+            '<select id="akun-f-aksi">' +
+              '<option value="">Semua aksi</option>' +
+              daftarAksi.map(function(x){
+                return '<option value="' + esc(x) + '"' + (akunState.aksi === x ? ' selected' : '') + '>' +
+                  esc(x) + '</option>';
+              }).join('') + '</select>' +
+            (akunState.bagian || akunState.aksi
+              ? '<button class="btn sm ghost" data-action="akun-f-reset">Kosongkan</button>' : '') +
+          '</div>' : '') +
       (cctv.length
         ? '<div class="table-wrap" style="max-height:520px;overflow:auto"><table>' +
             '<thead><tr><th>Waktu</th><th>Siapa</th><th>Aksi</th><th>Data</th></tr></thead>' +
             '<tbody>' + barisCctv + '</tbody></table></div>'
-        : '<p class="small muted">Belum ada catatan.</p>') +
+        : '<p class="small muted">' + (semua.length
+            ? 'Tidak ada catatan yang cocok dengan penyaring ini.'
+            : 'Belum ada catatan.') + '</p>') +
     '</div>';
 }
 
@@ -3113,6 +3327,15 @@ function muatAkun(){
       akunState.galat = e.message || String(e);
       if(currentPage === 'akun') render();
     });
+}
+
+/* Penyaring catatan aktivitas dipasang setelah halaman digambar — supaya
+   memilih bagian/aksi tidak perlu memuat ulang data dari server. */
+function bindAkun(){
+  const fb = document.getElementById('akun-f-bagian');
+  if(fb) fb.addEventListener('change', function(){ akunState.bagian = this.value; render(); });
+  const fa = document.getElementById('akun-f-aksi');
+  if(fa) fa.addEventListener('change', function(){ akunState.aksi = this.value; render(); });
 }
 
 /* ---------- KEUANGAN ---------- */
@@ -4172,6 +4395,7 @@ function openMessage(msgId){
       kv('Donor', d ? donorName(d) + ' (' + d.id + ')' : '—') +
       kv(m.kanal === 'whatsapp' ? 'Dari (nomor)' : 'Dari', m.kanal === 'whatsapp' ? waPhonePretty(m.from) : m.from) +
       kv(m.kanal === 'whatsapp' ? 'Kepada (nomor)' : 'Kepada', m.kanal === 'whatsapp' ? waPhonePretty(m.to) : m.to) +
+      (m.cc ? kv('Cc', m.cc) : '') +
       kv('Subjek', m.subjek) +
       (m.arah === 'keluar' && m.pixelId
         ? kv('Dibaca penerima', m.dibacaPenerima
@@ -4183,8 +4407,7 @@ function openMessage(msgId){
             ? '✓ Dikonfirmasi ' + fmtDateTime(m.terimaPenerima)
             : 'belum dikonfirmasi penerima')
         : '') +
-      kv('Lampiran', m.lampiran) + kv('Catatan', m.catatan) +
-      (m.kodeKiriman ? kv('Kode kiriman', m.kodeKiriman) : '') +
+      kv('Lampiran', m.lampiran) + kv('Catatan', m.catatan) +      (m.kodeKiriman ? kv('Kode kiriman', m.kodeKiriman) : '') +
       (m.waktuKirim ? kv('Waktu kirim', m.waktuKirim) : '') +
       (m.kwitansiFinId ? kv('Kode kwitansi', (state.finance.filter(function(x){
         return x.id === m.kwitansiFinId;
@@ -4200,7 +4423,11 @@ function openMessage(msgId){
   const footer = '<button class="btn danger" data-action="msg-hapus" data-id="' + esc(m.id) + '">Hapus</button>' +
     '<button class="btn" data-close>Tutup</button>' +
     (d ? '<button class="btn" data-action="buku" data-id="' + esc(d.id) + '">Buka Riwayat</button>' +
-         '<button class="btn primary" data-action="balas" data-id="' + esc(d.id) + '">✎ Balas</button>'
+         '<button class="btn primary" data-action="balas" data-id="' + esc(d.id) + '">✎ Balas</button>' +
+         (m.arah === 'masuk' && m.cc
+           ? '<button class="btn" data-action="balas-semua" data-id="' + esc(d.id) + '" data-msg="' + esc(m.id) + '">↩ Balas semua</button>'
+           : '') +
+         '<button class="btn" data-action="teruskan" data-id="' + esc(d.id) + '" data-msg="' + esc(m.id) + '">↪ Teruskan</button>'
        : '<button class="btn primary" data-action="tautkan" data-id="' + esc(m.id) + '">Tautkan ke Donor</button>');
 
   openModal({ title: m.subjek || '(tanpa subjek)', body:body, footer:footer, wide:true });
@@ -4214,6 +4441,22 @@ function openMessage(msgId){
 function pratinjauLampiran(m, d){
   if(!m || m.arah !== 'keluar' || m.kanal === 'whatsapp') return '';
   const bagian = [];
+
+  /* Berkas sungguhan yang ikut terkirim — bisa dibuka atau diunduh lagi. */
+  if(Array.isArray(m.lampiranBerkas) && m.lampiranBerkas.length){
+    bagian.push('<div class="lampiran-blok">' +
+      '<div class="lampiran-head"><b>Berkas yang ikut terkirim</b>' +
+        '<span class="chip plain">' + m.lampiranBerkas.length + ' berkas</span></div>' +
+      '<div class="lampiran-daftar">' + m.lampiranBerkas.map(function(l){
+        const u = l.url || WhatsApp.lampiranURL(l.id);
+        return '<div class="lampiran-baris">' +
+          '<span class="lampiran-ikon">' + ikonBerkas(l.nama) + '</span>' +
+          '<span class="lampiran-nama">' + esc(l.nama) + '</span>' +
+          '<span class="tiny muted mono">' + ukuranBerkas(l.ukuran) + '</span>' +
+          (u ? '<a class="btn sm" href="' + esc(u) + '" target="_blank" rel="noopener">Buka</a>' : '') +
+        '</div>';
+      }).join('') + '</div></div>');
+  }
 
   if(m.kwitansiHTML){
     bagian.push('<div class="lampiran-blok">' +
@@ -4659,6 +4902,8 @@ async function unggahMajalah(){
 
   state.settings.majalah = { id:id, halaman:halaman.length, judul:judul || 'Majalah Kartidaya',
     dariPdf: !!pakaiPdf, pdf: !!pdfBase64, diunggah: new Date().toISOString() };
+  /* Edisi baru dicatat ke daftar edisi supaya edisi lama tetap bisa dipakai. */
+  simpanKeDaftarMajalah(state.settings.majalah);
   save('settings');
 
   /* Simpan PDF aslinya di Worker — dipakai untuk lampiran WhatsApp.
@@ -4692,6 +4937,67 @@ async function unggahMajalah(){
   closeModal();
   toast(halaman.length + ' halaman majalah tersimpan');
   render();
+}
+
+/* Statistik pembaca majalah — berapa kali halaman pembaca dibuka dan halaman
+   mana yang paling sering dilihat. Angkanya datang dari Worker; kalau Worker
+   belum bisa dihubungi, ditampilkan pesan apa adanya, bukan angka nol yang
+   menyesatkan. */
+async function bukaStatistikMajalah(){
+  const m = majalahInfo();
+  if(!m){ toast('Majalah belum disiapkan', true); return; }
+  openModal({
+    title: 'Statistik pembaca majalah',
+    body: '<p class="small muted">Memuat…</p>',
+    footer: '<button class="btn" data-close>Tutup</button>'
+  });
+  let data = null, galat = '';
+  try{
+    data = await WhatsApp.api('/majalah/' + m.id + '/baca', { method:'GET' });
+  }catch(e){
+    galat = e.message || String(e);
+  }
+  const isi = function(){
+    if(galat){
+      return '<div class="warnbox"><b>Statistik belum bisa dibaca</b>' +
+        '<p class="small" style="margin:6px 0 0">' + esc(galat) + '</p>' +
+        '<p class="tiny muted" style="margin:6px 0 0">Angka dicatat di Worker. ' +
+        'Pastikan alamat Worker dan kunci aplikasi sudah benar di Setelan.</p></div>';
+    }
+    const buka = (data && data.buka) || 0;
+    const perHal = (data && data.halaman) || {};
+    const nomor = Object.keys(perHal).map(Number).sort(function(a,b){ return a - b; });
+    const total = nomor.reduce(function(s,n){ return s + (perHal[n] || 0); }, 0);
+    const max = nomor.reduce(function(s,n){ return Math.max(s, perHal[n] || 0); }, 0);
+    return '<div class="grid stats" style="margin-bottom:14px">' +
+        stat('Halaman dibuka', buka, 'kali halaman pembaca dibuka') +
+        stat('Halaman dilihat', total, nomor.length + ' halaman pernah terlihat') +
+      '</div>' +
+      (nomor.length
+        ? '<div class="table-wrap"><table><thead><tr>' +
+            '<th>Halaman</th><th class="right">Dilihat</th><th style="width:45%">Perbandingan</th>' +
+          '</tr></thead><tbody>' + nomor.map(function(n){
+            const v = perHal[n] || 0;
+            const pct = max ? Math.round(v / max * 100) : 0;
+            return '<tr><td class="mono">Hal. ' + n + '</td>' +
+              '<td class="right mono">' + v + '</td>' +
+              '<td><div class="bar"><div style="width:' + pct + '%"></div></div></td></tr>';
+          }).join('') + '</tbody></table></div>'
+        : '<p class="muted small">Belum ada yang membuka majalah ini. Angka muncul setelah ' +
+          'penerima email menekan tombol <b>Baca majalah</b>.</p>') +
+      (data && data.terakhir
+        ? '<p class="tiny muted" style="margin-top:10px">Terakhir dibuka: ' +
+          esc(fmtDateTime(data.terakhir)) + '</p>'
+        : '') +
+      '<p class="tiny muted" style="margin-top:10px">Yang dicatat hanya <b>jumlah</b> — ' +
+        'tidak ada nama, alamat email, atau lokasi pembaca yang disimpan.</p>';
+  };
+  openModal({
+    title: 'Statistik pembaca — ' + (m.judul || 'Majalah'),
+    body: isi(),
+    footer: '<button class="btn" data-close>Tutup</button>',
+    wide:true
+  });
 }
 
 async function hapusMajalah(){
@@ -4748,7 +5054,7 @@ function deleteDonor(id){
   state.donors = state.donors.filter(function(x){ return x.id !== id; });
   state.messages = state.messages.filter(function(m){ return m.donorId !== id; });
   save('donors'); save('messages');
-    catatAksi('hapus', 'donor', id, donorName(d) + (n ? ' (+' + n + ' surat)' : ''));
+  catatAksi('hapus', 'donor', id, donorName(d) + (n ? ' (+' + n + ' surat)' : ''));
   closeModal();
   toast('Donor dihapus');
   render();
@@ -4758,16 +5064,72 @@ function deleteDonor(id){
   /* Catatan "CCTV" dikirim ke server dalam satu permintaan per aksi. Kegagalan
      mencatat tidak mengganggu pekerjaan pengguna — jadi tidak pernah melempar
      galat dan tidak menampilkan pesan apa pun. */
-  function catatAksi(aksi, bagian, sasaran, ket){
-    if(typeof Akun === 'undefined' || !Akun.masuk()) return;
-    Akun.catat([{ aksi:aksi, bagian:bagian, sasaran:sasaran, ket:ket || '' }]);
-  }
+function catatAksi(aksi, bagian, sasaran, ket){
+  if(typeof Akun === 'undefined' || !Akun.masuk()) return;
+  Akun.catat([{ aksi:aksi, bagian:bagian, sasaran:sasaran, ket:ket || '' }]);
+}
 
 /* Bungkus isi surat + kwitansi jadi satu HTML untuk badan email. Gaya ditulis
    inline karena klien email membuang <style>. */
+/* ---------- FORMAT SEDERHANA DI ISI SURAT ----------
+   Isi surat tetap teks biasa — bukan editor HTML. Penanda yang dipakai
+   sengaja yang sudah lazim di WhatsApp & email, jadi tidak perlu dipelajari:
+
+     **tebal**      → huruf tebal
+     *miring*       → huruf miring
+     - awal baris   → daftar berpoin
+     1. awal baris  → daftar bernomor
+
+   Cara ini dipilih supaya tidak perlu editor berformat + penyaring HTML:
+   teksnya tetap bisa dibaca apa adanya, dan tidak ada risiko HTML asing
+   masuk ke email penerima. */
+function formatTeksHTML(teks){
+  const baris = String(teks || '').split(/\r?\n/);
+  const out = [];
+  let mode = '';   /* '' | 'ul' | 'ol' */
+
+  const tutup = function(){
+    if(mode){ out.push('</' + mode + '>'); mode = ''; }
+  };
+  const sebaris = function(s){
+    return esc(s)
+      .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+      .replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<i>$2</i>')
+      .replace(/_([^_\n]+)_/g, '<i>$1</i>');
+  };
+
+  baris.forEach(function(b){
+    const poin = b.match(/^\s*[-•]\s+(.*)$/);
+    const nomor = b.match(/^\s*\d+[.)]\s+(.*)$/);
+    if(poin){
+      if(mode !== 'ul'){ tutup(); out.push('<ul style="margin:8px 0;padding-left:22px">'); mode = 'ul'; }
+      out.push('<li>' + sebaris(poin[1]) + '</li>');
+      return;
+    }
+    if(nomor){
+      if(mode !== 'ol'){ tutup(); out.push('<ol style="margin:8px 0;padding-left:22px">'); mode = 'ol'; }
+      out.push('<li>' + sebaris(nomor[1]) + '</li>');
+      return;
+    }
+    tutup();
+    out.push(sebaris(b) + '<br>');
+  });
+  tutup();
+  return out.join('');
+}
+
+/* Versi teks biasa untuk penerima yang memblokir HTML: penandanya dibuang
+   supaya tidak terlihat sebagai tanda baca aneh. */
+function formatTeksPolos(teks){
+  return String(teks || '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/(^|[^*])\*([^*\n]+)\*/g, '$1$2')
+    .replace(/_([^_\n]+)_/g, '$1');
+}
+
 function isiHTML(d, isiTeks, bahasa, finId, opts){
   opts = opts || {};
-  const teks = esc(isiTeks).replace(/\n/g, '<br>');
+  const teks = formatTeksHTML(isiTeks);
   return '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.65;' +
       'color:#111;max-width:720px">' + teks + '</div>' +
     (opts.kwitansi === false ? '' : kwitansiHTML(d, bahasa, finId,
@@ -4835,7 +5197,8 @@ async function kirimKeSendiri(){
   const btn = document.querySelector('[data-action="kirim-sendiri"]');
   if(btn){ btn.disabled = true; btn.textContent = 'Mengirim…'; }
   try{
-    await Gmail.send({ from: Gmail.email || '', to: tujuan, subject: subjek, body: isi, html: html });
+    await Gmail.send({ from: Gmail.email || '', to: tujuan, subject: subjek,
+      body: formatTeksPolos(isi), html: html });
     /* Catat supaya hasilnya bisa dilihat di halaman Uji — termasuk apakah
        salinannya sudah dibuka dan apakah tombol konfirmasinya bekerja. */
     catatUji({
@@ -4894,6 +5257,22 @@ async function kirimSurat(asDraft){
   }
 
   let ok = 0, gagal = 0, errMsg = '';
+
+  /* Cc hanya untuk email. Daftar alamat dirapikan sekali di luar perulangan
+     supaya tidak dihitung ulang untuk setiap penerima. */
+  const ccBersih = kanal === 'email' ? rapikanCc(suratState.cc) : '';
+
+  /* Lampiran diunggah dulu sebelum surat dikirim. Kalau ada yang gagal,
+     surat tetap dikirim tanpa berkas itu — pengguna diberi tahu, bukan
+     digagalkan seluruhnya. */
+  let lampiranSiap = [];
+  if(kanal === 'email' && lampiranSurat().length){
+    const hasil = await unggahLampiranSurat();
+    if(hasil.gagal){
+      toast(hasil.gagal + ' lampiran gagal diunggah: ' + hasil.pesan, true);
+    }
+    lampiranSiap = lampiranSurat().filter(function(l){ return l.naik && l.url; });
+  }
 
   for(const id of ids){
     const d = findDonor(id);
@@ -4956,7 +5335,8 @@ async function kirimSurat(asDraft){
             kwitansiBahasaSalinan = suratState.kwitansiBahasa;
           }
           const r = await Gmail.send({
-            from: Gmail.email || '', to: d.email, subject: subjek, body: isi, html: html
+            from: Gmail.email || '', to: d.email, cc: ccBersih, subject: subjek,
+            body: formatTeksPolos(isi), html: html
           });
           gmailId = (r && r.id) || '';
           threadId = (r && r.threadId) || '';
@@ -5031,13 +5411,16 @@ async function kirimSurat(asDraft){
       donorId:id, arah:'keluar', tanggal:new Date().toISOString(),
       subjek:subjek, isi:isi, status:status, kanal:kanal,
       from: kanal === 'whatsapp' ? (WhatsApp.phone || '') : (Gmail.email || ''),
-      to: tujuan,
+      to: tujuan, cc: ccBersih,
       gmailId:gmailId, threadId:threadId, waId:waId, dibaca:true,
       pixelId: pixelId, dibacaPenerima: '',
       terimaId: terimaId, terimaPenerima: '',
       kodeKiriman: kodeKrm, waktuKirim: waktuKrm,
       kwitansiHTML: kwitansiSalinan, kwitansiBahasa: kwitansiBahasaSalinan,
       kwitansiFinId: suratState.kwitansi ? (dataKwitansi(d, suratState.kwitansiFinId).finId || '') : '',
+      lampiranBerkas: lampiranSiap.map(function(l){
+        return { id:l.id, nama:l.nama, tipe:l.tipe, ukuran:l.ukuran, url:l.url };
+      }),
       majalah: (kanal === 'email' && suratState.majalah) ? majalahInfo() : null
     });
 
@@ -5055,12 +5438,69 @@ async function kirimSurat(asDraft){
   }
 
   const namaKanal = LABEL_KANAL[kanal];
+  /* Catat pengiriman ke CCTV — supaya kalau ada surat yang salah kirim,
+     bisa ditelusuri siapa yang mengirim dan kapan. */
+  catatAksi(asDraft ? 'simpan' : 'kirim', 'surat',
+    (suratState.subjek || '(tanpa subjek)').slice(0, 120),
+    ids.length + ' penerima · ' + namaKanal +
+    (lampiranSiap.length ? ' · ' + lampiranSiap.length + ' lampiran' : '') +
+    (gagal ? ' · ' + gagal + ' gagal' : ''));
   if(asDraft) toast(ids.length + ' surat disimpan sebagai Draft');
   else if(useGmail || useWa) toast(ok + ' terkirim lewat ' + namaKanal + (gagal ? ', ' + gagal + ' gagal: ' + errMsg : ''), gagal > 0);
   else toast(ids.length + ' surat dicatat sebagai Terkirim (mode simulasi)');
 
   suratState.selected = {};
+  suratState.lampiran = [];
   render();
+}
+
+/* Rapikan daftar Cc: buang spasi & alamat kosong, buang alamat yang tidak
+   berbentuk email, dan hilangkan duplikat. Hasilnya satu baris dipisah koma
+   seperti yang diminta header email. */
+function rapikanCc(teks){
+  const lihat = {};
+  return String(teks || '')
+    .split(/[,;\s]+/)
+    .map(function(s){ return s.trim(); })
+    .filter(function(s){
+      if(!s || s.indexOf('@') < 1) return false;
+      const k = s.toLowerCase();
+      if(lihat[k]) return false;
+      lihat[k] = true;
+      return true;
+    })
+    .join(', ');
+}
+
+/* Ambil alamat Cc dari surat asal, tanpa alamat donor sendiri dan tanpa
+   alamat kita — supaya "Balas semua" tidak mengirim salinan ke diri sendiri. */
+function ccUntukBalasSemua(m, d){
+  const sendiri = [emailOf(m.to || ''), emailOf(Gmail.email || '')];
+  const punyaDonor = d ? emailOf(d.email || '') : '';
+  return rapikanCc(m.cc || '')
+    .split(', ')
+    .filter(function(a){
+      if(!a) return false;
+      const k = a.toLowerCase();
+      if(punyaDonor && k === punyaDonor) return false;
+      return sendiri.indexOf(k) < 0;
+    })
+    .join(', ');
+}
+
+/* Kepala surat untuk "Teruskan" — memberi tahu penerima baru siapa penulis
+   aslinya, kapan, dan kepada siapa surat itu dulu dikirim. */
+function kepalaTeruskan(m){
+  const baris = [
+    '---------- Surat yang diteruskan ----------',
+    'Dari: ' + (m.from || '—'),
+    'Kepada: ' + (m.to || '—')
+  ];
+  if(m.cc) baris.push('Cc: ' + m.cc);
+  baris.push('Tanggal: ' + fmtDateTime(m.tanggal));
+  baris.push('Subjek: ' + (m.subjek || '—'));
+  baris.push('');
+  return baris.join('\n');
 }
 
 function printLetter(d){
@@ -5411,7 +5851,53 @@ function cocokkanWa(){
 function exportJSON(){
   download('kartidaya-backup-' + new Date().toISOString().slice(0,10) + '.json',
     JSON.stringify(state, null, 2), 'application/json');
+  /* Tandai waktu cadangan supaya pengingat di Beranda berhenti muncul. */
+  state.settings.cadanganTerakhir = new Date().toISOString();
+  state.settings.cadanganTunda = '';
+  save('settings');
   toast('Backup JSON diunduh');
+  render();
+}
+
+/* ---------- PENGINGAT CADANGAN ----------
+   Data hanya ada di server + salinan browser. Kalau server bermasalah atau
+   data terhapus, satu-satunya jalan pulih adalah berkas JSON yang pernah
+   diunduh. Karena itu Beranda mengingatkan kalau sudah lama tidak mencadangkan.
+   Batasnya 7 hari; pengingat bisa ditunda 3 hari sekali. */
+const CADANGAN_HARI = 7;
+const CADANGAN_TUNDA_HARI = 3;
+
+function cadanganPerlu(){
+  const t = state.settings.cadanganTerakhir;
+  const tunda = state.settings.cadanganTunda;
+  const sekarang = Date.now();
+  if(tunda){
+    const d = new Date(tunda);
+    if(!isNaN(d) && (sekarang - d.getTime()) < CADANGAN_TUNDA_HARI * 86400000) return false;
+  }
+  if(!t) return true;
+  const d = new Date(t);
+  if(isNaN(d)) return true;
+  return (sekarang - d.getTime()) > CADANGAN_HARI * 86400000;
+}
+
+function kartuCadangan(){
+  if(!cadanganPerlu()) return '';
+  const t = state.settings.cadanganTerakhir;
+  const pesan = t
+    ? 'Terakhir mencadangkan <b>' + esc(relTime(t)) + '</b>. Sebaiknya unduh salinan terbaru sekarang.'
+    : 'Data ini <b>belum pernah dicadangkan</b>. Kalau server bermasalah, tidak ada salinan untuk memulihkan.';
+  return '<div class="card cadangan-ingat">' +
+    '<div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:10px">' +
+      '<div style="flex:1;min-width:220px">' +
+        '<div class="cadangan-judul">⚠ Cadangkan data</div>' +
+        '<p class="small" style="margin:4px 0 0">' + pesan + '</p>' +
+      '</div>' +
+      '<div class="row" style="gap:8px">' +
+        '<button class="btn sm primary" data-action="ekspor-json">↓ Ekspor sekarang</button>' +
+        '<button class="btn sm ghost" data-action="cadangan-tunda">Nanti saja</button>' +
+      '</div>' +
+    '</div></div>';
 }
 function exportCSV(){
   const cols = ['id','kategori','panggilan','pic','namaLengkap','instansi','email','hp1','hp2',
@@ -5677,6 +6163,7 @@ document.addEventListener('click', function(e){
           break;
         }
         case 'akun-muat': muatAkun(); break;
+    case 'akun-f-reset': akunState.bagian = ''; akunState.aksi = ''; render(); break;
         case 'akun-set-aktif': {
           const email = act.getAttribute('data-email');
           const jadi = act.getAttribute('data-aktif') === '1';
@@ -5713,7 +6200,44 @@ document.addEventListener('click', function(e){
       suratState.subjek = 'Re: ' + (terakhir ? terakhir.subjek : 'Surat dari Kartidaya');
       suratState.isi = state.templates.length ? state.templates[0].isi : '';
       suratState.tplId = state.templates.length ? state.templates[0].id : '';
+      suratState.cc = '';
       go('surat');
+      break;
+    }
+    case 'balas-semua': {
+      closeModal();
+      const d = findDonor(id);
+      const m = state.messages.filter(function(x){ return x.id === (act.getAttribute('data-msg') || ''); })[0];
+      if(!d || !m) break;
+      suratState.selected = {}; suratState.selected[id] = true;
+      suratState.previewId = id;
+      suratState.kanal = 'email';
+      suratState.subjek = 'Re: ' + (m.subjek || 'Surat dari Kartidaya');
+      suratState.isi = state.templates.length ? state.templates[0].isi : '';
+      suratState.tplId = state.templates.length ? state.templates[0].id : '';
+      /* Semua penerima Cc surat asal ikut dibalas, kecuali alamat donor
+         sendiri dan alamat kita. */
+      suratState.cc = ccUntukBalasSemua(m, d);
+      go('surat');
+      if(suratState.cc) toast('Cc diisi: ' + suratState.cc);
+      break;
+    }
+    case 'teruskan': {
+      closeModal();
+      const d = findDonor(id);
+      const m = state.messages.filter(function(x){ return x.id === (act.getAttribute('data-msg') || ''); })[0];
+      if(!m) break;
+      /* Teruskan tidak memilih penerima apa pun: penerimanya bisa siapa saja,
+         bukan hanya donor. Penerima dipilih sendiri oleh pengguna. */
+      suratState.selected = {};
+      suratState.previewId = d ? d.id : '';
+      suratState.kanal = 'email';
+      suratState.subjek = /^fwd:/i.test(m.subjek || '') ? m.subjek : 'Fwd: ' + (m.subjek || '(tanpa subjek)');
+      suratState.isi = kepalaTeruskan(m) + (m.isi || '');
+      suratState.tplId = '';
+      suratState.cc = '';
+      go('surat');
+      toast('Isi surat disalin — pilih penerima lalu kirim');
       break;
     }
     case 'catat-masuk': closeModal(); openCatatMasuk(id || ''); break;
@@ -5740,8 +6264,13 @@ document.addEventListener('click', function(e){
     }
     case 'msg-hapus':
       if(confirm('Hapus surat ini dari riwayat?')){
+        const mHapus = state.messages.filter(function(m){ return m.id === id; })[0];
         state.messages = state.messages.filter(function(m){ return m.id !== id; });
-        save('messages'); closeModal(); toast('Surat dihapus'); render();
+        save('messages');
+        catatAksi('hapus', 'surat', (mHapus && mHapus.subjek) || id,
+          (mHapus ? (mHapus.arah === 'masuk' ? 'surat masuk' : 'surat keluar') : '') +
+          (mHapus && mHapus.donorId ? ' · donor ' + mHapus.donorId : ''));
+        closeModal(); toast('Surat dihapus'); render();
       }
       break;
     case 'tautkan': closeModal(); openTautkan(id); break;
@@ -5788,15 +6317,20 @@ document.addEventListener('click', function(e){
       break;
     case 'tpl-hapus':
       if(confirm('Hapus template ini?')){
+        const tHapus = state.templates.filter(function(t){ return t.id === id; })[0];
         state.templates = state.templates.filter(function(t){ return t.id !== id; });
-        save('templates'); closeModal(); openTplKelola(); render();
+        save('templates');
+        catatAksi('hapus', 'template', (tHapus && tHapus.nama) || id, '');
+        closeModal(); openTplKelola(); render();
       }
       break;
     case 'tpl-simpan': {
       const nama = prompt('Nama template baru:', 'Template ' + (state.templates.length + 1));
       if(!nama) break;
       state.templates.push({ id:uid('tpl'), nama:nama, subjek:suratState.subjek, isi:suratState.isi });
-      save('templates'); toast('Template disimpan'); render();
+      save('templates');
+      catatAksi('tambah', 'template', nama, 'dari isi surat yang sedang ditulis');
+      toast('Template disimpan'); render();
       break;
     }
     case 'tpl-simpan-baru': {
@@ -5873,7 +6407,9 @@ document.addEventListener('click', function(e){
       const nama = prompt('Nama kategori baru:');
       if(!nama) break;
       if(state.categories.indexOf(nama) >= 0){ toast('Kategori sudah ada', true); break; }
-      state.categories.push(nama); save('categories'); toast('Kategori ditambahkan'); render();
+      state.categories.push(nama); save('categories');
+      catatAksi('tambah', 'kategori', nama, '');
+      toast('Kategori ditambahkan'); render();
       break;
     }
     case 'kat-ubah': {
@@ -5882,7 +6418,9 @@ document.addEventListener('click', function(e){
       if(!baru || baru === lama) break;
       state.categories = state.categories.map(function(c){ return c === lama ? baru : c; });
       state.donors.forEach(function(d){ if(d.kategori === lama) d.kategori = baru; });
-      save('categories'); save('donors'); toast('Kategori diubah'); render();
+      save('categories'); save('donors');
+      catatAksi('ubah', 'kategori', baru, 'dari "' + lama + '"');
+      toast('Kategori diubah'); render();
       break;
     }
     case 'kat-hapus': {
@@ -5891,7 +6429,9 @@ document.addEventListener('click', function(e){
       if(!confirm('Hapus kategori "' + k + '"?' + (n ? '\n' + n + ' donor menjadi tanpa kategori.' : ''))) break;
       state.categories = state.categories.filter(function(c){ return c !== k; });
       state.donors.forEach(function(d){ if(d.kategori === k) d.kategori = ''; });
-      save('categories'); save('donors'); toast('Kategori dihapus'); render();
+      save('categories'); save('donors');
+      catatAksi('hapus', 'kategori', k, n ? n + ' donor jadi tanpa kategori' : '');
+      toast('Kategori dihapus'); render();
       break;
     }
     case 'g-save': {
@@ -5992,6 +6532,25 @@ document.addEventListener('click', function(e){
       window.open(u, '_blank', 'noopener');
       break;
     }
+    case 'mj-statistik': bukaStatistikMajalah(); break;
+    case 'lampiran-pilih': {
+      const el = document.getElementById('s-lampiran-file');
+      if(el) el.click();
+      break;
+    }
+    case 'lampiran-hapus': {
+      const i = parseInt(act.getAttribute('data-i'), 10);
+      const daftar = lampiranSurat();
+      if(!(i >= 0 && i < daftar.length)) break;
+      const l = daftar[i];
+      daftar.splice(i, 1);
+      /* Berkas di Worker ikut dihapus supaya tidak menumpuk jadi sampah. */
+      if(l && l.naik && l.id){
+        WhatsApp.hapusLampiran(l.id).catch(function(){ /* abaikan */ });
+      }
+      render();
+      break;
+    }
     case 'mj-mode': {
       const mode = act.getAttribute('data-mode') === 'gambar' ? 'gambar' : 'pdf';
       const pdfBlok = document.getElementById('mj-pdf-blok');
@@ -6032,6 +6591,12 @@ document.addEventListener('click', function(e){
       break;
     }
     case 'ekspor-json': exportJSON(); break;
+    case 'cadangan-tunda':
+      state.settings.cadanganTunda = new Date().toISOString();
+      save('settings');
+      toast('Pengingat ditunda ' + CADANGAN_TUNDA_HARI + ' hari');
+      render();
+      break;
     case 'ekspor-xlsx': exportXLSX(); break;
     case 'ekspor-csv': exportCSV(); break;
     case 'impor-json': document.getElementById('file-import').click(); break;
