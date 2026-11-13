@@ -710,7 +710,7 @@ function pakaiEdisiMajalah(id){
     id: e.id, judul: e.judul, halaman: e.halaman,
     pdf: !!e.pdf, dariPdf: !!e.dariPdf, diunggah: e.diunggah
   };
-  save('settings');
+  save('majalah');
   return true;
 }
 function workerBase(){
@@ -1020,8 +1020,11 @@ function save(what){
      boleh disimpan. Kalau disimpan, perubahan akan tampak "berhasil" padahal
      tidak pernah sampai ke server — dan hilang saat halaman dimuat ulang.
      Pengecualian: `settings` & `uji` memang milik komputer ini sendiri, dan
-     Setelan harus tetap bisa disimpan supaya alamat/kunci bisa diperbaiki. */
-  if(terkunciServer && what && what !== 'settings' && what !== 'uji' && what !== 'majalahDaftar') return;
+     Setelan harus tetap bisa disimpan supaya alamat/kunci bisa diperbaiki.
+     `majalah` & `majalahDaftar` ikut dikecualikan karena keduanya data
+     bersama — lihat catatan di bawah. */
+  if(terkunciServer && what && what !== 'settings' && what !== 'uji' &&
+     what !== 'majalah' && what !== 'majalahDaftar') return;
   /* Catat penghapusan SEBELUM data dikirim. Pembandingnya `Server.diketahui`
      (id yang kita tahu ada di server), bukan localStorage — lihat catatHapus. */
   const namaKoleksi = what ? [what] : Server.koleksi;
@@ -1034,6 +1037,7 @@ function save(what){
   if(!what || what === 'templates')  writeLS(LS.templates, state.templates);
   if(!what || what === 'messages')   writeLS(LS.messages, state.messages);
   if(!what || what === 'settings')   writeLS(LS.settings, state.settings);
+  if(!what || what === 'majalah')    writeLS(LS.settings, state.settings);
   if(!what || what === 'majalahDaftar') writeLS(LS.settings, state.settings);
   if(!what || what === 'programs')   writeLS(LS.programs, state.programs);
   if(!what || what === 'finance')    writeLS(LS.finance, state.finance);
@@ -1041,7 +1045,9 @@ function save(what){
   if(!what || what === 'uji')        writeLS(LS.uji, state.uji);
   /* Kirim ke server juga, supaya pengguna lain melihat perubahannya.
      `settings` & `uji` tidak dikirim: keduanya milik komputer ini sendiri
-     (tema, alamat email uji, catatan uji) — bukan data bersama. */
+     (tema, alamat email uji, catatan uji) — bukan data bersama.
+     `majalah` & `majalahDaftar` DIKIRIM: edisi majalah yang aktif dipakai
+     bersama, jadi pengguna lain harus melihat edisi yang sama. */
   if(what && what !== 'settings' && what !== 'uji') Server.kirim(what);
 }
 
@@ -1168,6 +1174,22 @@ const Server = {
       if(r.meta && Array.isArray(r.meta.isian)) state.isian = r.meta.isian;
       if(r.meta && r.meta.majalah) state.settings.majalah = r.meta.majalah;
       if(r.meta && Array.isArray(r.meta.majalahDaftar)) state.settings.majalahDaftar = r.meta.majalahDaftar;
+      /* Pemulihan: kalau catatan edisi aktif tidak ada di server tetapi daftar
+         edisi memuatnya, pakai edisi teratas dari daftar. Tanpa ini, pengguna
+         kedua yang membuka aplikasi melihat "majalah belum disiapkan" padahal
+         edisinya sudah diunggah rekan kerjanya. */
+      let pulihkanMajalah = false;
+      if(!state.settings.majalah && Array.isArray(state.settings.majalahDaftar) &&
+         state.settings.majalahDaftar.length){
+        const e = state.settings.majalahDaftar[0];
+        if(e && e.id){
+          state.settings.majalah = {
+            id: e.id, judul: e.judul, halaman: e.halaman,
+            pdf: !!e.pdf, dariPdf: !!e.dariPdf, diunggah: e.diunggah
+          };
+          pulihkanMajalah = true;
+        }
+      }
       /* Perbarui daftar id yang kita tahu ada di server. Ini pembanding untuk
          mendeteksi penghapusan — lihat catatHapus. */
       const ini = this;
@@ -1183,6 +1205,13 @@ const Server = {
       this.gagal = 0;
       this.terakhir = new Date().toISOString();
       try{ localStorage.setItem(LS_PERNAH_SINKRON, '1'); }catch(e){ /* abaikan */ }
+      /* Edisi majalah dipulihkan dari daftar — kirim ke server supaya pengguna
+         lain juga melihatnya sebagai edisi aktif. Tidak dihitung sebagai
+         "server masih kosong", jadi tidak ikut pesan peringatan di bawah. */
+      if(pulihkanMajalah){
+        Server.tertunda.majalah = true;
+        this.simpanTertunda();
+      }
       if(perluUnggah.length){
         /* Tandai supaya dikirim ke server — bukan dibuang. */
         perluUnggah.forEach(function(nama){ Server.tertunda[nama] = true; });
@@ -2142,7 +2171,7 @@ function viewKotak(arah){
         '<span class="mail-time">' + relTime(m.tanggal) + '</span>' +
       '</div>' +
       '<div class="mail-subj">' + esc(m.subjek) + '</div>' +
-      '<div class="mail-prev">' + esc(String(m.isi || '').replace(/\s+/g,' ').slice(0, 130)) + '</div>' +
+      '<div class="mail-prev">' + esc(String(m.arah === 'keluar' ? formatTeksPolos(m.isi) : (m.isi || '')).replace(/\s+/g,' ').slice(0, 130)) + '</div>' +
       '<div class="mail-foot">' +
         kanalChip(m) +
         '<span class="chip ' + statusChipClass(m.status) + '">' + esc(m.status) + '</span>' +
@@ -2499,7 +2528,7 @@ function viewBuku(donorId){
           '<span class="b-time">' + fmtDateTime(m.tanggal) + '</span>' +
         '</div>' +
         '<div class="b-subj">' + esc(m.subjek) + '</div>' +
-        '<div class="b-body">' + esc(String(m.isi || '').slice(0, 220)) + '</div>' +
+        '<div class="b-body">' + esc(String(m.arah === 'keluar' ? formatTeksPolos(m.isi) : (m.isi || '')).slice(0, 220)) + '</div>' +
         ringkasLampiranSurat(m, d) +
       '</div>';
     }).join('') + '</div>'
@@ -2822,9 +2851,11 @@ function gambarPratinjauEmail(d){
       'a{color:#2f6f9f}' +
     '</style></head><body>' + isiIframe + '</body></html>';
 
-  /* Versi teks: yang dilihat penerima mode teks — surat + ringkasan kwitansi. */
+  /* Versi teks: yang dilihat penerima mode teks — surat + ringkasan kwitansi.
+     Isinya melewati formatTeksPolos() supaya penanda **tebal** / *miring*
+     dibuang, sama seperti yang benar-benar dikirim (lihat kirimSurat). */
   const k = dataKwitansi(d, suratState.kwitansiFinId);
-  const teksPolos = isi + '\n\n' +
+  const teksPolos = formatTeksPolos(isi) + '\n\n' +
     (suratState.kwitansi
       ? '--- KWITANSI ---\n' +
         'No. ' + k.nomor + '\n' +
@@ -2970,8 +3001,8 @@ function openPeriksaKirim(){
       (!wa && rapikanCc(suratState.cc) ? kv('Cc', rapikanCc(suratState.cc)) : '') +
     '</div>' +
     (wa
-      ? '<div class="wa-preview"><div class="wa-bubble">' + esc(isi) + '</div></div>'
-      : '<div class="letter">' + esc(isi) + '</div>') +
+      ? '<div class="wa-preview"><div class="wa-bubble">' + esc(formatTeksPolos(isi)) + '</div></div>'
+      : '<div class="letter">' + formatTeksHTML(isi) + '</div>') +
 
     (pakaiKwitansi && contoh
       ? '<div class="sep"></div>' +
@@ -3291,7 +3322,7 @@ async function cekMajalahAda(){
     await WhatsApp.api('/majalah/' + m.id);
     if(state.settings.majalah && state.settings.majalah.hilang){
       delete state.settings.majalah.hilang;
-      save('settings');
+      save('majalah');
       render();
     }
   }catch(e){
@@ -3301,7 +3332,7 @@ async function cekMajalahAda(){
     if(e && e.status === 404){
       state.settings.majalah.hilang = true;
       suratState.majalah = false;
-      save('settings');
+      save('majalah');
       render();
       toast('Majalah "' + (m.judul || 'Majalah') + '" sudah tidak ada di Worker — unggah ulang', true);
     }
@@ -4451,9 +4482,9 @@ function viewPengaturan(){
           '</div>'
         : '<p class="small muted">Belum masuk.</p>') +
       '<div class="sep"></div>' +
-      '<p class="small muted">Menambah pengguna baru dilakukan di <b>halaman pendaftaran</b> ' +
-        'yang terpisah dari aplikasi. Halaman itu hanya bisa dipakai kalau admin memasang ' +
-        '<b>kode undangan</b> di server.</p>' +
+      '<p class="small muted">Menambah pengguna baru dilakukan di <b>halaman akun</b> ' +
+        'yang terpisah dari aplikasi. Halaman itu hanya bisa dipakai <b>admin</b> — ' +
+        'setelah masuk, admin membuat akun untuk staf donor dan staf keuangan.</p>' +
       (Akun.alamatDaftar()
         ? '<p class="tiny muted">Alamat: <a href="' + esc(Akun.alamatDaftar()) + '" target="_blank" rel="noopener" ' +
             'class="mono">' + esc(Akun.alamatDaftar()) + '</a></p>'
@@ -4750,9 +4781,14 @@ function openMessage(msgId){
       (m.waError ? kv('Alasan gagal', m.waError + (m.waKode ? ' (kode ' + m.waKode + ')' : '')) : '') +
     '</div>' +
     '<div class="sep"></div>' +
+    /* Isi surat ditampilkan dengan format yang sama seperti saat dikirim, jadi
+       **tebal** / *miring* tampil sebagai huruf tebal & miring — bukan tanda
+       bintang mentah. Surat masuk dari donor tetap apa adanya (teks biasa). */
     (m.kanal === 'whatsapp'
-      ? '<div class="wa-preview"><div class="wa-bubble">' + esc(m.isi) + '</div></div>'
-      : '<div class="letter">' + esc(m.isi) + '</div>') +
+      ? '<div class="wa-preview"><div class="wa-bubble">' + esc(formatTeksPolos(m.isi)) + '</div></div>'
+      : (m.arah === 'keluar'
+          ? '<div class="letter">' + formatTeksHTML(m.isi) + '</div>'
+          : '<div class="letter">' + esc(m.isi) + '</div>')) +
     pratinjauLampiran(m, d);
 
   const footer = '<button class="btn danger" data-action="msg-hapus" data-id="' + esc(m.id) + '">Hapus</button>' +
@@ -5239,7 +5275,7 @@ async function unggahMajalah(){
     dariPdf: !!pakaiPdf, pdf: !!pdfBase64, diunggah: new Date().toISOString() };
   /* Edisi baru dicatat ke daftar edisi supaya edisi lama tetap bisa dipakai. */
   simpanKeDaftarMajalah(state.settings.majalah);
-  save('settings');
+  save('majalah');
 
   /* Simpan PDF aslinya di Worker — dipakai untuk lampiran WhatsApp.
      Dikirim bertahap karena KV Cloudflare hanya menerima 25 MiB per key,
@@ -5263,7 +5299,7 @@ async function unggahMajalah(){
       }
     }catch(e){
       state.settings.majalah.pdf = false;
-      save('settings');
+      save('majalah');
       toast('Halaman majalah tersimpan, tapi PDF untuk WhatsApp gagal disimpan: ' + (e.message || e), true);
     }
   }
@@ -5344,7 +5380,7 @@ async function hapusMajalah(){
   }catch(e){ /* tetap hapus catatan lokal supaya tidak menggantung */ }
   delete state.settings.majalah;
   suratState.majalah = false;
-  save('settings');
+  save('majalah');
   toast('Majalah dihapus');
   render();
 }
@@ -5464,6 +5500,10 @@ function catatAksi(aksi, bagian, sasaran, ket){
      - awal baris   → daftar berpoin
      1. awal baris  → daftar bernomor
 
+   Garis bawah (`_`) SENGAJA tidak dipakai sebagai penanda miring: nama berkas
+   seperti `laporan_2026_final.pdf` akan berubah jadi "laporan2026final.pdf"
+   karena garis bawahnya dianggap penanda. Huruf miring cukup dengan `*`.
+
    Cara ini dipilih supaya tidak perlu editor berformat + penyaring HTML:
    teksnya tetap bisa dibaca apa adanya, dan tidak ada risiko HTML asing
    masuk ke email penerima. */
@@ -5478,8 +5518,7 @@ function formatTeksHTML(teks){
   const sebaris = function(s){
     return esc(s)
       .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
-      .replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<i>$2</i>')
-      .replace(/_([^_\n]+)_/g, '<i>$1</i>');
+      .replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<i>$2</i>');
   };
 
   baris.forEach(function(b){
@@ -5503,12 +5542,12 @@ function formatTeksHTML(teks){
 }
 
 /* Versi teks biasa untuk penerima yang memblokir HTML: penandanya dibuang
-   supaya tidak terlihat sebagai tanda baca aneh. */
+   supaya tidak terlihat sebagai tanda baca aneh. Garis bawah tidak disentuh —
+   lihat catatan di formatTeksHTML. */
 function formatTeksPolos(teks){
   return String(teks || '')
     .replace(/\*\*([^*]+)\*\*/g, '$1')
-    .replace(/(^|[^*])\*([^*\n]+)\*/g, '$1$2')
-    .replace(/_([^_\n]+)_/g, '$1');
+    .replace(/(^|[^*])\*([^*\n]+)\*/g, '$1$2');
 }
 
 function isiHTML(d, isiTeks, bahasa, finId, opts){
@@ -6476,7 +6515,32 @@ function importJSON(file){
       else if(Array.isArray(data.logs))  state.messages = data.logs;
       if(Array.isArray(data.programs))   state.programs = data.programs;
       if(Array.isArray(data.finance))    state.finance = data.finance;
+      if(Array.isArray(data.isian))      state.isian = data.isian;
+      /* Setelan ikut dipulihkan — tanpa ini, cadangan yang diimpor ke komputer
+         baru kehilangan tanda tangan, alamat koreksi, dan pengaturan majalah.
+         Yang TIDAK diambil: `waEndpoint` (alamat server milik komputer ini)
+         dan `theme` (pilihan tampilan orang yang sedang memakai). */
+      if(data.settings && typeof data.settings === 'object'){
+        const simpanEndpoint = state.settings.waEndpoint;
+        const simpanTema = state.settings.theme;
+        state.settings = Object.assign({}, state.settings, data.settings);
+        if(simpanEndpoint) state.settings.waEndpoint = simpanEndpoint;
+        if(simpanTema) state.settings.theme = simpanTema;
+      }
+      /* `uji` (catatan uji pengiriman) hanya milik komputer ini — tidak diimpor
+         supaya catatan uji komputer lain tidak tercampur. */
+      /* Kirim SEMUA koleksi ke server. `save()` tanpa argumen hanya menulis ke
+         browser dan tidak pernah memanggil Server.kirim(), jadi tanpa langkah
+         di bawah ini hasil impor tidak pernah sampai ke pengguna lain.
+         Ditandai "tertunda" dulu supaya tetap terkirim walau sambungan sedang
+         bermasalah — Server.kirimTertunda() mencoba lagi nanti. */
       save();
+      Server.koleksi.forEach(function(nama){ Server.tertunda[nama] = true; });
+      Server.tertunda.isian = true;
+      Server.tertunda.majalah = true;
+      Server.tertunda.majalahDaftar = true;
+      Server.simpanTertunda();
+      Server.kirimTertunda();
       toast('Data berhasil diimpor');
       render();
     }catch(e){ toast('File JSON tidak valid', true); }
@@ -6530,10 +6594,10 @@ document.addEventListener('click', function(e){
         case 'akun-cek-daftar': {
           const info = document.getElementById('akun-daftar-info');
           if(info) info.textContent = 'Memeriksa…';
-          Akun.daftarTerbuka().then(function(terbuka){
-            if(info) info.innerHTML = terbuka
-              ? '✅ Pintu pendaftaran <b>terbuka</b> — siapa pun yang punya kode undangan bisa membuat akun.'
-              : '🔒 Pintu pendaftaran <b>tertutup</b> — tidak ada kode undangan yang aktif.';
+          Akun.daftarTerbuka().then(function(adaAdmin){
+            if(info) info.innerHTML = adaAdmin
+              ? '✅ Halaman akun <b>siap dipakai</b> — masuk sebagai admin untuk membuat akun staf.'
+              : '🔓 Belum ada akun sama sekali. Halaman akun akan meminta Anda membuat <b>akun admin pertama</b>.';
           }).catch(function(e){
             if(info) info.textContent = 'Gagal memeriksa: ' + (e.message || e);
           });
@@ -6912,7 +6976,7 @@ document.addEventListener('click', function(e){
     case 'mj-lupakan':
       delete state.settings.majalah;
       suratState.majalah = false;
-      save('settings');
+      save('majalah');
       toast('Catatan majalah dibersihkan');
       render();
       break;

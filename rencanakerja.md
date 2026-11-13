@@ -3689,10 +3689,10 @@ bukan dugaan.
 |---|---|---|---|
 | 1 | Email/HP tampil dobel saat kolom utama kosong | 🔴 | ✅ diperbaiki (§22.17) |
 | 2 | Kolom email bertipe `tel` | 🟠 | ✅ diperbaiki (§22.17) |
-| 3 | `settings.majalah` tidak pernah dikirim ke server — user kedua tidak bisa mengirim majalah, dan catatan majalah tidak dipulihkan dari `majalahDaftar` | 🟠 | ⏳ menunggu izin |
-| 4 | Penanda `_miring_` merusak nama berkas: `laporan_2026_final.pdf` → `laporan<i>2026</i>final.pdf` | 🟡 | ⏳ menunggu izin |
-| 5 | Impor JSON hanya memulihkan 6 koleksi (bukan `settings`, `isian`, `uji`) dan tidak pernah sampai ke server | 🟡 | ⏳ menunggu izin |
-| 6 | Teks Setelan masih menyebut "kode undangan" yang sudah lama dihapus | 🟡 | ⏳ menunggu izin |
+| 3 | `settings.majalah` tidak pernah dikirim ke server — user kedua tidak bisa mengirim majalah, dan catatan majalah tidak dipulihkan dari `majalahDaftar` | 🟠 | ✅ diperbaiki (§22.19) |
+| 4 | Penanda `_miring_` merusak nama berkas: `laporan_2026_final.pdf` → `laporan<i>2026</i>final.pdf` | 🟡 | ✅ diperbaiki (§22.19) |
+| 5 | Impor JSON hanya memulihkan 6 koleksi (bukan `settings`, `isian`, `uji`) dan tidak pernah sampai ke server | 🟡 | ✅ diperbaiki (§22.19) |
+| 6 | Teks Setelan masih menyebut "kode undangan" yang sudah lama dihapus | 🟡 | ✅ diperbaiki (§22.19) |
 | 7 | `loading="lazy"` pada pratinjau majalah | 🟡 | ✅ diperbaiki (§22.17) |
 
 **Yang diperiksa dan dinyatakan aman:** tidak ada deklarasi ganda; tidak ada
@@ -3701,6 +3701,93 @@ fungsi yang benar-benar tidak terdefinisi; semua atribut HTML dinamis melewati
 ikut menghapus suratnya di server; pencocokan surat masuk memakai kedua email
 dan kedua nomor; peran admin diperiksa di sisi server; `terbilang()`,
 `fmtUang()`, dan `totalPerUang()` benar untuk multi-mata-uang.
+
+### 22.19 Bug 3, 4, 5, 6 diperbaiki (13 Nov 2026)
+
+**Arahan Anda:** *"lanjut"* — meneruskan empat bug sisa audit §22.18.
+
+**Bug 3 — edisi majalah tidak sampai ke pengguna lain.**
+
+Penyebabnya: `save('settings')` sengaja **tidak** mengirim apa pun ke server
+(Setelan dianggap milik komputer masing-masing). Padahal `settings.majalah`
+adalah data **bersama** — edisi mana yang dilampirkan harus sama untuk semua
+pengguna. Akibatnya pengguna kedua selalu melihat "majalah belum disiapkan".
+
+Perbaikannya: `majalah` dijadikan nama simpan tersendiri, terpisah dari
+`settings`.
+
+| Sebelum | Sesudah |
+|---|---|
+| `save('settings')` → hanya localStorage | `save('majalah')` → localStorage **dan** `POST /data/meta/majalah` |
+| Pengguna kedua melihat "belum disiapkan" | Pengguna kedua melihat edisi yang sama |
+
+Ditambahkan juga **pemulihan**: kalau catatan edisi aktif tidak ada di server
+tetapi `majalahDaftar` memuatnya, edisi teratas dari daftar dipakai dan dikirim
+balik ke server. Jadi catatan yang hilang pulih sendiri.
+
+**Bug 4 — garis bawah merusak nama berkas.**
+
+`laporan_2026_final.pdf` berubah jadi `laporan<i>2026</i>final.pdf` karena `_`
+dianggap penanda miring. **Keputusan Anda: hapus penanda `_miring_`.**
+
+| Penanda | Sebelum | Sesudah |
+|---|---|---|
+| `**tebal**` | tebal | tebal |
+| `*miring*` | miring | miring |
+| `_miring_` | miring | **tidak lagi** — garis bawah tampil apa adanya |
+| `- poin` | daftar berpoin | daftar berpoin |
+| `1. nomor` | daftar bernomor | daftar bernomor |
+
+Petunjuk format di halaman Tulis memang sejak awal tidak menyebut garis bawah,
+jadi tidak ada teks yang perlu diubah.
+
+**Sekaligus diperbaiki: penanda mentah terlihat di tiga tempat.** Sebelumnya
+hanya badan email yang diformat; pratinjau lain menampilkan `**penting**`
+apa adanya:
+
+| Tempat | Sebelum | Sesudah |
+|---|---|---|
+| Pratinjau → tab "Versi teks" | `Ini **penting**` | `Ini penting` |
+| Layar "Periksa sebelum kirim" | `Ini **penting**` | `Ini penting` (tebal/miring tampil) |
+| Detail surat di riwayat donor | `Ini **penting**` | `Ini penting` (tebal/miring tampil) |
+| Kartu ringkas riwayat | `Ini **penting**` | `Ini penting` |
+
+Surat **masuk** dari donor tetap ditampilkan apa adanya — penanda di sana bukan
+format, jadi tidak boleh diubah.
+
+**Bug 5 — impor JSON tidak lengkap.**
+
+| Sebelum | Sesudah |
+|---|---|
+| Hanya 6 koleksi dipulihkan | Ditambah `isian` dan `settings` |
+| `save()` tanpa argumen → tidak pernah memanggil `Server.kirim()` | Semua koleksi ditandai tertunda lalu dikirim |
+| Hasil impor tidak sampai ke pengguna lain | Sampai, dan tetap terkirim walau sambungan sempat putus |
+
+Yang **tidak** diambil dari berkas cadangan: `waEndpoint` (alamat server milik
+komputer ini) dan `theme` (pilihan tampilan orang yang sedang memakai). `uji`
+(catatan uji pengiriman) juga tidak diimpor supaya catatan komputer lain tidak
+tercampur.
+
+**Bug 6 — teks "kode undangan" yang sudah tidak ada.**
+
+Teks Setelan diganti menjadi penjelasan yang benar: halaman akun hanya bisa
+dipakai admin, dan admin membuat akun untuk staf donor & staf keuangan.
+
+**Bug tambahan yang ditemukan saat mengerjakan bug 6:**
+`Akun.daftarTerbuka()` dipanggil tombol **Cek pintu pendaftaran** tetapi
+fungsinya **tidak pernah ada** di `akun.js` — tombol itu selalu gagal. Sekarang
+fungsinya ditambahkan dan memakai endpoint `/akun/daftar-terbuka` yang sudah ada
+di Worker.
+
+**Berkas yang berubah:** `app.js`, `akun.js`, `index.html` (versi aset `v=67`).
+
+**Pengujian:** 13/13 uji format teks (nama berkas utuh, email bergaris bawah,
+tebal/miring/poin/nomor tetap bekerja, escape HTML), 8/8 uji ulang setelah
+perbaikan tampilan, plus verifikasi di browser dengan Worker + D1 + KV tiruan:
+`meta.majalah` benar-benar sampai ke server, pemulihan dari `majalahDaftar`
+bekerja, impor JSON mengirim donor/program/template/isian ke server, teks
+Setelan bersih, tombol cek pendaftaran menjawab, dan kirim surat (simulasi)
+tetap berjalan tanpa regresi.
 
 ---
 

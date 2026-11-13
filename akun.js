@@ -203,5 +203,14 @@ const Akun = {
   alamatDaftar(){
     const base = workerBase();
     return base ? base + '/daftar' : '';
+  },
+
+  /* Apakah sudah ada akun admin aktif? Dipakai halaman Setelan untuk
+     menjelaskan keadaan halaman akun: kalau belum ada admin, halaman itu
+     meminta pembuatan akun admin pertama; kalau sudah ada, halaman itu
+     menjadi tempat admin membuat akun staf. */
+  async daftarTerbuka(){
+    const r = await this.panggil('/akun/daftar-terbuka');
+    return !!(r && r.adaAdmin);
   }
 };
