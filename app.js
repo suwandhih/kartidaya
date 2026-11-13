@@ -117,7 +117,8 @@ const SEED_DONORS = [
 ].map(function(r){
   return {
     id:r[0], kategori:r[1], pic:r[2], namaLengkap:r[3], instansi:r[4],
-    email:r[5], hp1:r[6], hp2:r[7],
+    email:r[5], email2:'', emailUtama:1,
+    hp1:r[6], hp2:r[7], hpUtama:1,
     panggilan:'', dateStart:'', asalGereja:'', alamat:'', tglLahir:'',
     pengiriman:'', catatan:'', createdAt:new Date().toISOString()
   };
@@ -149,8 +150,10 @@ const TOKENS = [
   ['{/NAMA_LENGKAP}','Nama lengkap'],
   ['{/ID}','ID-DONOR'],
   ['{/KATEGORI}','Kategori donor'],
-  ['{/EMAIL}','Email penerima'],
-  ['{/HP}','No HP'],
+  ['{/EMAIL}','Email utama penerima'],
+  ['{/EMAIL2}','Email kedua penerima'],
+  ['{/HP}','No HP utama'],
+  ['{/HP2}','No HP kedua'],
   ['{/ALAMAT}','Alamat lengkap'],
   ['{/TANGGAL}','Tanggal hari ini'],
   ['{/ISI1}','Isian serba guna 1'],
@@ -1441,11 +1444,53 @@ function findDonor(id){
   for(let i = 0; i < state.donors.length; i++) if(state.donors[i].id === id) return state.donors[i];
   return null;
 }
+
+/* ---------- EMAIL & HP UTAMA ----------
+   Setiap donor punya dua email dan dua nomor HP. Salah satu dari masing-masing
+   pasangan ditandai UTAMA lewat centang di form donor; yang utama itulah yang
+   dipakai sistem: alamat tujuan surat, nomor WhatsApp, dan yang ditampilkan di
+   daftar donor.
+
+   Penandanya disimpan sebagai `emailUtama` / `hpUtama` berisi 1 atau 2. Data
+   lama tidak punya penanda ini, jadi dianggap 1 (perilaku sebelumnya: email dan
+   HP 1 yang dipakai). Kalau yang ditandai utama ternyata kosong sedangkan yang
+   lain terisi, yang terisi itulah yang dipakai — supaya surat tidak gagal
+   terkirim hanya karena centangnya tertinggal di kolom kosong. */
+function pilihUtama(nomor, a, b){
+  const satu = String(a || '').trim();
+  const dua = String(b || '').trim();
+  if(Number(nomor) === 2) return dua || satu;
+  return satu || dua;
+}
+function emailUtama(d){
+  if(!d) return '';
+  return pilihUtama(d.emailUtama, d.email, d.email2);
+}
+function emailLain(d){
+  if(!d) return '';
+  return Number(d.emailUtama) === 2 ? String(d.email || '').trim() : String(d.email2 || '').trim();
+}
+function hpUtama(d){
+  if(!d) return '';
+  return pilihUtama(d.hpUtama, d.hp1, d.hp2);
+}
+function hpLain(d){
+  if(!d) return '';
+  return Number(d.hpUtama) === 2 ? String(d.hp1 || '').trim() : String(d.hp2 || '').trim();
+}
+/* Semua alamat email donor, untuk pencocokan surat masuk. */
+function emailDonor(d){
+  if(!d) return [];
+  return [d.email, d.email2].map(function(e){ return String(e || '').trim().toLowerCase(); })
+    .filter(Boolean);
+}
+
+/* Cocokkan pengirim ke donor lewat email 1 ATAU email 2. */
 function donorByEmail(addr){
   const e = String(addr || '').trim().toLowerCase();
   if(!e) return null;
   for(let i = 0; i < state.donors.length; i++){
-    if(String(state.donors[i].email || '').trim().toLowerCase() === e) return state.donors[i];
+    if(emailDonor(state.donors[i]).indexOf(e) >= 0) return state.donors[i];
   }
   return null;
 }
@@ -1460,10 +1505,10 @@ function donorByPhone(num){
   }
   return null;
 }
-/* Nomor WhatsApp donor: pakai HP 1, kalau kosong baru HP 2. */
+/* Nomor WhatsApp donor: pakai HP utama, kalau kosong baru yang lain. */
 function donorWa(d){
   if(!d) return '';
-  return waPhone(d.hp1) || waPhone(d.hp2);
+  return waPhone(hpUtama(d));
 }
 
 /* ---------- 4. GENERATOR ID [X]99999[Z] ---------- */
@@ -1499,8 +1544,10 @@ function fillTemplate(text, d){
     '/NAMA_LENGKAP': d.namaLengkap || d.pic || '',
     '/ID': d.id || '',
     '/KATEGORI': d.kategori || '',
-    '/EMAIL': d.email || '',
-    '/HP': d.hp1 || '',
+    '/EMAIL': emailUtama(d),
+    '/EMAIL2': emailLain(d),
+    '/HP': hpUtama(d),
+    '/HP2': hpLain(d),
     '/ALAMAT': d.alamat || '',
     '/TANGGAL': todayID()
   };
@@ -2116,7 +2163,7 @@ function viewDonor(){
   let list = state.donors.filter(function(d){
     if(donorFilter.kategori && d.kategori !== donorFilter.kategori) return false;
     if(!q) return true;
-    return [d.id,d.pic,d.namaLengkap,d.instansi,d.email,d.hp1,d.hp2,d.kategori,d.alamat]
+    return [d.id,d.pic,d.namaLengkap,d.instansi,d.email,d.email2,d.hp1,d.hp2,d.kategori,d.alamat]
       .join(' ').toLowerCase().indexOf(q) >= 0;
   });
   const sorters = {
@@ -2169,8 +2216,12 @@ function donorCard(d){
               : (d.panggilan ? '<span class="chip plain">' + esc(d.panggilan) + '</span>' : '')) +
     '</div>' +
     '<div class="meta">' +
-      (d.email ? '<span>✉ ' + esc(d.email) + '</span>' : '<span class="chip warn">tanpa email</span>') +
-      (d.hp1 ? '<span>☎ ' + esc(d.hp1) + (d.hp2 ? ' / ' + esc(d.hp2) : '') + '</span>' : '') +
+      (emailUtama(d)
+        ? '<span>✉ ' + esc(emailUtama(d)) + (emailLain(d) ? ' <span class="muted">/ ' + esc(emailLain(d)) + '</span>' : '') + '</span>'
+        : '<span class="chip warn">tanpa email</span>') +
+      (hpUtama(d)
+        ? '<span>☎ ' + esc(hpUtama(d)) + (hpLain(d) ? ' <span class="muted">/ ' + esc(hpLain(d)) + '</span>' : '') + '</span>'
+        : '') +
       (d.alamat ? '<span>⌂ ' + esc(String(d.alamat).replace(/\s+/g, ' ').slice(0, 70)) + '</span>' : '') +
     '</div>' +
     (last ? '<div class="last">' + esc(String(last.subjek || '').slice(0,60)) + ' · ' + relTime(last.tanggal) + '</div>' : '') +
@@ -2415,7 +2466,8 @@ function viewBuku(donorId){
     '</div>' +
     '<div class="kv">' +
       kv('PIC', d.pic) + kv('Nama Lengkap', d.namaLengkap) + kv('Instansi', d.instansi) +
-      kv('Email', d.email) + kv('HP 1', d.hp1) + kv('HP 2', d.hp2) +
+      kv('Email', emailUtama(d) + (emailLain(d) ? ' / ' + emailLain(d) : '')) +
+      kv('HP', hpUtama(d) + (hpLain(d) ? ' / ' + hpLain(d) : '')) +
       kv('Pengiriman', d.pengiriman) + kv('Asal Gereja', d.asalGereja) +
       kv('Alamat Lengkap', d.alamat) + kv('Catatan', d.catatan) +
     '</div>' +
@@ -2469,7 +2521,7 @@ function viewSurat(){
   const q = suratState.q.toLowerCase();
   const recips = state.donors.filter(function(d){
     if(!q) return true;
-    return [d.id,d.pic,d.namaLengkap,d.instansi,d.email,d.hp1,d.hp2].join(' ').toLowerCase().indexOf(q) >= 0;
+    return [d.id,d.pic,d.namaLengkap,d.instansi,d.email,d.email2,d.hp1,d.hp2].join(' ').toLowerCase().indexOf(q) >= 0;
   });
   const ids = Object.keys(suratState.selected).filter(function(k){ return suratState.selected[k]; });
   const nSel = ids.length;
@@ -2480,7 +2532,7 @@ function viewSurat(){
   const siap = kanal === 'whatsapp' ? waOk : gmailOk;
   const nTanpaAlamat = ids.filter(function(id){
     const d = findDonor(id);
-    return d && !(kanal === 'whatsapp' ? donorWa(d) : d.email);
+    return d && !(kanal === 'whatsapp' ? donorWa(d) : emailUtama(d));
   }).length;
 
   return '' +
@@ -2543,7 +2595,7 @@ function viewSurat(){
         const on = !!suratState.selected[d.id];
         const alamat = kanal === 'whatsapp'
           ? (donorWa(d) ? waPhonePretty(donorWa(d)) : 'tanpa nomor HP')
-          : (d.email || 'tanpa email');
+          : (emailUtama(d) || 'tanpa email');
         /* Kalau kwitansi ikut dikirim, tampilkan kode + jumlah besar di
            sebelah nama. Tujuannya supaya user bisa membandingkan angka
            sebelum mencentang — inilah pencegah salah kirim yang utama. */
@@ -2616,7 +2668,7 @@ function previewHTML(d){
   if(!d) return '<div class="card-head"><h2>3 · Pratinjau</h2></div>' +
     '<p class="muted small">Belum ada donor untuk dipratinjau.</p>';
   const wa = suratState.kanal === 'whatsapp';
-  const alamat = wa ? (donorWa(d) ? waPhonePretty(donorWa(d)) : 'belum ada nomor HP') : (d.email || 'belum ada email');
+  const alamat = wa ? (donorWa(d) ? waPhonePretty(donorWa(d)) : 'belum ada nomor HP') : (emailUtama(d) || 'belum ada email');
   const pakaiKwitansi = suratState.kwitansi;
   return '<div class="card-head"><h2>3 · Pratinjau</h2>' +
       '<span class="chip plain">' + esc(donorName(d)) + '</span>' +
@@ -2794,7 +2846,7 @@ function gambarPratinjauEmail(d){
 
     '<div class="pj-pilihan">Pratinjau untuk: <b>' + esc(donorLabel(d)) + '</b>' +
       (d.instansi && d.instansi !== donorName(d) ? ' — ' + esc(d.instansi) : '') +
-      ' <span class="mono">' + esc(d.email || 'belum ada email') + '</span>' +
+      ' <span class="mono">' + esc(emailUtama(d) || 'belum ada email') + '</span>' +
       '<span class="chip plain" style="margin-left:6px">' + esc(d.id) + '</span></div>' +
 
     /* Kerangka klien email */
@@ -2804,7 +2856,7 @@ function gambarPratinjauEmail(d){
         '<div class="pj-dari">' +
           '<div class="pj-subjek">' + esc(subjek || '(tanpa subjek)') + '</div>' +
           '<div class="pj-meta"><b>' + esc(namaPengirim) + '</b> &lt;' + esc(pengirim) + '&gt;</div>' +
-          '<div class="pj-meta">kepada <b>' + esc(donorLabel(d)) + '</b> &lt;' + esc(d.email || '—') + '&gt;</div>' +
+          '<div class="pj-meta">kepada <b>' + esc(donorLabel(d)) + '</b> &lt;' + esc(emailUtama(d) || '—') + '&gt;</div>' +
         '</div>' +
         '<div class="pj-waktu">' + esc(waktu) + '</div>' +
       '</div>' +
@@ -2844,7 +2896,7 @@ function openPeriksaKirim(){
      supaya bisa dibetulkan sebelum menekan Kirim. */
   const tanpaAlamat = ids.filter(function(id){
     const d = findDonor(id);
-    return d && !(wa ? donorWa(d) : d.email);
+    return d && !(wa ? donorWa(d) : emailUtama(d));
   });
   const tanpaKwitansi = pakaiKwitansi ? ids.filter(function(id){
     return !state.finance.some(function(f){ return f.donorId === id; });
@@ -2870,7 +2922,7 @@ function openPeriksaKirim(){
   const daftarPenerima = ids.map(function(id){
     const d = findDonor(id);
     if(!d) return '';
-    const alamat = wa ? (donorWa(d) ? waPhonePretty(donorWa(d)) : '') : (d.email || '');
+    const alamat = wa ? (donorWa(d) ? waPhonePretty(donorWa(d)) : '') : (emailUtama(d) || '');
     const fin = state.finance.filter(function(f){ return f.donorId === id; });
     const total = fin.length ? Object.keys(totalPerUang(fin)).sort().map(function(k){
       return fmtUang(totalPerUang(fin)[k], k);
@@ -2903,7 +2955,7 @@ function openPeriksaKirim(){
     '<p class="small" style="margin:0 0 8px"><b>Isi surat yang akan diterima</b></p>' +
     '<div class="kv">' +
       kv('Subjek', subjek) +
-      kv('Kepada', contoh ? donorLabel(contoh) + ' · ' + (wa ? waPhonePretty(donorWa(contoh)) : contoh.email) : '—') +
+      kv('Kepada', contoh ? donorLabel(contoh) + ' · ' + (wa ? waPhonePretty(donorWa(contoh)) : emailUtama(contoh)) : '—') +
       (!wa && rapikanCc(suratState.cc) ? kv('Cc', rapikanCc(suratState.cc)) : '') +
     '</div>' +
     (wa
@@ -4508,15 +4560,40 @@ function closeModal(){
 document.addEventListener('keydown', function(e){ if(e.key === 'Escape') closeModal(); });
 
 /* ---------- Form Donor ---------- */
+/* Dua kolom isian berdampingan (email 1 & 2, HP 1 & 2) dengan centang
+   "Utama" di masing-masing. Radio dipakai, bukan checkbox, karena hanya satu
+   yang boleh jadi utama — jadi tidak ada kemungkinan dua-duanya tercentang.
+   Kalau kolomnya kosong, centangnya dimatikan supaya tidak bisa dipilih. */
+function pasanganField(judul, nama, id1, v1, id2, v2, ph1, ph2, utama){
+  const u = Number(utama) === 2 ? 2 : 1;
+  const tipe = nama === 'Email' ? 'email' : 'tel';
+  function baris(n, id, nilai, ph){
+    const kosong = !String(nilai || '').trim();
+    return '<div class="pasangan-baris">' +
+      '<input type="' + tipe + '" id="' + id + '" value="' + esc(nilai) + '" placeholder="' + esc(ph) + '">' +
+      '<label class="utama-pilih' + (kosong ? ' mati' : '') + '" title="Pakai ' + judul + ' ini sebagai utama">' +
+        '<input type="radio" name="' + nama + '-utama" value="' + n + '"' +
+          (u === n ? ' checked' : '') + (kosong ? ' disabled' : '') + '>' +
+        '<span>Utama</span></label>' +
+    '</div>';
+  }
+  return '<div class="field span2"><label>' + esc(judul) +
+      ' <span class="hint">— centang mana yang dipakai sistem</span></label>' +
+    '<div class="pasangan">' +
+      baris(1, id1, v1, ph1) +
+      baris(2, id2, v2, ph2) +
+    '</div></div>';
+}
 function openDonorForm(id){
   const isNew = !id;
   const found = isNew ? null : findDonor(id);
   if(!isNew && !found){ toast('Donor ' + id + ' tidak ditemukan', true); return; }
   const d = isNew ? {
     id:'', kategori: state.categories[0] || '', pic:'', namaLengkap:'', instansi:'',
-    email:'', hp1:'', hp2:'', panggilan:'', dateStart:'', asalGereja:'', alamat:'',
+    email:'', email2:'', emailUtama:1, hp1:'', hp2:'', hpUtama:1,
+    panggilan:'', dateStart:'', asalGereja:'', alamat:'',
     tglLahir:'', pengiriman:'', catatan:''
-  } : Object.assign({}, found);
+  } : Object.assign({ email2:'', emailUtama:1, hpUtama:1 }, found);
 
   const katOpts = state.categories.map(function(c){
     return '<option value="' + esc(c) + '"' + (d.kategori === c ? ' selected' : '') + '>' + esc(c) + '</option>';
@@ -4537,10 +4614,11 @@ function openDonorForm(id){
     '<div class="field"><label>PIC</label><input type="text" id="d-pic" value="' + esc(d.pic) + '" placeholder="Nama PIC"></div>' +
     '<div class="field"><label>Nama Lengkap</label><input type="text" id="d-namaLengkap" value="' + esc(d.namaLengkap) + '"></div>' +
     '<div class="field"><label>Instansi <span class="hint">— boleh kosong</span></label><input type="text" id="d-instansi" value="' + esc(d.instansi) + '"></div>' +
-    '<div class="field"><label>Email</label><input type="email" id="d-email" value="' + esc(d.email) + '" placeholder="nama@contoh.com"></div>' +
+    pasanganField('Email', 'email', 'd-email', d.email, 'd-email2', d.email2,
+      'nama@contoh.com', 'email kedua (boleh kosong)', d.emailUtama) +
     '<div class="field"><label>Pengiriman melalui</label><select id="d-pengiriman">' + krOpts + '</select></div>' +
-    '<div class="field"><label>HP 1</label><input type="tel" id="d-hp1" value="' + esc(d.hp1) + '"></div>' +
-    '<div class="field"><label>HP 2</label><input type="tel" id="d-hp2" value="' + esc(d.hp2) + '"></div>' +
+    pasanganField('Nomor HP', 'hp', 'd-hp1', d.hp1, 'd-hp2', d.hp2,
+      '0811…', 'nomor kedua (boleh kosong)', d.hpUtama) +
     '<div class="field"><label>Date Start</label><input type="date" id="d-dateStart" value="' + esc(d.dateStart) + '"></div>' +
     '<div class="field"><label>Tgl Lahir</label><input type="date" id="d-tglLahir" value="' + esc(d.tglLahir) + '"></div>' +
     '<div class="field"><label>Asal Gereja</label><input type="text" id="d-asalGereja" value="' + esc(d.asalGereja) + '"></div>' +
@@ -4548,7 +4626,8 @@ function openDonorForm(id){
       '<textarea id="d-alamat" style="min-height:70px" placeholder="Jalan, nomor, RT/RW&#10;Kelurahan, Kecamatan&#10;Kota, Kode Pos">' +
         esc(d.alamat) + '</textarea></div>' +
     '<div class="field span2"><label>Catatan</label><textarea id="d-catatan" style="min-height:70px">' + esc(d.catatan) + '</textarea></div>' +
-  '</div><p class="tiny muted">Minimal salah satu dari <b>PIC</b> atau <b>Instansi</b> harus terisi.</p>';
+  '</div><p class="tiny muted">Minimal salah satu dari <b>PIC</b> atau <b>Instansi</b> harus terisi. ' +
+    'Yang dicentang <b>Utama</b> itulah yang dipakai saat mengirim surat dan yang tampil di daftar donor.</p>';
 
   const footer = (isNew ? '' :
       '<button class="btn danger" data-action="donor-hapus" data-id="' + esc(d.id) + '">Hapus</button>') +
@@ -4558,12 +4637,47 @@ function openDonorForm(id){
 
   openModal({ title: isNew ? 'Tambah Donor' : 'Ubah Donor', body:body, footer:footer, wide:true });
 }
-function readDonorForm(){
-  function v(id){ const el = document.getElementById(id); return el ? el.value.trim() : ''; }
+/* Aktif/matikan centang "Utama" mengikuti isi kolomnya. Dipanggil setiap kali
+   salah satu kolom email/HP diketik. Kalau kolom yang tadinya kosong sekarang
+   terisi dan belum ada yang utama, kolom itu otomatis jadi utama — supaya
+   pengguna tidak perlu mencentang manual untuk kasus yang paling umum. */
+function segarkanUtama(id){
+  const peta = { 'd-email':'email', 'd-email2':'email', 'd-hp1':'hp', 'd-hp2':'hp' };
+  const nama = peta[id];
+  if(!nama) return;
+  const pasangan = { 'email':['d-email','d-email2'], 'hp':['d-hp1','d-hp2'] }[nama];
+  const radio = document.querySelectorAll('input[name="' + nama + '-utama"]');
+  if(!radio.length) return;
+  let adaTerpilih = false;
+  radio.forEach(function(r){
+    const el = document.getElementById(pasangan[Number(r.value) - 1]);
+    const kosong = !el || !el.value.trim();
+    r.disabled = kosong;
+    const label = r.closest('.utama-pilih');
+    if(label) label.classList.toggle('mati', kosong);
+    if(r.checked && !kosong) adaTerpilih = true;
+    if(r.checked && kosong) r.checked = false;
+  });
+  if(!adaTerpilih){
+    for(let i = 0; i < radio.length; i++){
+      const el = document.getElementById(pasangan[i]);
+      if(el && el.value.trim()){ radio[i].checked = true; break; }
+    }
+  }
+}
+function readDonorForm(){  function v(id){ const el = document.getElementById(id); return el ? el.value.trim() : ''; }
+  /* Radio "Utama" bisa saja tidak tercentang sama sekali (misalnya kedua kolom
+     kosong). Dalam hal itu dipakai 1 sebagai nilai awal — bukan 0 — supaya
+     penandanya tetap sah dan tidak membuat emailUtama()/hpUtama() bingung. */
+  function utama(nama){
+    const el = document.querySelector('input[name="' + nama + '-utama"]:checked');
+    return el && Number(el.value) === 2 ? 2 : 1;
+  }
   return {
     id:v('d-id'), kategori:v('d-kategori'), panggilan:v('d-panggilan'),
     pic:v('d-pic'), namaLengkap:v('d-namaLengkap'), instansi:v('d-instansi'),
-    email:v('d-email'), pengiriman:v('d-pengiriman'), hp1:v('d-hp1'), hp2:v('d-hp2'),
+    email:v('d-email'), email2:v('d-email2'), emailUtama:utama('email'),
+    pengiriman:v('d-pengiriman'), hp1:v('d-hp1'), hp2:v('d-hp2'), hpUtama:utama('hp'),
     dateStart:v('d-dateStart'), tglLahir:v('d-tglLahir'),
     asalGereja:v('d-asalGereja'), alamat:v('d-alamat'), catatan:v('d-catatan')
   };
@@ -4716,7 +4830,7 @@ function openTautkan(msgId){
   const guess = wa ? waPhonePretty(m.from) : emailOf(m.from);
   const donorOpts = '<option value="">— pilih donor —</option>' + state.donors.map(function(d){
     return '<option value="' + esc(d.id) + '">' + esc(d.id + ' — ' + donorName(d) +
-      (wa ? (donorWa(d) ? ' · ' + waPhonePretty(donorWa(d)) : '') : (d.email ? ' · ' + d.email : ''))) + '</option>';
+      (wa ? (donorWa(d) ? ' · ' + waPhonePretty(donorWa(d)) : '') : (emailUtama(d) ? ' · ' + emailUtama(d) : ''))) + '</option>';
   }).join('');
   const body = '<p class="small muted">Pengirim <b class="mono">' + esc(guess || '—') +
       '</b> belum terhubung ke donor mana pun.</p>' +
@@ -4769,7 +4883,7 @@ function openCatatMasuk(donorId){
     const isiDari = function(){
       const d = findDonor(sel.value);
       const wa = kanalSel && kanalSel.value === 'whatsapp';
-      dari.value = d ? (wa ? (donorWa(d) ? waPhonePretty(donorWa(d)) : '') : (d.email || '')) : '';
+      dari.value = d ? (wa ? (donorWa(d) ? waPhonePretty(donorWa(d)) : '') : (emailUtama(d) || '')) : '';
     };
     sel.addEventListener('change', isiDari);
     if(kanalSel) kanalSel.addEventListener('change', isiDari);
@@ -5237,14 +5351,15 @@ function namaSama(a, b){
   return !!x && x === y;
 }
 function donorKembar(f, oldId){
-  const email = String(f.email || '').trim().toLowerCase();
+  const email = [f.email, f.email2].map(function(e){ return String(e || '').trim().toLowerCase(); })
+    .filter(Boolean);
   const nomor = [waPhone(f.hp1), waPhone(f.hp2)].filter(Boolean);
   const hasil = [];
   state.donors.forEach(function(d){
     if(d.id === oldId) return;
-    if(email && String(d.email || '').trim().toLowerCase() === email){
-      hasil.push({ donor:d, jenis:'Email', nilai:f.email });
-    }
+    const emailDia = emailDonor(d);
+    const samaEmail = email.filter(function(e){ return emailDia.indexOf(e) >= 0; });
+    if(samaEmail.length) hasil.push({ donor:d, jenis:'Email', nilai:samaEmail[0] });
     const punyaDia = [waPhone(d.hp1), waPhone(d.hp2)].filter(Boolean);
     const sama = nomor.filter(function(n){ return punyaDia.indexOf(n) >= 0; });
     if(sama.length) hasil.push({ donor:d, jenis:'Nomor HP', nilai:waPhonePretty(sama[0]) });
@@ -5545,7 +5660,7 @@ async function kirimSurat(asDraft){
        pengiriman. */
     const kodeKrm = asDraft ? '' : kodeKiriman();
     const waktuKrm = asDraft ? '' : waktuKirim();
-    const tujuan = kanal === 'whatsapp' ? donorWa(d) : (d.email || '');
+    const tujuan = kanal === 'whatsapp' ? donorWa(d) : emailUtama(d);
     /* ID pixel dibuat per surat supaya pembukaan oleh satu penerima tidak
        dianggap pembukaan oleh penerima lain. */
     const pixelId = (kanal === 'email' && !asDraft && workerBase())
@@ -5568,7 +5683,7 @@ async function kirimSurat(asDraft){
     }
 
     if(useGmail){
-      if(!d.email){
+      if(!emailUtama(d)){
         status = 'Gagal';
         errMsg = 'Donor ' + d.id + ' belum punya alamat email';
         gagal++;
@@ -5595,7 +5710,7 @@ async function kirimSurat(asDraft){
               })
             : '';
           const r = await Gmail.send({
-            from: Gmail.email || '', to: d.email, cc: ccBersih, subject: subjek,
+            from: Gmail.email || '', to: emailUtama(d), cc: ccBersih, subject: subjek,
             body: formatTeksPolos(isi), html: html
           });
           gmailId = (r && r.id) || '';
@@ -5736,13 +5851,13 @@ function rapikanCc(teks){
    alamat kita — supaya "Balas semua" tidak mengirim salinan ke diri sendiri. */
 function ccUntukBalasSemua(m, d){
   const sendiri = [emailOf(m.to || ''), emailOf(Gmail.email || '')];
-  const punyaDonor = d ? emailOf(d.email || '') : '';
+  const punyaDonor = d ? emailDonor(d) : [];
   return rapikanCc(m.cc || '')
     .split(', ')
     .filter(function(a){
       if(!a) return false;
       const k = a.toLowerCase();
-      if(punyaDonor && k === punyaDonor) return false;
+      if(punyaDonor.indexOf(k) >= 0) return false;
       return sendiri.indexOf(k) < 0;
     })
     .join(', ');
@@ -5802,7 +5917,7 @@ function printAlamat(d){
       '<div class="nama">' + esc(donorLabel(d)) + '</div>' +
       (d.instansi && d.instansi !== donorName(d) ? '<div class="inst">' + esc(d.instansi) + '</div>' : '') +
       '<div class="alamat">' + baris + '</div>' +
-      (d.hp1 ? '<div class="hp">☎ ' + esc(d.hp1) + (d.hp2 ? ' / ' + esc(d.hp2) : '') + '</div>' : '') +
+      (hpUtama(d) ? '<div class="hp">☎ ' + esc(hpUtama(d)) + (hpLain(d) ? ' / ' + esc(hpLain(d)) : '') + '</div>' : '') +
       '<div class="id">' + esc(d.id) + '</div>' +
     '</div></body></html>');
   w.document.close();
@@ -6160,9 +6275,11 @@ function kartuCadangan(){
     '</div></div>';
 }
 function exportCSV(){
-  const cols = ['id','kategori','panggilan','pic','namaLengkap','instansi','email','hp1','hp2',
+  const cols = ['id','kategori','panggilan','pic','namaLengkap','instansi','email','email2','emailUtama',
+                'hp1','hp2','hpUtama',
                 'pengiriman','dateStart','asalGereja','alamat','tglLahir','catatan'];
-  const head = ['ID-DONOR','KATEGORI','PANGGILAN','PIC','NAMA LENGKAP','INSTANSI','EMAIL','HP 1','HP 2',
+  const head = ['ID-DONOR','KATEGORI','PANGGILAN','PIC','NAMA LENGKAP','INSTANSI','EMAIL 1','EMAIL 2','EMAIL UTAMA',
+                'HP 1','HP 2','HP UTAMA',
                 'PENGIRIMAN','DATE START','ASAL GEREJA','ALAMAT','TGL LAHIR','CATATAN'];
   function cell(v){
     const s = String(v === null || v === undefined ? '' : v);
@@ -6226,7 +6343,10 @@ function exportXLSX(){
   const kolDonor = [
     ['id','ID-DONOR'], ['kategori','KATEGORI'], ['panggilan','PANGGILAN'],
     ['pic','PIC'], ['namaLengkap','NAMA LENGKAP'], ['instansi','INSTANSI'],
-    ['email','EMAIL'], ['hp1','HP 1'], ['hp2','HP 2'],
+    ['email','EMAIL 1'], ['email2','EMAIL 2'],
+    ['emailUtama','EMAIL UTAMA', function(d){ return Number(d.emailUtama) === 2 ? 'Email 2' : 'Email 1'; }],
+    ['hp1','HP 1'], ['hp2','HP 2'],
+    ['hpUtama','HP UTAMA', function(d){ return Number(d.hpUtama) === 2 ? 'HP 2' : 'HP 1'; }],
     ['pengiriman','PENGIRIMAN'], ['dateStart','DATE START'],
     ['asalGereja','ASAL GEREJA'], ['alamat','ALAMAT'],
     ['tglLahir','TGL LAHIR'], ['catatan','CATATAN']
@@ -6507,7 +6627,7 @@ document.addEventListener('click', function(e){
       const d = findDonor(g('l-donor'));
       const st = g('l-status') || 'Belum dibaca';
       const kanal = g('l-kanal') === 'whatsapp' ? 'whatsapp' : 'email';
-      const dari = g('l-dari') || (d ? (kanal === 'whatsapp' ? donorWa(d) : d.email) : '');
+      const dari = g('l-dari') || (d ? (kanal === 'whatsapp' ? donorWa(d) : emailUtama(d)) : '');
       addMessage({
         donorId:g('l-donor'), arah:'masuk', kanal:kanal,
         tanggal: g('l-tanggal') ? new Date(g('l-tanggal') + 'T09:00:00').toISOString() : new Date().toISOString(),
@@ -6544,11 +6664,16 @@ document.addEventListener('click', function(e){
       const cb = document.getElementById('t-email');
       const d = findDonor(donorId);
       if(cb && cb.checked && d && m.from){
+        /* Isi kolom yang masih kosong saja — jangan menimpa data yang sudah ada.
+           Email/nomor baru masuk ke kolom 2 kalau kolom 1 sudah terisi. */
         if(m.kanal === 'whatsapp'){
-          if(!donorWa(d)){ d.hp1 = waPhonePretty(m.from); save('donors'); }
-        }else if(!d.email){
-          d.email = emailOf(m.from);
-          save('donors');
+          const nomor = waPhonePretty(m.from);
+          if(!String(d.hp1 || '').trim()){ d.hp1 = nomor; save('donors'); }
+          else if(!String(d.hp2 || '').trim()){ d.hp2 = nomor; save('donors'); }
+        }else{
+          const alamat = emailOf(m.from);
+          if(!String(d.email || '').trim()){ d.email = alamat; save('donors'); }
+          else if(!String(d.email2 || '').trim()){ d.email2 = alamat; save('donors'); }
         }
       }
       save('messages');
@@ -7014,6 +7139,13 @@ document.addEventListener('input', function(e){
     render();
     const el = document.getElementById('k-q');
     if(el){ el.focus(); el.setSelectionRange(pos,pos); }
+  }
+  /* Di form donor: centang "Utama" hanya bisa dipilih kalau kolomnya terisi.
+     Tanpa ini, pengguna bisa mencentang kolom kosong lalu bingung kenapa
+     suratnya tidak terkirim. */
+  if(e.target.id === 'd-email' || e.target.id === 'd-email2' ||
+     e.target.id === 'd-hp1' || e.target.id === 'd-hp2'){
+    segarkanUtama(e.target.id);
   }
 });
 

@@ -20,10 +20,11 @@ Surat yang "dikirim" tercatat di buku donor, surat masuk bisa dicatat manual.
 | Fitur | Keterangan |
 |---|---|
 | Data donor | Form isi seperti Excel, 18 donor contoh sudah terisi |
+| **Email 2 & HP utama** | Dua email dan dua nomor HP per donor; yang dicentang **Utama** itulah yang dipakai saat mengirim |
 | **Peringatan data kembar** | Saat menyimpan donor, diberi tahu kalau email / nomor HP / nama PIC sudah dipakai donor lain |
 | Kategori | 5 kategori awal, bisa ditambah/ubah/hapus |
 | ID-DONOR otomatis | Format `[X]99999[Z]` — X dari Instansi (atau PIC bila kosong) |
-| Template surat | Token `{/PIC}`, `{/INST}`, `{/TANGGAL}`, dll. |
+| Template surat | Token `{/PIC}`, `{/INST}`, `{/TANGGAL}`, `{/EMAIL}`, `{/EMAIL2}`, `{/HP}`, `{/HP2}`, dll. |
 | **Format sederhana** | `**tebal**`, `*miring*`, `- poin`, `1. nomor` di isi surat |
 | Kirim massal | Pilih banyak penerima, kirim sekaligus |
 | **Cc** | Kirim salinan ke alamat lain, ikut tersimpan di riwayat |

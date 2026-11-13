@@ -3519,6 +3519,56 @@ Fungsinya `donorKembar()` dan `namaSama()` di `app.js`, dipanggil dari
 
 **Berkas yang berubah:** `app.js`, `index.html` (versi aset `v=64`).
 
+### 22.16 Email 2 dan penanda "Utama" untuk email & HP (13 Nov 2026)
+
+**Arahan Anda:** *"client minta ditambahkan email jadi ada 2 dan hp sudah ada 2
+itu sudah cukup. tapi secara sistem, user harus tentukan email 1 atau 2 yg
+menjadi main juga no hp 1 atau 2. jadi baik email 1 dan 2 dan no hp 1 dan 2 ada
+tempat centang sebagai main."*
+
+**Yang ditambahkan:**
+
+- Kolom **Email 2** di samping Email 1 (sebelumnya hanya satu email).
+- Di form donor, Email 1/2 dan HP 1/2 masing-masing berpasangan dengan tombol
+  **Utama**. Yang dipakai sistem adalah yang dicentang.
+- Tombol **Utama** memakai radio, bukan checkbox — jadi mustahil dua-duanya
+  tercentang sekaligus.
+- Centang pada kolom kosong **dimatikan otomatis**. Kalau kolom yang sedang jadi
+  utama dikosongkan, centangnya pindah sendiri ke kolom yang masih terisi.
+  Kalau kedua kolom kosong, tidak ada yang tercentang.
+- Data lama tidak perlu diubah: donor yang belum punya penanda dianggap memakai
+  **Email 1 / HP 1**, sama seperti perilaku sebelumnya.
+
+**Yang mengikuti pilihan "Utama":**
+
+| Bagian | Perilaku |
+|---|---|
+| Kirim surat (email) | Dikirim ke email utama |
+| Kirim WhatsApp | Dikirim ke HP utama |
+| Daftar donor | Email & HP utama ditampilkan lebih dulu, yang lain menyusul setelah `/` |
+| Detail donor | Sama — utama dulu |
+| Pratinjau & Periksa sebelum kirim | Menampilkan alamat utama |
+| Token `{/EMAIL}` dan `{/HP}` | Berisi yang utama |
+| Token baru `{/EMAIL2}` dan `{/HP2}` | Berisi yang bukan utama |
+| Ekspor CSV & Excel | Kolom EMAIL 1/2, HP 1/2, plus kolom EMAIL UTAMA / HP UTAMA berisi "Email 1"/"Email 2" |
+| Cetak alamat | HP utama dulu |
+
+**Pencocokan surat masuk tetap memakai keduanya.** `donorByEmail()` sekarang
+memeriksa Email 1 **dan** Email 2, dan `donorByPhone()` memeriksa HP 1 dan HP 2.
+Jadi surat yang datang ke email kedua tetap masuk ke donor yang benar — pilihan
+"Utama" hanya menentukan ke mana surat **dikirim**, bukan dari mana surat
+**diterima**. Peringatan data kembar (§22.15) juga memeriksa kedua email dan
+kedua nomor.
+
+**Kalau yang dicentang utama ternyata kosong** sedangkan yang lain terisi, yang
+terisi itulah yang dipakai. Ini disengaja: centang yang tertinggal di kolom
+kosong tidak boleh membuat surat gagal terkirim.
+
+Fungsinya `pilihUtama()`, `emailUtama()`, `emailLain()`, `hpUtama()`, `hpLain()`,
+`emailDonor()`, `pasanganField()`, dan `segarkanUtama()` di `app.js`.
+
+**Berkas yang berubah:** `app.js`, `app.css`, `index.html` (versi aset `v=65`).
+
 ---
 
 ## 23. Data bersama — beberapa orang, satu data (12 Nov 2026) ✅ SELESAI
