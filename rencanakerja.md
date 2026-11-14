@@ -4408,3 +4408,112 @@ Kalau ada hal yang bisa **menghilangkan data** atau **membuat tes gagal** →
 saya kerjakan walaupun sederhana.
 
 ---
+
+## 26. Panduan pemakaian di dalam aplikasi — ✅ SELESAI (14 Nov 2026)
+
+**Permintaan Anda:** *"buatkan panduan untuk user .. dari pengenalan istilah yg
+dipakai pada aplikasi, cara entry data, cara kirim email, cara tes sebelum
+kirim .. masuk panduan ke aplikasi kartidaya dengan menu [?] ada index dan cari
+solusi"* — sementara **email dulu**, WhatsApp menyusul.
+
+### 26.1 Bentuknya
+
+Tombol **[?]** di bilah atas (sebelah tombol tema) membuka satu jendela panduan:
+
+```
+┌─ Panduan pemakaian ─────────────────────────── × ┐
+│ [ Cari solusi — kwitansi Rp 0, gagal kirim, … ]  │
+├──────────────┬───────────────────────────────────┤
+│ ◈ Mulai      │  Isi bab yang sedang dibuka       │
+│ ▤ Istilah    │  (tabel, langkah, kotak waspada)  │
+│ ☰ Data donor │                                   │
+│ ▦ Kategori   │                                   │
+│ ◫ Keuangan   │                                   │
+│ ✎ Tulis      │                                   │
+│ ✉ Kirim      │                                   │
+│ 🔍 Tes       │                                   │
+│ ↑ Sesudah    │                                   │
+│ ⚠ Masalah    │                                   │
+│ 🛡 Kebiasaan │                                   │
+└──────────────┴───────────────────────────────────┘
+```
+
+| Bagian | Isi |
+|---|---|
+| **Indeks** | 11 bab, selalu terlihat di kiri (di HP jadi deretan tombol yang bisa digeser) |
+| **Cari solusi** | Satu kotak di atas. Semua kata yang diketik harus ada (AND), jadi menambah kata mempersempit hasil. Kata yang cocok disorot |
+| **Isi bab** | Judul bagian, daftar langkah bernomor, tabel arti kolom, kotak peringatan |
+| **Tautan cepat** | Tombol seperti **Buka halaman Keuangan** menutup panduan dan langsung pindah halaman |
+
+### 26.2 Sebelas bab
+
+| # | Bab | Isinya |
+|---|---|---|
+| 1 | Mulai memakai aplikasi | Masuk, daftar menu, "butuh internet", "data dipakai bersama" |
+| 2 | **Istilah yang dipakai** | Donor, ID-DONOR, PIC, Utama, template, token, kwitansi, kode kiriman, mode simulasi, tanda dibaca, konfirmasi |
+| 3 | **Mengisi data donor** | Langkah tambah donor, arti tiap kolom, aturan centang **Utama**, peringatan data kembar, hapus donor ikut menghapus surat |
+| 4 | Kategori & program | Bedanya kategori dan program, akibat mengubah/menghapus |
+| 5 | Keuangan untuk kwitansi | Langkah mencatat transaksi, mata uang per baris, tiga penyebab kwitansi Rp 0 |
+| 6 | Menulis surat | Langkah, tabel semua token, format `**tebal**`, isian serba guna, pratinjau langsung |
+| 7 | **Mengirim email** | Syarat Gmail terhubung, langkah kirim, arti hasil kirim, kwitansi/majalah/lampiran, catatan Draft |
+| 8 | **Tes sebelum kirim** | Tiga cara berurut: pratinjau email → periksa sebelum kirim → kirim ke saya sendiri, plus daftar periksa 5 butir |
+| 9 | Setelah surat terkirim | Kotak Keluar, arti ✓✓ dan ✓, balas / balas semua / teruskan, kode kiriman |
+| 10 | Kalau ada masalah | 11 gejala beserta penyebabnya: Gmail belum terhubung, `origin_mismatch`, `access_denied`, kwitansi Rp 0, penerima gagal, tanda dibaca tidak berubah, surat masuk salah donor, aplikasi terkunci, data tidak terlihat rekan, lampiran gagal, majalah hilang, Draft tidak bisa dilanjutkan, masuk spam |
+| 11 | Kebiasaan yang aman | Cadangan JSON, tombol merah, akun, kebiasaan saat mengirim |
+
+### 26.3 Berkas
+
+| Berkas | Perubahan |
+|---|---|
+| `panduan.js` | **Baru** — seluruh teks panduan + pencarian. Dipisah dari `app.js` supaya teks bisa diubah tanpa membaca 7.000 baris logika |
+| `index.html` | Tombol `?` (`data-panduan="mulai"`), pemuat `panduan.js`, versi aset `v=70` |
+| `app.css` | Gaya `.pd-*` (indeks, kotak cari, hasil pencarian, artikel), lebar jendela panduan, tampilan HP |
+| `app.js` | `openModal()` menerima `kelas` tambahan — hanya itu. Logika aplikasi tidak disentuh |
+
+**Kenapa pencariannya ditulis sendiri, bukan memakai pustaka:** isinya hanya 11
+bab dan pencariannya cukup "semua kata harus ada". Pustaka pencarian akan
+menambah berkas dan beban tanpa manfaat. Fungsi `cariPanduan()` juga murni
+(tanpa DOM), jadi bisa diuji terpisah — sama seperti cara kerja bagian lain.
+
+**Kenapa panduan tidak menyimpan status apa pun:** tidak ada catatan "sudah
+dibaca", tidak ada data baru di server. Membuka panduan tidak mengubah data
+aplikasi sama sekali.
+
+### 26.4 Pengujian
+
+**Uji logika (Node, `cariPanduan`/render):** 21 pemeriksaan — 11 bab unik,
+semua punya kata kunci, pencarian *kwitansi Rp 0* / *gagal kirim* /
+*access_denied* / *tanda dibaca* menemukan bab yang benar, kata ngawur tidak
+menghasilkan apa pun, kueri kosong tidak error, tidak peka huruf besar,
+semantik AND menyempitkan hasil, cuplikan bebas tag, `<mark>` menyorot kata,
+`pdEsc` aman, semua `data-panduan-halaman` dan `data-pd-pilih` menunjuk sasaran
+yang ada, dan semua tag HTML seimbang di 11 bab.
+
+**Uji di browser (Chromium, 1280/1440/412/330 px):**
+
+| # | Yang diuji | Hasil |
+|---|---|---|
+| 1 | Tombol **?** tampil di bilah atas dan membuka panduan | ✅ |
+| 2 | Indeks berisi 11 bab; bab aktif tersorot | ✅ |
+| 3 | Klik bab mengganti isi tanpa menutup jendela | ✅ |
+| 4 | Cari *kwitansi rp 0* → 4 hasil, teratas **Mencatat keuangan** | ✅ |
+| 5 | Klik hasil memindahkan ke bab itu dan mengosongkan kotak cari | ✅ |
+| 6 | Kata tanpa hasil menampilkan saran | ✅ |
+| 7 | Menghapus isi kotak cari kembali ke bab aktif | ✅ |
+| 8 | Tombol **Buka halaman Setelan** menutup panduan dan pindah halaman | ✅ |
+| 9 | `Esc` dan tombol **Tutup** menutup panduan | ✅ |
+| 10 | Panduan bisa dibuka dari halaman mana pun, termasuk riwayat donor | ✅ |
+| 11 | Di layar sempit indeks jadi deretan tombol bergeser, tidak ada halaman melebar | ✅ |
+| 12 | Membuka/mencari/memindah bab tidak mengubah data aplikasi | ✅ |
+| 13 | Kesembilan halaman aplikasi tetap jalan, tanpa galat konsol | ✅ |
+
+### 26.5 Yang sengaja belum dibuat
+
+| Hal | Alasan |
+|---|---|
+| Panduan WhatsApp | Anda minta email dulu; WhatsApp masih ditunda (§25) |
+| Gambar tangkapan layar di panduan | Menambah berat dan cepat basi; petunjuk ditulis menurut nama tombol yang terlihat |
+| Tanda "sudah dibaca" per bab | Tidak perlu, dan berarti menambah data baru yang harus disimpan |
+| Panduan versi cetak / PDF | Bisa dibuat nanti dari berkas yang sama kalau memang diminta |
+
+---

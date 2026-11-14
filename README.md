@@ -47,6 +47,7 @@ Surat yang "dikirim" tercatat di buku donor, surat masuk bisa dicatat manual.
 | **Akun & login** | Email + password per pengguna. Akun pertama otomatis admin; akun berikutnya dibuat admin di halaman akun |
 | **Catatan aktivitas** | Siapa masuk/keluar, siapa menambah/mengubah/menghapus donor, keuangan, surat, template & kategori — bisa disaring |
 | Responsif | HP Android dan PC |
+| **Panduan di aplikasi** | Tombol **[?]** di bilah atas: 11 bab (istilah, entry data, kirim email, tes sebelum kirim, masalah) + kotak **cari solusi** |
 
 ## Menjalankan di komputer
 
@@ -148,6 +149,7 @@ hanya tahu alamat Worker dan kunci aplikasi.
 index.html          Kerangka halaman
 app.css             Gaya (1 warna aksen, sisanya netral)
 app.js              Logika aplikasi + data contoh 18 donor
+panduan.js          Panduan pemakaian (tombol [?]): 11 bab + pencarian solusi
 gmail.js            Gmail API + OAuth 2.0
 whatsapp.js         Pembungkus WhatsApp Cloud API (lewat Worker)
 worker/index.js     Cloudflare Worker — kirim, webhook, antrean pesan masuk
@@ -171,6 +173,11 @@ menyimpan salinan sementara agar tampilan cepat.
 Aplikasi **butuh login** (email + password). Layar masuk menutup seluruh
 aplikasi — data donor tidak ditampilkan sebelum jelas siapa yang membukanya.
 Panduan akun: **[PANDUAN-AKUN.md](PANDUAN-AKUN.md)**.
+
+Setelah masuk, tombol **[?]** di bilah atas membuka **panduan pemakaian**:
+penjelasan istilah, cara entry data donor, menulis & mengirim email, dan cara
+mengetes surat sebelum dikirim. Ada kotak **cari solusi** untuk menemukan bab
+yang tepat dengan cepat (mis. *kwitansi Rp 0*, *gagal kirim*, *tanda dibaca*).
 
 Hal yang perlu diketahui:
 

@@ -4744,7 +4744,8 @@ function viewPengaturan(){
 function openModal(o){
   const root = document.getElementById('modal-root');
   root.innerHTML =
-    '<div class="modal-back" data-close-back><div class="modal' + (o.wide ? ' wide' : '') + '" role="dialog" aria-modal="true">' +
+    '<div class="modal-back" data-close-back><div class="modal' + (o.wide ? ' wide' : '') +
+      (o.kelas ? ' ' + o.kelas : '') + '" role="dialog" aria-modal="true">' +
       '<div class="modal-head"><h2>' + esc(o.title) + '</h2><button class="x" data-close>&times;</button></div>' +
       '<div class="modal-body">' + o.body + '</div>' +
       (o.footer ? '<div class="modal-foot">' + o.footer + '</div>' : '') +
