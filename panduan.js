@@ -165,7 +165,9 @@ var PANDUAN = [
     ico: '☰',
     kata: ['tambah donor', 'entry', 'isi data', 'ubah donor', 'hapus donor', 'email 2',
            'hp 2', 'utama', 'id donor', 'buat id', 'kembar', 'dobel', 'ganda',
-               'wajib', 'alamat', 'kategori', 'label', 'cetak label', 'pos', 'kurir', 'stiker'],
+           'wajib', 'alamat', 'kategori', 'label', 'cetak label', 'pos', 'kurir', 'stiker',
+           'jumlah label', '2 penerima', 'hanya 1 label', '1 nama', 'alamat kurang',
+           'label tidak semua'],
     isi: '' +
       '<p class="pd-lead">Data donor adalah sumber semua isi surat. Kalau data di sini ' +
         'benar, surat akan terisi sendiri dengan benar.</p>' +
@@ -226,13 +228,24 @@ var PANDUAN = [
 
       '<h4>Cetak label alamat untuk kiriman pos</h4>' +
       '<ol class="pd-langkah">' +
-      '<li>Isi <b>Alamat Lengkap</b> di data donor.</li>' +
+        '<li>Isi <b>Alamat Lengkap</b> di data donor.</li>' +
         '<li>Cetak lewat <b>⎙ Cetak label alamat</b> di halaman Tulis (semua penerima yang dicentang) ' +
           'atau <b>⎙ Cetak Label</b> di riwayat donor.</li>' +
+        '<li>Di halaman Tulis, tombol ada di bagian <b>4 · Kirim</b> dan baru aktif setelah ' +
+          'penerima dicentang. Angka pada tombol adalah jumlah penerima yang dipilih.</li>' +
         '<li>Pilih ukuran stiker A4: <b>2 kolom (14 label)</b> untuk Avery L7163, atau ' +
-          '<b>3 kolom (21 label)</b> untuk Avery L7160. Di jendela cetak pakai <b>Scale 100%</b> ' +
-          'dan matikan <b>Header and footer</b>.</li>' +
+          '<b>3 kolom (21 label)</b> untuk Avery L7160. Jika lembar sudah terpakai, isi ' +
+          '<b>Mulai dari label ke-</b>. Di jendela cetak pakai <b>Scale 100%</b>, kertas ' +
+          '<b>A4</b>, matikan <b>Header and footer</b>, dan pilih margin <b>None</b>.</li>' +
       '</ol>' +
+      '<div class="warnbox"><b>Jumlah penerima dan jumlah label bisa berbeda.</b> Misalnya ' +
+        'tombol menunjukkan 2 penerima, tetapi ringkasan cetak hanya 1 label. Itu berarti ' +
+        'satu donor dipilih tetapi kolom <b>Alamat Lengkap</b>-nya kosong atau belum tersimpan; ' +
+        'donor itu dilewati dan diberitahukan di kotak cetak.</div>' +
+      '<p>Untuk memeriksa: tutup kotak cetak, buka <b>Donor</b>, cari donor yang dilewati, ' +
+        'tekan <b>Ubah Data</b>, pastikan alamat tersimpan pada kolom <b>Alamat Lengkap</b> ' +
+        '(bukan hanya di Catatan atau kolom lain), lalu simpan dan buka cetak label lagi. ' +
+        'Aplikasi memeriksa kolom itu pada masing-masing penerima yang dipilih.</p>' +
 
       '<h4>Ukuran label yang dipakai</h4>' +
       '<div class="table-wrap"><table><tbody>' +
@@ -615,7 +628,8 @@ var PANDUAN = [
     kata: ['masalah', 'solusi', 'galat', 'error', 'gagal', 'tidak bisa', 'access_denied',
            'origin_mismatch', 'kwitansi rp 0', 'tidak terkirim', 'simulasi', 'terkunci',
            'offline', 'tidak muncul', 'data hilang', 'lampiran', 'majalah', 'spam',
-           'belum dibaca', 'draft'],
+           'belum dibaca', 'draft', 'jumlah label', 'label kurang', 'alamat tidak tercetak',
+           '2 penerima 1 label', '1 nama'],
     isi: '' +
       '<p class="pd-lead">Cari gejalanya di bawah. Kalau tidak ada yang cocok, gunakan ' +
         'kotak pencarian di atas panduan ini.</p>' +
@@ -718,11 +732,28 @@ var PANDUAN = [
               '<li>Kalau lembar sudah terpakai sebagian, isi <b>Mulai dari label ke-</b>.</li>' +
             '</ul>' +
 
+            '<h4>Jumlah label lebih sedikit daripada penerima yang dipilih</h4>' +
+            '<ul>' +
+              '<li>Jika tombol menunjukkan <b>2 penerima</b> tetapi contoh hanya menampilkan ' +
+                '<b>1 nama</b>, satu donor yang dipilih tidak ikut dicetak karena alamatnya kosong ' +
+                'atau belum tersimpan.</li>' +
+              '<li>Angka pada tombol di bagian <b>4 · Kirim</b> adalah jumlah donor yang dicentang; ' +
+                'angka di ringkasan kotak cetak adalah jumlah label yang benar-benar akan dicetak.</li>' +
+              '<li>Jika muncul peringatan <b>1 dari 2 donor belum punya alamat lengkap</b>, ' +
+                'berarti hanya satu dari dua donor itu yang memiliki isi pada kolom <b>Alamat Lengkap</b>. ' +
+                'Donor satunya tidak dicetak.</li>' +
+              '<li>Buka data donor yang dilewati → <b>Ubah Data</b> → periksa kolom ' +
+                '<b>Alamat Lengkap</b> → simpan. Pastikan itu donor yang sama dengan yang dicentang; ' +
+                'alamat di Catatan atau milik donor lain tidak dipakai.</li>' +
+              '<li>Buka kembali kotak cetak. Jika alamat tampak sudah ada tetapi masih dilewati, ' +
+                'pastikan perubahan sudah disimpan pada data donor yang tepat.</li>' +
+            '</ul>' +
+
             '<h4>Tombol cetak label tidak bisa ditekan atau label kosong</h4>' +
             '<ul>' +
               '<li>Belum ada penerima yang dicentang di halaman Tulis.</li>' +
-              '<li>Donor belum punya <b>Alamat Lengkap</b>. Isi dulu di data donor — ' +
-                'alamat yang hanya berisi nama kota tidak cukup untuk kiriman pos.</li>' +
+              '<li>Untuk mengirim lewat pos, isi alamat pos lengkap pada kolom <b>Alamat Lengkap</b> ' +
+                'di data donor.</li>' +
               '<li>Jendela cetak tidak terbuka karena popup diblokir browser. Izinkan popup ' +
                 'untuk alamat aplikasi ini.</li>' +
             '</ul>'

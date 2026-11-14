@@ -4678,4 +4678,21 @@ cara: fungsi asli dipanggil di Node dengan DOM tiruan, dan di browser pada
 halaman Tulis yang sesungguhnya. Alur penuh juga dijalankan: centang penerima →
 tombol aktif → kotak label terbuka dengan 2 pilihan ukuran dan tombol cetak.
 
+### 27.7 Panduan cetak label dilengkapi (14 Nov 2026)
+
+**Masukan Anda:** saat 2 penerima dipilih, contoh lembar pertama hanya
+menampilkan 1 nama; panduan perlu menjelaskan keadaan ini.
+
+**Perubahan:** bab **Mengisi data donor** kini menjelaskan lokasi tombol di
+bagian **4 · Kirim**, beda antara jumlah penerima terpilih dan jumlah label
+yang benar-benar dicetak, ukuran kertas/pengaturan printer, dan langkah
+memeriksa kolom **Alamat Lengkap** pada donor yang dilewati. Bab **Kalau ada
+masalah** memiliki pencarian khusus untuk jumlah label yang kurang, termasuk
+cek bahwa alamat tersimpan pada donor yang tepat (bukan hanya di Catatan atau
+di donor lain).
+
+**Uji:** JavaScript panduan lolos pemeriksaan sintaks; pencarian
+`"jumlah label"` dan `"2 penerima"` menemukan bab yang memuat solusi ini.
+Versi aset dinaikkan ke `v=73`.
+
 ---
