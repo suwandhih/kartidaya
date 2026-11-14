@@ -4655,4 +4655,27 @@ lalu ubah ukuran layar → tidak ada galat; iframe tetap satu (tidak menumpuk);
 8 halaman utama tetap tampil normal; pemilihan nilai tidak kehilangan fokus
 saat pratinjau diperbarui.
 
+### 27.6 Temuan ketiga — tombol label tidak ikut aktif (14 Nov 2026)
+
+Ditemukan saat memeriksa langsung di browser, bukan saat menulis kode.
+
+**Gejalanya:** di halaman **Tulis**, setelah penerima dicentang, tombol
+**⎙ Cetak label alamat** tetap bertuliskan "(0)" dan tetap kelabu — tidak bisa
+ditekan. Tombol **🔍 Periksa & Kirim** dan **Simpan Draft** berubah normal,
+jadi yang salah hanya tombol di baris kedua.
+
+**Sebabnya:** `refreshRecipients()` hanya memperbarui `#kirim-btn` dan
+`#draft-btn`. Tombol kirim-uji dan tombol label tidak pernah disentuh, jadi
+statusnya tetap seperti saat halaman pertama kali digambar (0 penerima).
+
+**Diperbaiki:** `refreshRecipients()` sekarang juga memperbarui
+`[data-action="kirim-sendiri"]` dan `[data-action="cetak-label-dipilih"]`
+(termasuk angka jumlah penerima di dalam teks tombolnya).
+
+**Diuji:** 4 keadaan — 0 penerima (nonaktif, "(0)"), 1 penerima (aktif, "(1)"),
+3 penerima (aktif, "(3)"), lalu dikosongkan lagi (nonaktif, "(0)"). Diuji dua
+cara: fungsi asli dipanggil di Node dengan DOM tiruan, dan di browser pada
+halaman Tulis yang sesungguhnya. Alur penuh juga dijalankan: centang penerima →
+tombol aktif → kotak label terbuka dengan 2 pilihan ukuran dan tombol cetak.
+
 ---

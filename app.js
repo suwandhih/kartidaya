@@ -3659,6 +3659,16 @@ function refreshRecipients(){
   }
   const db = document.getElementById('draft-btn');
   if(db) db.disabled = !ids.length;
+  /* Tombol di baris kedua (kirim uji & cetak label) juga bergantung pada
+     jumlah penerima. Tanpa ini tombolnya tetap nonaktif "(0)" sampai halaman
+     digambar ulang, sehingga pengguna mengira label tidak tersedia. */
+  const sb = document.querySelector('[data-action="kirim-sendiri"]');
+  if(sb) sb.disabled = !ids.length;
+  const lb = document.querySelector('[data-action="cetak-label-dipilih"]');
+  if(lb){
+    lb.disabled = !ids.length;
+    lb.textContent = '⎙ Cetak label alamat (' + ids.length + ')';
+  }
 }
 
 /* ---------- KATEGORI ---------- */
