@@ -2521,6 +2521,7 @@ function viewBuku(donorId){
     '<button class="btn sm primary" data-action="balas" data-id="' + esc(d.id) + '">✎ Tulis ke Donor</button>' +
     '<button class="btn sm" data-action="catat-masuk" data-id="' + esc(d.id) + '">↓ Catat Surat Masuk</button>' +
     (d.alamat ? '<button class="btn sm" data-action="cetak-alamat" data-id="' + esc(d.id) + '">⎙ Cetak Alamat</button>' : '') +
+    (d.alamat ? '<button class="btn sm" data-action="cetak-label-donor" data-id="' + esc(d.id) + '">⎙ Cetak Label</button>' : '') +
   '</div>' +
 
   '<div class="card">' +
@@ -2839,6 +2840,8 @@ function viewSurat(){
         ? '<div class="btn-row" style="margin-top:8px">' +
             '<button class="btn" data-action="kirim-sendiri"' + (nSel ? '' : ' disabled') + '>' +
               '✉ Kirim ke saya sendiri dulu</button>' +
+            '<button class="btn" data-action="cetak-label-dipilih"' + (nSel ? '' : ' disabled') + '>' +
+              '⎙ Cetak label alamat (' + nSel + ')</button>' +
             '<span class="tiny muted" style="align-self:center">' +
               'Salinan dikirim ke <b>' + esc(emailUji() || 'alamat email uji (belum diisi)') + '</b>' +
               ' — atur di <b>Setelan → Pengaman pengiriman</b>. ' +
@@ -6156,6 +6159,342 @@ function printAlamat(d){
   setTimeout(function(){ w.print(); }, 300);
 }
 
+/* ---------- CETAK LABEL ALAMAT (kiriman POS / kurir) ----------
+   Kenapa ukuran ini yang dipakai?
+   Untuk kirim surat lewat pos, yang dibutuhkan adalah label stiker A4 yang
+   tinggal ditempel. Ukuran yang paling mudah dicari di toko/market adalah
+   label alamat A4 standar Avery:
+
+     L7163 — 2 kolom × 7 baris = 14 label, tiap label 99,1 × 38,1 mm
+     L7160 — 3 kolom × 7 baris = 21 label, tiap label 63,5 × 38,1 mm
+
+   Keduanya memakai lembar A4 yang sama dan tinggi label yang sama, jadi
+   pengaturan printer tidak berubah. L7163 dipakai sebagai bawaan karena
+   labelnya lebih lebar — alamat panjang tidak cepat terpotong.
+
+   Angka margin di bawah BUKAN perkiraan: dengan lebar A4 210 mm dan tinggi
+   297 mm, sisa ruangnya pas:
+     L7163: 2 × 99,1 + 2,54 (jarak kolom) + 4,65 (margin kiri) ≈ 205,3 mm
+     L7160: 3 × 63,5 + 2 × 2,5 (jarak kolom) + 7,25 (margin kiri) ≈ 202,8 mm
+   Kalau angka ini salah sedikit saja, label akan bergeser dan tidak pas
+   dengan potongan stikernya. */
+const LABEL_PRESET = [
+  { id:'l7163', nama:'2 kolom · 14 label per lembar (Avery L7163)', kolom:2, baris:7,
+    lebar:99.06, tinggi:38.1, kiri:4.65, atas:12.7, jarakX:2.54, jarakY:0 },
+  { id:'l7160', nama:'3 kolom · 21 label per lembar (Avery L7160)', kolom:3, baris:7,
+    lebar:63.5, tinggi:38.1, kiri:7.25, atas:12.7, jarakX:2.5, jarakY:0 }
+];
+function labelPreset(id){
+  return LABEL_PRESET.filter(function(p){ return p.id === id; })[0] || LABEL_PRESET[0];
+}
+function labelPerLembar(p){ return p.kolom * p.baris; }
+
+/* Isi satu label. Ukuran huruf memakai satuan em, bukan pt, supaya seluruh
+   isi bisa dikecilkan bersamaan kalau ternyata tidak muat — lihat
+   labelAutoFit() di bawah. Ukuran dasarnya mengikuti lebar label: label
+   3 kolom lebih sempit, jadi dasarnya lebih kecil. */
+function labelIsiHTML(d, p, opsi){
+  opsi = opsi || {};
+  const dasar = p.lebar < 80 ? 8.2 : 9.5;
+  const baris = String(d.alamat || '')
+    .split(/\r?\n/)
+    .map(function(s){ return s.trim(); })
+    .filter(function(s){ return !!s; })
+    .map(function(s){ return esc(s); })
+    .join('<br>');
+  const hp = hpUtama(d)
+    ? '<span class="lb-hp">&#9742; ' + esc(hpUtama(d)) +
+      (hpLain(d) ? ' / ' + esc(hpLain(d)) : '') + '</span>'
+    : '';
+  return '<div class="lb-isi" style="font-size:' + dasar + 'pt">' +
+      '<div class="lb-kepada">Kepada</div>' +
+      '<div class="lb-nama">' + esc(donorLabel(d)) + '</div>' +
+      (d.instansi && d.instansi !== donorName(d)
+        ? '<div class="lb-inst">' + esc(d.instansi) + '</div>' : '') +
+      (baris ? '<div class="lb-alamat">' + baris + '</div>' : '') +
+      /* Nomor HP dan ID ditaruh sebaris: menghemat satu baris tinggi, yang
+         penting karena tinggi label hanya 38,1 mm. */
+      ((hp || opsi.idTampil !== false)
+        ? '<div class="lb-kaki">' + hp +
+          (opsi.idTampil === false ? '' : '<span class="lb-id">' + esc(d.id) + '</span>') +
+          '</div>'
+        : '') +
+    '</div>';
+}
+
+/* Kalau isi label lebih tinggi dari labelnya, huruf dikecilkan sedikit demi
+   sedikit sampai muat. Ini penting karena alamat donor tidak seragam: ada yang
+   satu baris, ada yang tiga baris dengan nama instansi panjang. Tanpa ini,
+   alamat panjang akan terpotong tanpa pemberitahuan — dan surat tidak sampai.
+   Batas bawah 5 pt supaya tidak menjadi tidak terbaca; kalau masih tidak muat
+   pada ukuran itu, lebih baik terpotong daripada tidak tercetak sama sekali. */
+function labelAutoFitScript(){
+  return '<scr' + 'ipt>(function(){' +
+    'function fit(){' +
+      'var isi=document.querySelectorAll(".lb-isi");' +
+      'for(var i=0;i<isi.length;i++){' +
+        'var el=isi[i],box=el.parentNode;' +
+        'var cs=window.getComputedStyle(box);' +
+        'var avail=box.clientHeight-parseFloat(cs.paddingTop||0)-parseFloat(cs.paddingBottom||0);' +
+        'var size=parseFloat(el.style.fontSize)||9;' +
+        'var n=0;' +
+        'while(el.scrollHeight>avail+0.5&&size>5&&n<80){' +
+          'size-=0.25;el.style.fontSize=size+"pt";n++;' +
+        '}' +
+      '}' +
+    '}' +
+    'fit();' +
+    'window.addEventListener("load",fit);' +
+    'if(document.fonts&&document.fonts.ready){document.fonts.ready.then(fit);}' +
+  '})();</scr' + 'ipt>';
+}
+
+/* CSS satu-satunya untuk label — dipakai baik oleh jendela cetak maupun
+   pratinjau, supaya yang dilihat sama dengan yang tercetak. */
+function labelCSS(){
+  return '@page{size:A4;margin:0}' +
+    'html,body{margin:0;padding:0;background:#fff}' +
+    'body{font-family:Arial,Helvetica,sans-serif;color:#111}' +
+    '.lb-lembar{width:210mm;height:297mm;box-sizing:border-box;overflow:hidden;' +
+      'display:grid;page-break-after:always;break-after:page}' +
+    '.lb-lembar:last-child{page-break-after:auto;break-after:auto}' +
+    '.lb-sel{box-sizing:border-box;overflow:hidden;padding:2mm 3mm;' +
+      'display:flex;flex-direction:column;justify-content:center}' +
+    '.lb-sel.potong{outline:1px dashed #b7b7b0;outline-offset:-0.5px}' +
+    '.lb-isi{line-height:1.28;overflow-wrap:anywhere}' +
+    '.lb-kepada{font-size:.68em;letter-spacing:.09em;text-transform:uppercase;' +
+      'color:#666;margin-bottom:.6mm}' +
+    '.lb-nama{font-size:1.2em;font-weight:700;line-height:1.2}' +
+    '.lb-inst{font-size:1em;margin-top:.3mm}' +
+    '.lb-alamat{font-size:1em;line-height:1.3;margin-top:.9mm}' +
+    '.lb-kaki{display:flex;gap:3mm;align-items:baseline;flex-wrap:wrap;margin-top:1mm}' +
+    '.lb-hp{font-size:.86em}' +
+    '.lb-id{font-size:.72em;color:#777;' +
+          'font-family:ui-monospace,Consolas,monospace;letter-spacing:.02em}';
+}
+
+/* Satu atau beberapa lembar label. `mulai` = label ke berapa pada lembar
+   pertama yang dipakai — berguna kalau lembar stiker sudah terpakai
+   sebagian: label yang sudah hilang tidak perlu dicetak ulang. */
+function labelLembarHTML(p, daftar, opsi){
+  opsi = opsi || {};
+  const per = labelPerLembar(p);
+  const mulai = Math.min(Math.max(1, Number(opsi.mulai) || 1), per);
+  const slot = [];
+  for(let i = 1; i < mulai; i++) slot.push(null);
+  daftar.forEach(function(d){ slot.push(d); });
+  while(slot.length % per) slot.push(null);
+
+  const gayaLembar = 'grid-template-columns:repeat(' + p.kolom + ',' + p.lebar + 'mm);' +
+    'grid-auto-rows:' + p.tinggi + 'mm;column-gap:' + p.jarakX + 'mm;row-gap:' + p.jarakY + 'mm;' +
+    'padding:' + p.atas + 'mm 0 0 ' + p.kiri + 'mm';
+  const kelasSel = 'lb-sel' + (opsi.potong ? ' potong' : '');
+
+  let html = '';
+  for(let i = 0; i < slot.length; i += per){
+    const isi = slot.slice(i, i + per).map(function(d){
+      return d
+        ? '<div class="' + kelasSel + '">' + labelIsiHTML(d, p, opsi) + '</div>'
+        : '<div class="lb-sel"></div>';
+    }).join('');
+    html += '<div class="lb-lembar" style="' + gayaLembar + '">' + isi + '</div>';
+  }
+  return html;
+}
+
+/* Buka jendela cetak label. Nomor halaman & catatan tidak ikut dicetak —
+   hanya lembarnya, supaya tidak ada teks nyasar di area stiker. */
+function cetakLabelHTML(p, daftar, opsi){
+  const w = window.open('', '_blank');
+  if(!w){ toast('Popup diblokir browser', true); return; }
+  w.document.write('<!DOCTYPE html><html lang="id"><head><meta charset="utf-8">' +
+    '<title>Label alamat</title><style>' + labelCSS() + '</style></head><body>' +
+      labelLembarHTML(p, daftar, opsi) + labelAutoFitScript() +
+    '</body></html>');
+  w.document.close();
+  w.focus();
+    /* Jangan menunggu auto-fit selesai baru mencetak: kalau lama, pengguna
+       melihat halaman kosong dan menekan Ctrl+P sendiri. Jeda 600 ms cukup
+       untuk skrip mengecilkan huruf pada 14–21 label. */
+    setTimeout(function(){ w.print(); }, 600);
+}
+
+/* Keadaan kotak "Cetak label" — disimpan di sini, bukan di state aplikasi,
+   karena hanya berlaku selama kotak terbuka. */
+let labelState = { preset:'l7163', mulai:1, potong:false, idTampil:true, ids:[] };
+
+/* Pratinjau dihitung dari lebar kotak saat itu. Kalau jendela browser
+   dikecilkan (mis. dibuka di HP setelah disiapkan di komputer), ukuran iframe
+   yang sudah terlanjur dihitung akan melebar keluar kotak. Jadi dihitung ulang
+   setiap kali layar berubah ukuran. Pendengar dilepas sendiri begitu kotak
+   labelnya ditutup. */
+function labelIkutUkuranLayar(){
+  if(!document.getElementById('label-preview')){
+    window.removeEventListener('resize', labelIkutUkuranLayar);
+    return;
+  }
+  segarkanLabel();
+}
+
+function openCetakLabel(ids, judul){
+  const daftar = (ids || []).map(findDonor).filter(Boolean);
+  const ada = daftar.filter(function(d){ return String(d.alamat || '').trim(); });
+  if(!daftar.length){ toast('Pilih donor dulu', true); return; }
+  if(!ada.length){
+    toast('Tidak ada donor dengan alamat lengkap — isi Alamat Lengkap di data donor', true);
+    return;
+  }
+  labelState.ids = ids;
+  labelState.preset = state.settings.labelPreset || 'l7163';
+  labelState.mulai = 1;
+  labelState.potong = false;
+  labelState.idTampil = true;
+
+  const kurang = daftar.length - ada.length;
+  const presetOpts = LABEL_PRESET.map(function(p){
+    return '<option value="' + p.id + '"' + (p.id === labelState.preset ? ' selected' : '') + '>' +
+      esc(p.nama) + '</option>';
+  }).join('');
+
+  const body =
+    (kurang
+      ? '<div class="warnbox">' + kurang + ' dari ' + daftar.length + ' donor <b>belum punya alamat ' +
+        'lengkap</b>, jadi tidak ikut dicetak. Isi <b>Alamat Lengkap</b> di data donor kalau ' +
+        'suratnya dikirim lewat pos.</div>'
+      : '') +
+    '<div class="field"><label>Ukuran label <span class="hint">— stiker A4 yang dijual umum</span></label>' +
+      '<select id="lb-preset">' + presetOpts + '</select></div>' +
+    '<div class="form-grid">' +
+      '<div class="field"><label>Mulai dari label ke- <span class="hint">— kalau lembar sudah terpakai</span></label>' +
+        '<input type="number" id="lb-mulai" min="1" step="1" value="1"></div>' +
+      '<div class="field"><label>Tampilan</label>' +
+        '<label class="row" style="gap:6px;font-size:13px;font-weight:400;color:var(--text)">' +
+          '<input type="checkbox" id="lb-potong"> Garis putus-putus untuk potong sendiri</label>' +
+        '<label class="row" style="gap:6px;font-size:13px;font-weight:400;color:var(--text)">' +
+          '<input type="checkbox" id="lb-id" checked> Tulis ID-DONOR di label</label>' +
+      '</div>' +
+    '</div>' +
+    '<div class="okbox" id="label-info"></div>' +
+    '<div class="sep"></div>' +
+    '<p class="small" style="margin:0 0 8px"><b>Contoh lembar pertama</b> ' +
+      '<span class="hint">— ukuran dan letaknya sama dengan yang tercetak</span></p>' +
+    '<div id="label-preview" class="label-preview"></div>' +
+    '<p class="tiny muted" style="margin:10px 0 0">' +
+      'Di jendela cetak, pilih <b>Ukuran / Scale: 100%</b> (bukan &ldquo;Fit to page&rdquo;), ' +
+      'dan matikan <b>Header and footer</b>. Kalau tidak, label akan bergeser dari potongannya. ' +
+      'Kertas harus A4.</p>';
+
+  openModal({
+    title: judul || 'Cetak label alamat',
+    body: body,
+    wide: true,
+    kelas: 'label-modal',
+    footer: '<button class="btn" data-close>Batal</button>' +
+      '<button class="btn primary" data-action="label-cetak">&#9113; Cetak label</button>',
+    onOpen: function(root){
+          segarkanLabel();
+          window.addEventListener('resize', labelIkutUkuranLayar);
+          const p = root.querySelector('#lb-preset');
+          if(p) p.addEventListener('change', function(){
+            labelState.preset = this.value;
+            /* Ukuran stiker yang dipakai disimpan sebagai pilihan komputer ini
+               (bukan data bersama) — supaya tidak perlu dipilih ulang tiap kali
+               mencetak. Yang menyimpan biasanya hanya satu ukuran yang dibeli. */
+            state.settings.labelPreset = labelState.preset;
+            save('settings');
+            /* Nomor "mulai" dibatasi ulang mengikuti jumlah label per lembar
+               ukuran yang baru. */
+            labelState.mulai = 1;
+            const m = root.querySelector('#lb-mulai');
+            if(m) m.value = '1';
+            segarkanLabel();
+          });
+          const m = root.querySelector('#lb-mulai');
+          if(m) m.addEventListener('input', function(){
+            labelState.mulai = Number(this.value) || 1;
+            segarkanLabel();
+          });
+          const pot = root.querySelector('#lb-potong');
+          if(pot) pot.addEventListener('change', function(){
+            labelState.potong = this.checked; segarkanLabel();
+          });
+          const idl = root.querySelector('#lb-id');
+          if(idl) idl.addEventListener('change', function(){
+            labelState.idTampil = this.checked; segarkanLabel();
+          });
+        }
+  });
+}
+
+/* Hitung ulang keterangan + pratinjau tanpa menggambar ulang seluruh kotak,
+   supaya pilihan yang sedang diubah tidak kehilangan fokus. */
+function segarkanLabel(){
+  const info = document.getElementById('label-info');
+  const wadah = document.getElementById('label-preview');
+  if(!info || !wadah) return;
+
+  const p = labelPreset(labelState.preset);
+  const per = labelPerLembar(p);
+  labelState.mulai = Math.min(Math.max(1, Number(labelState.mulai) || 1), per);
+    /* Tulis balik ke kotak isian: kalau pengguna mengetik 99 pada lembar 14
+       label, angkanya dibatasi ke 14 — dan kotaknya harus ikut menunjukkan itu,
+       supaya tidak terlihat seolah yang dicetak mulai dari label ke-99. */
+    const kotakMulai = document.getElementById('lb-mulai');
+    if(kotakMulai && String(kotakMulai.value) !== String(labelState.mulai)){
+      kotakMulai.value = String(labelState.mulai);
+    }
+
+  const daftar = labelState.ids.map(findDonor).filter(function(d){
+    return d && String(d.alamat || '').trim();
+  });
+  const lembar = Math.max(1, Math.ceil((daftar.length + labelState.mulai - 1) / per));
+
+  info.innerHTML = '<b>' + daftar.length + ' label</b> dicetak pada <b>' + lembar + ' lembar</b> · ' +
+    'mulai dari label ke-' + labelState.mulai + ' · ' + per + ' label per lembar. ' +
+    (daftar.length + labelState.mulai - 1 > lembar * per
+      ? 'Sebagian label di lembar terakhir dibiarkan kosong.'
+      : (daftar.length + labelState.mulai - 1 === lembar * per
+          ? 'Lembar terakhir terisi penuh.'
+          : 'Sisa ' + (lembar * per - (daftar.length + labelState.mulai - 1)) + ' label di lembar terakhir dibiarkan kosong.'));
+
+  /* Pratinjau memakai HTML yang sama persis dengan jendela cetak — bedanya
+     hanya diperkecil. Kalau pratinjau dibuat terpisah, cepat atau lambat
+     keduanya akan berbeda. */
+  const opsi = { mulai:labelState.mulai, potong:labelState.potong, idTampil:labelState.idTampil };
+  const html = labelLembarHTML(p, daftar, opsi);
+
+  const tersedia = Math.max(120, (wadah.clientWidth || 640) - 2);
+  const lebarA4 = 210 * 96 / 25.4;      /* 793,7 px */
+  const tinggiA4 = 297 * 96 / 25.4;     /* 1122,5 px */
+  const k = Math.min(tersedia / lebarA4, 470 / tinggiA4);
+
+  wadah.innerHTML = '<iframe class="label-frame" title="Pratinjau label" ' +
+    'style="width:' + Math.round(lebarA4 * k) + 'px;height:' + Math.round(tinggiA4 * k) + 'px">' +
+    '</iframe>';
+  const f = wadah.querySelector('iframe');
+  if(f){
+    f.srcdoc = '<!DOCTYPE html><html><head><meta charset="utf-8"><style>' + labelCSS() +
+      'body{width:210mm;height:297mm;transform:scale(' + k.toFixed(4) + ');transform-origin:top left}' +
+          '</style></head><body>' + html + labelAutoFitScript() + '</body></html>';
+  }
+}
+
+/* Cetak dari kotak yang sedang terbuka. */
+function cetakLabelSekarang(){
+  const p = labelPreset(labelState.preset);
+  const daftar = labelState.ids.map(findDonor).filter(function(d){
+    return d && String(d.alamat || '').trim();
+  });
+  if(!daftar.length){ toast('Tidak ada donor dengan alamat lengkap', true); return; }
+  cetakLabelHTML(p, daftar, {
+    mulai: labelState.mulai,
+    potong: labelState.potong,
+    idTampil: labelState.idTampil
+  });
+  catatAksi('cetak', 'surat', 'Label alamat',
+    daftar.length + ' label · ' + p.id.toUpperCase() + ' · ' + labelPerLembar(p) + ' per lembar');
+}
+
 /* ---------- 11. GMAIL ---------- */
 async function gmailConnect(){
   const el = document.getElementById('g-client');
@@ -7007,6 +7346,13 @@ document.addEventListener('click', function(e){
     case 'kirim-dari-periksa': closeModal(); suratState.dariPeriksa = true; kirimSurat(false); break;
     case 'print-one': { const d = findDonor(id); if(d) printLetter(d); break; }
     case 'cetak-alamat': { const d = findDonor(id); if(d) printAlamat(d); break; }
+        case 'cetak-label-donor': if(id) openCetakLabel([id], 'Cetak label — ' + donorName(findDonor(id) || {pic:id})); break;
+        case 'cetak-label-dipilih': {
+          const ids = Object.keys(suratState.selected).filter(function(k){ return suratState.selected[k]; });
+          openCetakLabel(ids, 'Cetak label alamat (' + ids.length + ' penerima)');
+          break;
+        }
+        case 'label-cetak': cetakLabelSekarang(); break;
     case 'fin-baru': openFinForm(''); break;
     case 'fin-ubah': openFinForm(id); break;
     case 'fin-hapus': hapusFin(id); break;

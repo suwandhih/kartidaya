@@ -165,7 +165,7 @@ var PANDUAN = [
     ico: '☰',
     kata: ['tambah donor', 'entry', 'isi data', 'ubah donor', 'hapus donor', 'email 2',
            'hp 2', 'utama', 'id donor', 'buat id', 'kembar', 'dobel', 'ganda',
-           'wajib', 'alamat', 'kategori'],
+               'wajib', 'alamat', 'kategori', 'label', 'cetak label', 'pos', 'kurir', 'stiker'],
     isi: '' +
       '<p class="pd-lead">Data donor adalah sumber semua isi surat. Kalau data di sini ' +
         'benar, surat akan terisi sendiri dengan benar.</p>' +
@@ -223,6 +223,36 @@ var PANDUAN = [
         'lain, muncul peringatan. Ini bukan larangan — data tetap bisa disimpan — tetapi ' +
         'akibatnya perlu diketahui: <b>surat masuk ke alamat itu hanya masuk ke satu ' +
         'donor saja</b> (yang pertama cocok), sehingga donor kedua riwayatnya kosong.</p>' +
+
+      '<h4>Cetak label alamat untuk kiriman pos</h4>' +
+      '<ol class="pd-langkah">' +
+      '<li>Isi <b>Alamat Lengkap</b> di data donor.</li>' +
+        '<li>Cetak lewat <b>⎙ Cetak label alamat</b> di halaman Tulis (semua penerima yang dicentang) ' +
+          'atau <b>⎙ Cetak Label</b> di riwayat donor.</li>' +
+        '<li>Pilih ukuran stiker A4: <b>2 kolom (14 label)</b> untuk Avery L7163, atau ' +
+          '<b>3 kolom (21 label)</b> untuk Avery L7160. Di jendela cetak pakai <b>Scale 100%</b> ' +
+          'dan matikan <b>Header and footer</b>.</li>' +
+      '</ol>' +
+
+      '<h4>Ukuran label yang dipakai</h4>' +
+      '<div class="table-wrap"><table><tbody>' +
+        '<tr><td><b>2 kolom · 14 label</b></td><td>Avery <b>L7163</b> — label 99,1 × 38,1 mm, ' +
+          'lembar A4. Paling mudah dicari dan paling nyaman untuk alamat panjang.</td></tr>' +
+        '<tr><td><b>3 kolom · 21 label</b></td><td>Avery <b>L7160</b> — label 63,5 × 38,1 mm, ' +
+          'lembar A4. Untuk alamat pendek atau kalau ingin lebih hemat kertas.</td></tr>' +
+      '</tbody></table></div>' +
+      '<p class="tiny muted">Keduanya lembar A4 dengan tinggi label sama, jadi pengaturan printer ' +
+        'tidak berubah. Di toko/market, cari &ldquo;label alamat A4&rdquo; dengan ukuran itu — ' +
+        'merek lain dengan ukuran sama juga bisa dipakai.</p>' +
+
+      '<h4>Kalau label bergeser</h4>' +
+      '<ul>' +
+        '<li>Pastikan <b>Scale 100%</b>, bukan &ldquo;Fit to page&rdquo; atau &ldquo;Shrink&rdquo;.</li>' +
+        '<li>Matikan <b>Header and footer</b> dan <b>Margins: None</b>.</li>' +
+        '<li>Kertas harus <b>A4</b> (bukan Letter).</li>' +
+        '<li>Kalau lembar stiker sudah terpakai sebagian, isi <b>Mulai dari label ke-</b> ' +
+          'supaya label yang sudah hilang tidak dicetak ulang.</li>' +
+      '</ul>' +
 
       '<h4>Mengubah dan menghapus</h4>' +
       '<ul>' +
@@ -440,6 +470,17 @@ var PANDUAN = [
         '<li><b>Lampiran berkas</b> diunggah lebih dulu. Kalau unggahan gagal, surat tetap ' +
           'dikirim tanpa berkas itu dan Anda diberi tahu.</li>' +
       '</ul>' +
+
+            '<h4>Kirim lewat pos atau kurir</h4>' +
+            '<p>Surat yang dikirim manual tetap bisa disiapkan dari aplikasi:</p>' +
+            '<ul>' +
+              '<li><b>⎙ Cetak</b> di bagian Pratinjau mencetak isi surat pada kertas biasa.</li>' +
+              '<li><b>⎙ Cetak label alamat</b> (di bagian 4 · Kirim) mencetak alamat semua penerima ' +
+                'yang dicentang ke stiker A4 — 14 atau 21 label per lembar. Rincian ukuran ada di bab ' +
+                '<button class="pd-tautan" data-pd-pilih="data-donor">Mengisi data donor</button>.</li>' +
+              '<li>Label hanya bisa dicetak kalau <b>Alamat Lengkap</b> donor terisi. Donor tanpa alamat ' +
+                'dilewati dan jumlahnya diberitahukan.</li>' +
+            '</ul>' +
 
       '<p><button class="btn sm" data-panduan-halaman="surat">Buka halaman Tulis</button> ' +
         '<button class="btn sm" data-panduan-halaman="pengaturan">Buka Setelan</button></p>'
@@ -664,7 +705,27 @@ var PANDUAN = [
       '<h4>Email masuk folder spam penerima</h4>' +
       '<p>Ini soal pengaturan email, bukan aplikasi. Hal yang membantu: subjek yang wajar, ' +
         'tidak mengirim ke banyak alamat sekaligus dalam satu menit, dan penerima menandai ' +
-        'pengirim sebagai bukan spam sekali saja.</p>'
+              'pengirim sebagai bukan spam sekali saja.</p>' +
+
+            '<h4>Label tidak pas dengan potongan stiker</h4>' +
+            '<ul>' +
+              '<li>Di jendela cetak, <b>Scale harus 100%</b> — bukan &ldquo;Fit to page&rdquo;. ' +
+                'Ini penyebab paling sering.</li>' +
+              '<li>Matikan <b>Header and footer</b>, dan setel <b>Margins: None</b>.</li>' +
+              '<li>Kertas harus <b>A4</b>. Kalau printer memakai Letter, gambar akan bergeser.</li>' +
+              '<li>Pastikan ukuran stiker yang dipilih cocok dengan lembar yang ada di tangan: ' +
+                '<b>2 kolom (14 label)</b> untuk L7163, <b>3 kolom (21 label)</b> untuk L7160.</li>' +
+              '<li>Kalau lembar sudah terpakai sebagian, isi <b>Mulai dari label ke-</b>.</li>' +
+            '</ul>' +
+
+            '<h4>Tombol cetak label tidak bisa ditekan atau label kosong</h4>' +
+            '<ul>' +
+              '<li>Belum ada penerima yang dicentang di halaman Tulis.</li>' +
+              '<li>Donor belum punya <b>Alamat Lengkap</b>. Isi dulu di data donor — ' +
+                'alamat yang hanya berisi nama kota tidak cukup untuk kiriman pos.</li>' +
+              '<li>Jendela cetak tidak terbuka karena popup diblokir browser. Izinkan popup ' +
+                'untuk alamat aplikasi ini.</li>' +
+            '</ul>'
   },
 
   /* ---------------- 11. KEBIASAAN AMAN ---------------- */
@@ -674,7 +735,7 @@ var PANDUAN = [
     ico: '🛡',
     kata: ['cadangan', 'backup', 'ekspor', 'json', 'hapus', 'aman', 'kebiasaan', 'akun'],
     isi: '' +
-      '<p class="pd-lead">Beberapa kebiasaan kecil yang mencegah pekerjaan hilang.</p>' +
+          '<p class="pd-lead">Beberapa kebiasaan kecil yang mencegah pekerjaan hilang.</p>' +
 
       '<h4>Cadangkan berkala</h4>' +
       '<ul>' +

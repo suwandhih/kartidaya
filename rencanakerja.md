@@ -4517,3 +4517,142 @@ yang ada, dan semua tag HTML seimbang di 11 bab.
 | Panduan versi cetak / PDF | Bisa dibuat nanti dari berkas yang sama kalau memang diminta |
 
 ---
+
+## 27. Cetak label alamat untuk kiriman pos — ✅ SELESAI (14 Nov 2026)
+
+**Permintaan Anda:** *"untuk kirim surat lewat pos .. ada penambahan cetak ..
+yaitu cetak pada label > ukuran label yg ideal atau standart yg bisa di jual di
+market .. label yg 1 bari 2 kolom alamat"*.
+
+### 27.1 Ukuran yang dipilih, dan kenapa
+
+Yang dipakai **bukan angka karangan**: keduanya ukuran label alamat A4 yang
+paling banyak dijual, dan sudah lama jadi patokan percetakan label.
+
+| Pilihan | Ukuran label | Per lembar A4 | Posisi |
+|---|---|---|---|
+| **Avery L7163** (bawaan) | 99,1 × 38,1 mm | **2 kolom × 7 baris = 14 label** | margin kiri 4,65 mm, atas 12,7 mm, jarak kolom 2,54 mm |
+| **Avery L7160** | 63,5 × 38,1 mm | **3 kolom × 7 baris = 21 label** | margin kiri 7,25 mm, atas 12,7 mm, jarak kolom 2,5 mm |
+
+**Kenapa L7163 jadi bawaan:** tingginya sama dengan L7160 (38,1 mm), jadi
+pengaturan printer tidak berubah — tetapi labelnya lebih lebar, sehingga
+alamat panjang dan nama instansi tidak cepat terpotong. Ini yang paling
+banyak tersedia di toko maupun di marketplace.
+
+**Yang penting ukurannya, bukan mereknya.** Stiker merek lain dengan ukuran
+99,1 × 38,1 mm pada lembar A4 (2 kolom, 7 baris) juga pas. Jadi tidak ada
+ketergantungan pada satu merek.
+
+Angka margin di atas **diperiksa dengan mengukur hasil render**, bukan dari
+ingatan:
+
+| Yang diukur | Hasil |
+|---|---|
+| Lembar | 210 × 297 mm tepat |
+| Label L7163 | x = 4,65 mm · y = 12,7 mm · 99,06 × 38,1 mm |
+| Kolom kedua | x = 106,25 mm (= 4,65 + 99,06 + 2,54) |
+| Label terakhir (baris 7 kolom 2) | bawah = 279,4 mm — tidak melewati 297 mm |
+| Label terakhir L7160 (baris 7 kolom 3) | kanan = 202,74 mm — tidak melewati 210 mm |
+
+### 27.2 Yang dikerjakan
+
+| # | Bagian | Hasil |
+|---|---|---|
+| 1 | Kotak **Cetak label alamat** | Pilih ukuran, "mulai dari label ke-" (untuk lembar yang sudah terpakai), garis potong, dan tampil/sembunyi ID-DONOR |
+| 2 | **Pratinjau lembar** | Iframe berisi HTML yang **sama persis** dengan jendela cetak, diperkecil. Jadi yang dilihat = yang tercetak |
+| 3 | Tombol di halaman **Tulis** | **⎙ Cetak label alamat (n)** — semua penerima yang dicentang sekaligus |
+| 4 | Tombol di **riwayat donor** | **⎙ Cetak Label** untuk satu donor |
+| 5 | **Huruf mengecil sendiri** | Alamat panjang dikecilkan bertahap (turun 0,25 pt, batas 5 pt) sampai muat dalam label |
+| 6 | Peringatan donor tanpa alamat | Menyebut berapa donor yang dilewati, jadi tidak ada label yang hilang diam-diam |
+| 7 | Pilihan ukuran **diingat** | Disimpan di `settings.labelPreset` (milik komputer ini, tidak ikut data bersama) |
+
+**Nomor HP dan ID ditaruh sebaris.** Tinggi label hanya 38,1 mm — kalau
+keduanya jadi dua baris sendiri, alamat tiga baris tidak muat. Dengan
+disebariskan, masih ada ruang.
+
+**Kenapa auto-fit perlu:** alamat donor tidak seragam. Hasil pengukuran
+sebelum auto-fit:
+
+| Keadaan | Butuh tinggi | Tersedia | Akibat tanpa auto-fit |
+|---|---|---|---|
+| Alamat 2 baris (L7163) | 29,1 mm | 34,1 mm | muat |
+| Alamat 3 baris + instansi panjang (L7163) | **38,4 mm** | 34,1 mm | **terpotong** |
+| Alamat 3 baris + instansi panjang (L7160) | **49,5 mm** | 34,1 mm | **terpotong** |
+
+Sesudah auto-fit, ketiganya muat: huruf turun ke 7,5 pt (L7163) dan 5,7 pt
+(L7160) hanya untuk kasus terpanjang itu. Alamat biasa tetap 9,5 pt.
+
+**Satu hal yang ditemukan & diperbaiki saat menguji:** kotak "mulai dari
+label ke-" membatasi angkanya di perhitungan, tetapi kotak isiannya masih
+menampilkan angka lama (mis. 99 pada lembar 14 label). Sekarang nilainya
+ditulis balik ke kotak, jadi tidak ada tampilan yang menyesatkan.
+
+### 27.3 Berkas
+
+| Berkas | Perubahan |
+|---|---|
+| `app.js` | `LABEL_PRESET`, `labelIsiHTML()`, `labelCSS()`, `labelLembarHTML()`, `labelAutoFitScript()`, `cetakLabelHTML()`, `openCetakLabel()`, `segarkanLabel()`, `cetakLabelSekarang()`; tombol di Tulis & riwayat donor |
+| `app.css` | Gaya kotak & pratinjau label (`.label-preview`, `.modal.label-modal`) |
+| `panduan.js` | Bab **Mengisi data donor**: bagian cetak label + tabel ukuran; bab **Mengirim email**: bagian kirim lewat pos; bab **Kalau ada masalah**: label bergeser & label kosong |
+| `README.md` | Fitur + tabel fitur |
+| `index.html` | Versi aset `v=71` |
+
+### 27.4 Pengujian
+
+**Uji logika (Node, 23 pemeriksaan):** 2 preset · 14 & 21 label per lembar ·
+lebar & tinggi tidak melewati A4 · 1 donor = 1 lembar dengan 13 sel kosong ·
+15 donor = 2 lembar / 28 sel · "mulai ke-5" menyisakan 4 sel kosong ·
+21 vs 22 label di L7160 · nama/alamat/HP/ID tercetak · HP 2 ikut ·
+ID bisa disembunyikan · donor tanpa alamat tidak error · HTML di data
+di-escape (`<script>` tidak lolos) · huruf label 3 kolom lebih kecil ·
+CSS A4 tanpa margin + pemenggalan halaman · skrip auto-fit ada · 29 label =
+3 lembar.
+
+**Uji di browser (Chromium):**
+
+| # | Yang diuji | Hasil |
+|---|---|---|
+| 1 | Tombol **⎙ Cetak label alamat (3)** muncul di Tulis saat 3 penerima dicentang | ✅ |
+| 2 | Tombol **⎙ Cetak Label** muncul di riwayat donor yang punya alamat | ✅ |
+| 3 | Kotak label terbuka dengan pratinjau lembar A4 | ✅ |
+| 4 | Grid terukur: label 99,06 × 38,1 mm, kolom ke-2 di 106,25 mm | ✅ |
+| 5 | Ganti ke L7160 → keterangan & pratinjau ikut berubah, "mulai" direset ke 1 | ✅ |
+| 6 | "Mulai ke-20" pada L7160 → 2 lembar, lembar terakhir terisi penuh | ✅ |
+| 7 | "Mulai ke-99" → dibatasi ke 21 **dan kotak isian ikut berubah** | ✅ |
+| 8 | Garis putus-putus muncul di pratinjau | ✅ |
+| 9 | ID-DONOR hilang dari pratinjau saat centang dimatikan | ✅ |
+| 10 | 1 dari 3 donor tanpa alamat → diberitahu, hanya 2 label tercetak | ✅ |
+| 11 | Alamat sangat panjang → huruf mengecil sendiri, tidak terpotong | ✅ |
+| 12 | Ukuran label diingat setelah kotak ditutup dan dibuka lagi | ✅ |
+| 13 | Proses cetak tidak mengubah data donor/surat | ✅ |
+| 14 | Halaman Tulis, Donor, riwayat, panduan tetap jalan tanpa galat konsol | ✅ |
+
+**Catatan jujur:** `page.pdf()` tidak tersedia di lingkungan uji ini, jadi
+jumlah halaman PDF **tidak** diverifikasi dari berkas PDF sungguhan. Yang
+diverifikasi adalah jumlah `.lb-lembar` (2 lembar untuk 16 label), geometri
+tiap label, dan luapan isi (semua muat). Saat mencetak sungguhan di printer,
+**wajib** memakai **Scale 100%** dan mematikan **Header and footer** — ini
+sudah ditulis di kotak cetak dan di panduan.
+
+---
+### 27.5 Dua temuan lain saat menguji
+
+**Temuan 1 — pratinjau melebar saat layar dikecilkan.**
+Pratinjau dihitung sekali saat kotak dibuka. Kalau jendela browser dikecilkan
+sesudahnya (atau aplikasi dibuka di HP setelah disiapkan di komputer), iframe
+yang sudah terlanjur dihitung melebar keluar kotak. **Diperbaiki:** ukuran
+dihitung ulang setiap kali layar berubah ukuran, dan pendengarnya dilepas
+sendiri begitu kotak label ditutup. Diukur: jendela 1200 px → iframe 332 px;
+dikecilkan ke 380 px → iframe 251 px, kotak 253 px, tidak melebar, halaman
+tidak bisa digeser ke samping.
+
+**Temuan 2 — angka di kotak "mulai dari label ke-" tidak ikut dibatasi.**
+Perhitungannya sudah membatasi (99 → 14), tetapi kotak isiannya masih
+menampilkan 99. Sekarang nilainya ditulis balik ke kotak.
+
+**Uji ulang setelah kedua perbaikan:** buka–tutup kotak 3 kali berturut-turut
+lalu ubah ukuran layar → tidak ada galat; iframe tetap satu (tidak menumpuk);
+8 halaman utama tetap tampil normal; pemilihan nilai tidak kehilangan fokus
+saat pratinjau diperbarui.
+
+---

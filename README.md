@@ -30,6 +30,7 @@ Surat yang "dikirim" tercatat di buku donor, surat masuk bisa dicatat manual.
 | **Cc** | Kirim salinan ke alamat lain, ikut tersimpan di riwayat |
 | **Balas semua / Teruskan** | Balas semua mengisi Cc otomatis; Teruskan menyalin isi + kepala surat |
 | **Lampiran berkas** | PDF/foto/dokumen maks. 10 MB, tersimpan di Worker, bisa dibuka lagi |
+| **Cetak label alamat** | Untuk kiriman POS/kurir: stiker A4 **2 kolom (Avery L7163, 14 label)** atau **3 kolom (Avery L7160, 21 label)**. Huruf mengecil sendiri kalau alamat panjang |
 | **Dua kanal** | Email dan WhatsApp, dipilih per pengiriman |
 | **Buku per donor** | Surat keluar + masuk urut waktu, bubble masuk/keluar |
 | **Kotak Masuk / Keluar** | Tampilan global semua donor, bisa dicari & difilter per kanal |
@@ -41,6 +42,7 @@ Surat yang "dikirim" tercatat di buku donor, surat masuk bisa dicatat manual.
 | **Majalah** | Unggah PDF → jadi halaman gambar; banyak edisi bisa disimpan |
 | **Statistik pembaca majalah** | Berapa kali dibuka & halaman mana yang paling dilihat |
 | Cetak surat | `window.print()` per penerima |
+| **Cetak label alamat** | Stiker A4: 14 label (Avery L7163, 99,1 × 38,1 mm) atau 21 label (L7160). Semua penerima yang dicentang, atau satu donor dari riwayatnya |
 | Ekspor | JSON (backup/restore) + CSV (buka di Excel) |
 | **Pengingat cadangan** | Muncul di Beranda kalau >7 hari belum ekspor JSON |
 | Tema | Terang / gelap / ikut sistem |
