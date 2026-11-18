@@ -490,24 +490,38 @@ Secret** — aman untuk aplikasi yang seluruhnya jalan di browser.
 
 ## 12. Hal yang Masih Perlu Dikonfirmasi
 
-1. **Arti huruf terakhir `[Z]`** pada ID-DONOR (`R` / `U`). Sementara: bisa diisi manual, default `R`.
-2. Apakah **counter** ID dihitung per huruf (keputusan saat ini) atau global.
-3. Apakah perlu **login / multi-user** (saat ini tidak, karena demo tanpa server).
-4. **Alamat Gmail** yang akan dipakai — **`fotohotono03@gmail.com`** (ditetapkan
-   5 Nov 2026). Alamat ini harus didaftarkan di **Test users**.
-5. Apakah perlu **lampiran file** sungguhan (saat ini hanya catatan nama file).
-6. Apakah perlu **balas semua / teruskan** (belum dibuat; saat ini hanya *Balas*).
-7. Apakah perlu **template HTML** (berformat tebal/miring), bukan teks biasa.
-8. **Data donor di `app.js`** — 18 nama/email/HP asli ikut ter-publish di repo
-   publik. User menyetujui karena aplikasi hanya dipakai sementara di GitHub;
-   nanti akan dipindah ke hosting sendiri. Kalau perlu, pindahkan ke `seed.js`
-   yang di-gitignore.
+*Diperbarui 18 Nov 2026 — butir yang sudah terjawab dipindah ke bawah tabel,
+supaya yang tersisa hanya yang benar-benar masih terbuka.*
+
+### 12.1 Masih terbuka
+
+| # | Pertanyaan | Keadaan sekarang |
+|---|---|---|
+| 1 | **Arti huruf terakhir `[Z]`** pada ID-DONOR (`R` / `U`) | Belum ada jawaban dari client. Sementara: bisa diisi manual, default `R` |
+| 2 | Apakah **counter** ID dihitung per huruf (keputusan saat ini) atau global | Belum ada jawaban dari client |
+| 3 | **Data donor di `app.js`** — 18 nama/email/HP asli ikut ter-publish di repo publik | ⏸️ Diputuskan **ditunda** (13 Nov 2026, data dianggap data uji — §22.1). **Dibuka kembali sebelum aplikasi dipakai sungguhan atau repo dipakai klien** |
+
+### 12.2 Sudah terjawab — tidak perlu ditanyakan lagi
+
+| # | Pertanyaan | Jawaban | Di mana |
+|---|---|---|---|
+| 4 | **Alamat Gmail** yang dipakai | `fotohotono03@gmail.com` (5 Nov 2026), sudah terhubung | §13 |
+| 5 | Perlu **lampiran file sungguhan**? | ✅ Ya — sudah ada, maks. 10 MB lewat Worker | §22.7, §22.14 |
+| 6 | Perlu **balas semua / teruskan**? | ✅ Ya — sudah ada, plus kolom **Cc** | §22.6, §22.14 |
+| 7 | Perlu **template berformat** (tebal/miring)? | ✅ Ya — penanda `**tebal**`, `*miring*`, `==stabilo==`, poin, nomor + tombol format | §22.8, §22.20 |
+| 8 | Perlu **login / multi-user**? | ✅ Ya — login email+password, akun admin/donor/keuangan, data bersama D1 | §23, §24 |
+| 9 | Perlu **verifikasi OAuth Google**? | ⏸️ Tunggu email resmi klien (§22.10) | §22.10 |
 
 ---
 
 ## 13. Status Terakhir & Langkah Berikutnya
 
 *Diperbarui: 5 November 2026, 14:45 WIB*
+
+> **Catatan 18 Nov 2026:** bab ini adalah catatan **per 5–6 Nov 2026** — bukan
+> status terakhir. Status terkini ada di **§28** (termasuk daftar yang masih
+> menunggu pihak lain). Isi §13 tetap dipertahankan karena menjelaskan **akar
+> masalah** `access_denied` dan urutan perbaikannya.
 
 ### Akar masalah `access_denied` — SUDAH DITEMUKAN & DIPERBAIKI
 
@@ -587,12 +601,19 @@ otomatis menggantinya ke Client ID project Kartidaya saat dimuat.
 
 ### Yang belum selesai
 
-| # | Tugas | Keterangan |
+*Diperbarui 18 Nov 2026 — isi di bawah ini sudah basi dan diganti.*
+
+| # | Tugas | Keadaan sebenarnya 18 Nov 2026 |
 |---|---|---|
-| 1 | Uji **kirim email sungguhan** | ✅ SELESAI — Ferry Kangsadjaja menerima surat dari `fotohotono03@gmail.com` |
-| 2 | Uji **pembaruan sesi otomatis** terhadap Google sungguhan | Butuh sesi login nyata; jalur kode sudah diverifikasi dengan stub |
-| 3 | Ajukan **verifikasi OAuth** ke Google | Menghapus batas 7 hari & batas Test user (opsional) |
-| 4 | Uji **sinkron otomatis** terhadap Gmail sungguhan | Logika & pemicu sudah diverifikasi; tinggal dilihat di akun asli |
+| 1 | Uji **kirim email sungguhan** | ✅ Selesai — Ferry Kangsadjaja menerima surat dari `fotohotono03@gmail.com` |
+| 2 | Uji **pembaruan sesi otomatis** terhadap Google sungguhan | ✅ Jalan di pemakaian sehari-hari (token diperbarui senyap). Tidak ada keluhan sejak itu |
+| 3 | Ajukan **verifikasi OAuth** ke Google | ⏸️ **Ditunda atas keputusan Anda** — tunggu email resmi klien (§22.10). Bukan pekerjaan yang tertinggal |
+| 4 | Uji **sinkron otomatis** terhadap Gmail sungguhan | ✅ Jalan — sinkron otomatis Gmail & WhatsApp dipakai sejak §13 dan §14 |
+
+**Sisa yang benar-benar menunggu di area Gmail: tidak ada.** Batas yang masih
+berlaku hanyalah status **Testing** di Google (maks. 100 test user + layar
+"aplikasi belum diverifikasi") — rinciannya di §22.10.
+
 ### Hubungkan Gmail — BERHASIL (5 Nov 2026, 15:28 WIB)
 
 `fotohotono03@gmail.com` **sudah berhasil terhubung**. Akar masalahnya ada dua,
@@ -953,7 +974,7 @@ Browser Kartidaya ──── POST /wa/send ────► Worker ────
 - Anti-duplikat berdasarkan `waId` — webhook Meta yang dikirim ulang tidak
   menghasilkan pesan dobel
 
-### Perubahan di `app.js` (`v13`)
+### Perubahan di `app.js` (versi saat itu `v13`; versi terbaru `v=73`)
 
 | Bagian | Perubahan |
 |---|---|
@@ -979,7 +1000,7 @@ Browser Kartidaya ──── POST /wa/send ────► Worker ────
 | `viewBeranda()` | Statistik **Status WhatsApp** + tombol sinkron kedua kanal |
 | `case 'balas'` | Kanal balasan mengikuti kanal pesan terakhir donor |
 
-### Perubahan di `app.css` (`v13`)
+### Perubahan di `app.css` (versi saat itu `v13`; versi terbaru `v=73`)
 
 - `--wa` / `--wa-soft` untuk tema terang & gelap
 - `.chip.kanal-email`, `.chip.kanal-whatsapp`
@@ -1085,7 +1106,7 @@ nomor itu.
 
 ---
 
-## 15. Rencana — tanda "email sudah dibaca" (DITUNDA, lihat bagian 17)
+## 15. Rencana — tanda "email sudah dibaca" ✅ SELESAI (lihat §17 Fase 5)
 
 **Permintaan pengguna (5 Nov 2026, 22:24):** *"apakah bisa email yg dikirim
 ketika client / member klik email memberi info balik ke kartidaya email tsb di
@@ -3199,7 +3220,8 @@ atau ada penambahan selain whatsapp". Semua di bawah ini **bukan** WhatsApp.*
 
 ### 22.1 ⏸️ DITUNDA ATAS KEPUTUSAN ANDA — data pribadi donor ter-publish di internet
 
-> **Keputusan Anda (23 Nov 2026):** *"sementara seperti ini.. saya anggap ini
+> **Keputusan Anda (13 Nov 2026 — semula tertulis "23 Nov 2026", tanggal
+> dikoreksi 18 Nov 2026):** *"sementara seperti ini.. saya anggap ini
 > data tes.. jadi saya anggapan ini data coba2"* — **tidak dikerjakan sekarang.**
 > Data 18 donor tetap sebagai data uji. Poin ini dibuka kembali **sebelum
 > aplikasi dipakai sungguhan** atau **sebelum repo dipakai klien**.
@@ -3273,7 +3295,8 @@ dari satu edisi.
 
 ### 22.4 ✅ SELESAI (keputusan: dibiarkan terbuka) — halaman pembaca majalah bisa dibuka siapa saja
 
-> **Keputusan Anda (23 Nov 2026):** *"majalah bisa dibaca siapa saja secara
+> **Keputusan Anda (13 Nov 2026 — semula tertulis "23 Nov 2026", tanggal
+> dikoreksi 18 Nov 2026):** *"majalah bisa dibaca siapa saja secara
 > teknis, jadi tidak perlu dibuat pengamanan khusus.. login yg sudah sudah
 > cukup"* — **tidak diubah.** Halaman `/baca/<id>` tetap tanpa kata sandi.
 > Login aplikasi (admin/donor/keuangan) sudah dianggap cukup.
@@ -3323,13 +3346,21 @@ kegiatan kadang perlu penekanan.
 **Perkiraan:** ±3 jam (perlu editor berformat + penyaring keamanan HTML).
 **Belum mendesak.**
 
-### 22.9 🟡 Belum ada login / multi-user
+### 22.9 ✅ SELESAI — login / multi-user (13 Nov 2026)
 
-Aplikasi tidak memakai login. Siapa pun yang membuka alamatnya di komputer itu
-bisa melihat semua data donor. Untuk pemakaian satu orang di satu komputer ini
-aman; kalau nanti dipakai beberapa staf, perlu login.
+> **Catatan (18 Nov 2026):** butir ini sudah dikerjakan seluruhnya di **§24**.
+> Teks di bawah dipertahankan sebagai catatan keadaan sebelum login ada.
+
+Aplikasi **dulu** tidak memakai login. Siapa pun yang membuka alamatnya di
+komputer itu bisa melihat semua data donor. Untuk pemakaian satu orang di satu
+komputer itu aman; kalau dipakai beberapa staf, perlu login.
 
 **Perkiraan:** besar (±1–2 hari, perlu server). **Tergantung rencana hosting.**
+
+**Hasil:** sudah dibuat (§24) — halaman akun terpisah
+`/daftar`, login email + password di aplikasi, peran admin/donor/keuangan,
+matikan akun, dan catatan aktivitas (CCTV). Server yang dipakai **Cloudflare
+D1**, bukan hosting baru.
 
 ### 22.10 🟡 Verifikasi OAuth Google belum diajukan — **jawaban: tunggu email resmi klien**
 
@@ -3417,7 +3448,7 @@ kwitansi tetap Rp 0 walau datanya ada. Semuanya sudah diperbaiki — lihat §22.
 |---|---|---|---|---|
 | 🔴 1 | **Kosongkan data donor asli dari repo publik** (§22.1) | ±30 menit | **sudah diputuskan** — ditunda, data dianggap data uji | ⏸️ ditunda |
 | 🟠 2 | Pengingat mencadangkan data (§22.2) | ±30 menit | tidak | ✅ selesai |
-| 🟠 3 | Isi data Keuangan & Alamat Lengkap (§22.11) | — | **ya** — data dari Anda | ⏳ belum |
+| 🟠 3 | Isi data Keuangan & Alamat Lengkap (§22.11) | — | **ya** — data dari Anda | ⏳ belum (kodenya sudah diperbaiki, §22.21) |
 | 🟡 4 | Daftar edisi majalah (§22.3) | ±2 jam | tidak lagi | ✅ selesai |
 | 🟡 5 | Kata sandi halaman pembaca (§22.4) | ±1 jam | **sudah diputuskan** — majalah untuk umum, dibiarkan | ✅ selesai |
 | 🟡 6 | Penghitung pembaca majalah (§22.5) | ±1,5 jam | tidak | ✅ selesai |
@@ -3431,6 +3462,11 @@ kwitansi tetap Rp 0 walau datanya ada. Semuanya sudah diperbaiki — lihat §22.
 tersisa hanya **§22.11** (data Keuangan & Alamat Lengkap dari Anda) — itu bukan
 pekerjaan kode. §22.1 dan §22.10 ditunda atas keputusan Anda dan akan dibuka
 kembali sebelum aplikasi dipakai sungguhan.
+
+**Koreksi 18 Nov 2026:** §22.11 jangan dibaca sebagai "belum disentuh". Lima bug
+kode yang membuat kwitansi tercetak **Rp 0** atau salah angka sudah diperbaiki
+(§22.21). Jadi yang tersisa memang hanya **pengisian data** — begitu transaksi
+dan alamat diisi, kwitansi dan cetak label langsung benar.
 
 ### 22.13 Pemeriksaan ulang isi Cloudflare — 12 Nov 2026, 21:15 WIB
 
@@ -4325,12 +4361,16 @@ email + password.
 
 **Yang belum ada (rencana berikutnya, sesuai poin 4 Anda):**
 
-| Belum ada | Keterangan |
+*Diperiksa ulang 18 Nov 2026 terhadap `app.js` — sebagian butir sudah
+dikerjakan setelah §24.9 ditulis.*
+
+| Butir | Keadaan 18 Nov 2026 |
 |---|---|
-| Catatan aktivitas untuk **surat** | sekarang baru donor, keuangan, dan akun |
-| Catatan **ubah pada template/kategori/program** | belum dicatat |
-| Laporan aktivitas **per user** (ringkasan "kapan akses") | sekarang masih daftar kejadian, belum ringkasan per orang |
-| Batas percobaan login | dinyalakan lagi kalau sudah pakai data sungguhan |
+| Catatan aktivitas untuk **surat** (kirim, simpan draft, hapus, cetak label) | ✅ **sudah ada** — `catatAksi()` dipanggil di `kirimSurat()`, hapus surat, dan cetak label (§22.14) |
+| Catatan **ubah pada template/kategori** | ✅ **sudah ada** — tambah/hapus template, tambah/ubah/hapus kategori (§22.14) |
+| Catatan **program** | ❌ belum dicatat — belum ada `catatAksi` bernama bagian `program`. Kecil, tinggal ditambahkan kalau diminta |
+| Laporan aktivitas **per user** (ringkasan "kapan akses") | 🟡 **sebagian** — kolom **Terakhir masuk** per akun sudah ada, tetapi belum ada ringkasan "berapa kali masuk, apa saja yang dilakukan" per orang |
+| Batas percobaan login | ⏸️ sengaja belum — dinyalakan kalau sudah pakai data sungguhan |
 
 ---
 
@@ -4359,32 +4399,40 @@ bukan pengamanan yang belum perlu.
 
 ### 25.2 Apa artinya untuk pekerjaan yang sudah direncanakan
 
+*Tabel ini ditulis 12 Nov 2026. Kolom **Sekarang** ditambah keterangan hasil
+per 18 Nov 2026, supaya tidak terbaca sebagai rencana yang masih berjalan.*
+
 | # | Pekerjaan | Sebelumnya | **Sekarang** |
 |---|---|---|---|
 | §22.1 | Kosongkan data donor asli dari repo publik | 🔴 mendesak | 🟡 **turun** — masih data tes, tidak perlu kuatir. Tetap dicatat untuk nanti |
 | §22.9 / §24 | Login & akun pengguna | 🟡 perlu keputusan | ✅ **SELESAI 13 Nov 2026** — sesuai permintaan: pendaftaran terpisah, login di aplikasi (§24.9) |
 | §22.10 | Verifikasi OAuth Google | 🟡 proses 1–4 minggu | ⬇️ **DITUNDA** — selama masih pakai akun Anda, tidak perlu |
-| §22.4 | Kata sandi halaman pembaca majalah | 🟡 | ⬇️ **DITUNDA** — belum perlu |
-| §22.2 | Pengingat mencadangkan data | 🟠 | ➡️ tetap, kecil & berguna |
-| §22.11 | Isi data Keuangan & Alamat Lengkap | 🟠 | ⬆️ **NAIK** — tanpa ini kwitansi berisi Rp 0, jadi bagian Keuangan belum "berguna" |
-| §22.3 | Daftar edisi majalah | 🟡 | ➡️ tetap — bagian majalah |
-| §22.5 | Penghitung pembaca majalah | 🟡 | ➡️ tetap, kecil |
-| §22.6 | Balas semua & Teruskan | 🟡 | ➡️ tetap — bagian surat |
-| §22.7 | Lampiran berkas sungguhan | 🟡 | ➡️ tetap — bagian surat |
-| §22.8 | Template berformat | 🟡 | ➡️ tetap — bagian surat |
+| §22.4 | Kata sandi halaman pembaca majalah | 🟡 | ✅ **DIPUTUSKAN** — dibiarkan terbuka atas keputusan Anda (§22.4) |
+| §22.2 | Pengingat mencadangkan data | 🟠 | ✅ **SELESAI** (§22.14) |
+| §22.11 | Isi data Keuangan & Alamat Lengkap | 🟠 | ⏳ **menunggu data dari client** — kode kwitansi sudah diperbaiki (§22.21) |
+| §22.3 | Daftar edisi majalah | 🟡 | ✅ **SELESAI** (§22.14) |
+| §22.5 | Penghitung pembaca majalah | 🟡 | ✅ **SELESAI** (§22.14) |
+| §22.6 | Balas semua & Teruskan | 🟡 | ✅ **SELESAI** (§22.14) |
+| §22.7 | Lampiran berkas sungguhan | 🟡 | ✅ **SELESAI** (§22.14) |
+| §22.8 | Template berformat | 🟡 | ✅ **SELESAI** (§22.14, tombol format §22.20) |
 
 ### 25.3 Prioritas baru — yang mendahulukan "berguna di setiap bagian"
 
-| Prioritas | Pekerjaan | Kenapa | Perkiraan |
+> **Catatan 18 Nov 2026:** daftar ini **sudah habis dikerjakan** (§22.14,
+> §22.20, §22.21). Yang benar-benar tersisa sekarang hanya pekerjaan yang
+> menunggu pihak lain — lihat §28.3. Tabel di bawah dipertahankan sebagai
+> catatan urutan yang pernah dipakai.
+
+| Prioritas | Pekerjaan | Kenapa | Keadaan 18 Nov 2026 |
 |---|---|---|---|
-| 🔴 1 | **Isi data Keuangan & Alamat Lengkap** (§22.11) | Tanpa ini kwitansi berisi **Rp 0** dan tombol **Cetak Alamat** tidak berguna. Bagian Keuangan belum bisa dinilai | — (data dari Anda) |
-| 🟠 2 | **Pengingat mencadangkan data** (§22.2) | Kecil, tapi melindungi pekerjaan tes | ±30 menit |
-| 🟠 3 | **Balas semua & Teruskan** (§22.6) | Melengkapi bagian surat supaya terasa utuh saat dites | ±1 jam |
-| 🟠 4 | **Lampiran berkas sungguhan** (§22.7) | Sering dipakai saat kirim surat ke donor | ±2 jam |
-| 🟡 5 | **Daftar edisi majalah** (§22.3) | Bagian majalah | ±2 jam |
-| 🟡 6 | **Template berformat** (§22.8) | Membuat surat lebih rapi | ±3 jam |
-| 🟡 7 | **Penghitung pembaca majalah** (§22.5) | Kecil, menambah informasi | ±1,5 jam |
-| ⬇️ | ~~Login, OAuth, kata sandi majalah, data asli~~ | **Ditunda** sampai aplikasi mandiri | — |
+| 🔴 1 | **Isi data Keuangan & Alamat Lengkap** (§22.11) | Tanpa ini kwitansi berisi **Rp 0** dan tombol **Cetak Alamat** tidak berguna | ⏳ menunggu data dari client (kodenya sudah benar, §22.21) |
+| 🟠 2 | **Pengingat mencadangkan data** (§22.2) | Kecil, tapi melindungi pekerjaan tes | ✅ selesai |
+| 🟠 3 | **Balas semua & Teruskan** (§22.6) | Melengkapi bagian surat supaya terasa utuh saat dites | ✅ selesai |
+| 🟠 4 | **Lampiran berkas sungguhan** (§22.7) | Sering dipakai saat kirim surat ke donor | ✅ selesai |
+| 🟡 5 | **Daftar edisi majalah** (§22.3) | Bagian majalah | ✅ selesai |
+| 🟡 6 | **Template berformat** (§22.8) | Membuat surat lebih rapi | ✅ selesai |
+| 🟡 7 | **Penghitung pembaca majalah** (§22.5) | Kecil, menambah informasi | ✅ selesai |
+| ⬇️ | ~~Login, OAuth, kata sandi majalah, data asli~~ | **Ditunda** sampai aplikasi mandiri | Login ✅ selesai (§24); sisanya masih ditunda |
 
 ### 25.4 Yang tetap saya kerjakan walaupun fase tes
 
@@ -4696,3 +4744,51 @@ di donor lain).
 Versi aset dinaikkan ke `v=73`.
 
 ---
+
+## 28. Pemeriksaan dokumen — 18 November 2026
+
+*Bukan pekerjaan kode. Hanya merapikan rencana kerja supaya satu sumber
+kebenaran, sebelum revisi dari client masuk.*
+
+**Sebabnya:** setelah §24–§27 selesai, beberapa bagian lama masih menggambarkan
+keadaan sebelum pekerjaan itu ada. Kalau dibaca berurutan, rencana ini bisa
+menyesatkan — misalnya menampilkan "belum ada login" padahal login sudah
+dipakai, atau "masih perlu dikonfirmasi" untuk hal yang sudah selesai.
+
+### 28.1 Yang dirapikan
+
+| Bagian | Keadaan sebelumnya | Sesudah |
+|---|---|---|
+| §12 Hal yang perlu dikonfirmasi | 8 butir, 5 di antaranya sudah terjawab | Dibelah: **12.1 masih terbuka** (3 butir) dan **12.2 sudah terjawab** (6 butir, lengkap dengan tautan babnya) |
+| §13 "Yang belum selesai" | 4 butir, 3 di antaranya sudah jalan | Dinilai ulang per 18 Nov: Gmail tidak menyisakan pekerjaan; yang tinggal hanya status **Testing** (§22.10) |
+| §14 judul berkas | `app.js` (`v13`) | Diberi catatan "versi saat itu `v13`; versi terbaru `v=73`" — supaya tidak dikira versi sekarang |
+| §22.9 | 🟡 "Belum ada login / multi-user" | ✅ SELESAI, dengan catatan bahwa isinya dipindah ke §24 |
+| §15 | Judulnya "(DITUNDA, lihat bagian 17)" | ✅ SELESAI — tanda dibaca sudah jadi di §17 Fase 5 & 5b |
+| §13 | Terbaca seperti status terakhir | Diberi catatan bahwa isinya per 5–6 Nov 2026; status terkini di §28 |
+| §25.2 & §25.3 | Masih berupa rencana yang "akan dikerjakan" | Diberi kolom/tanda keadaan per 18 Nov — hampir semuanya ✅ selesai |
+| §22.12 baris 3 | ⏳ belum (tanpa keterangan) | ⏳ belum **data**, kodenya sudah diperbaiki (§22.21) |
+| §24.9 "Yang belum ada" | 4 butir, 2 di antaranya sudah dikerjakan | Dinilai ulang terhadap `app.js`: surat & template/kategori sudah tercatat, `program` belum, ringkasan per user baru sebagian |
+| Tanggal keputusan §22.1 & §22.4 | "23 Nov 2026" | **13 Nov 2026** — tanggal aslinya (dikonfirmasi dari riwayat percakapan & commit `5b589e2`). "23 Nov" adalah salah tulis |
+
+### 28.2 Yang sengaja TIDAK diubah
+
+| Hal | Alasan |
+|---|---|
+| Isi bab 1–11, 15–21, 26–27 | Masih akurat; mengubahnya hanya menambah risiko salah tulis |
+| Catatan "belum selesai" yang memang benar | §14 WhatsApp (terblokir Meta), §22.11 (data dari client), uji majalah lewat email sungguhan |
+| Riwayat keputusan yang sudah tidak dipakai (mis. kode undangan) | Dipertahankan sebagai catatan **kenapa** sesuatu tidak dipakai — berguna kalau pertanyaan itu muncul lagi |
+| Versi aset di dalam bab lama | Hanya ditambahi keterangan, tidak diganti angkanya — angka lama itu benar untuk pekerjaan di bab tersebut |
+
+### 28.3 Yang perlu ditanyakan ke client (bukan ke Anda)
+
+Ini bukan pekerjaan yang tertinggal di pihak kita — semuanya menunggu pihak lain:
+
+| # | Hal | Menunggu |
+|---|---|---|
+| 1 | WhatsApp kirim sungguhan | Verifikasi bisnis Meta + metode pembayaran + nomor resmi (§21.1–21.2) |
+| 2 | Verifikasi OAuth Google | Email resmi klien (§22.10) |
+| 3 | Data Keuangan & Alamat Lengkap | Data dari client (§22.11) |
+| 4 | Arti huruf `[Z]` pada ID-DONOR & aturan counter | Konfirmasi client (§12.1) |
+
+**Tidak ada perubahan kode di bab ini.** Versi aset tetap `v=73`, jadi tidak
+ada yang perlu dimuat ulang di browser.
