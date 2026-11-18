@@ -334,7 +334,18 @@ function waktuKirim(iso){
 /* Data kwitansi siap pakai untuk satu donor. */
 function dataKwitansi(d, finId){
   const f = kwitansiDonor(d.id, finId);
-  const program = f ? (f.program || []).map(function(x){ return programNama(x.id); }).join(', ') : '';
+  /* Rincian per program — SATU baris per program, tidak dijumlahkan.
+     Klien meminta kwitansi menampilkan "Beasiswa Anak Pelayan · Rp 450.000"
+     dan "Pembangunan Gedung · Rp 23.000.000" terpisah, bukan total gabungan.
+     Transaksi bentuk lama (tanpa array `program`) tetap tampil sebagai satu
+     baris tanpa nama program supaya nominalnya tidak hilang. */
+  const baris = !f ? [] : (Array.isArray(f.program) && f.program.length
+    ? f.program.map(function(x){
+        return { nama:programNama(x.id), jumlah:Number(x.jumlah) || 0,
+                 mataUang:mataUangBaris(x, f) };
+      })
+    : [{ nama:'', jumlah:Number(f.jumlah) || 0, mataUang:f.mataUang || 'IDR' }]);
+  const program = baris.map(function(x){ return x.nama; }).filter(Boolean).join(', ');
   /* Total dipisah per mata uang — kalau satu transaksi memuat beberapa mata
      uang, kwitansi menampilkan semuanya, tidak dijumlahkan jadi satu angka. */
   const perUang = f ? totalPerUangTransaksi(f) : {};
@@ -349,9 +360,20 @@ function dataKwitansi(d, finId){
     mataUang: kode.length ? kode[0] : 'IDR',
     perUang: perUang,
     kodeUang: kode,
+    baris: baris,
     program: program,
     catatan: f ? (f.catatan || '') : ''
   };
+}
+/* Satu baris rincian program untuk kwitansi: nama · simbol jumlah.
+   Contoh: "Beasiswa Anak Pelayan · Rp 450.000". */
+function kwitansiBarisProgramHTML(x){
+  const u = x.mataUang || 'IDR';
+  const nama = String(x.nama || '').trim();
+  return (nama ? esc(nama) + '<span style="color:#888"> &middot; </span>' : '') +
+    '<span style="color:#444">' + esc(uangInfo(u).simbol) + '</span>' +
+    '<span style="display:inline-block;min-width:74px;text-align:right;' +
+      'padding-left:6px">' + esc(angkaUang(x.jumlah, u)) + '</span>';
 }
 /* HTML kwitansi. Semua gaya ditulis inline karena klien email membuang <style>.
    `opsi` boleh memuat { kodeKiriman, waktuKirim } — dua hal ini dicetak di
@@ -362,6 +384,9 @@ function kwitansiHTML(d, bahasa, finId, opsi){
   const k = dataKwitansi(d, finId);
   const logo = state.settings.logoUrl || 'vendor/kartidaya-logo.png';
   const logoAbs = /^https?:/i.test(logo) ? logo : new URL(logo, location.href).href;
+  /* Ikon "K" Kartidaya — dipakai di blok tanda tangan, sesuai contoh klien. */
+  const ikon = state.settings.ikonUrl || 'vendor/kartidaya-icon.png';
+  const ikonAbs = /^https?:/i.test(ikon) ? ikon : new URL(ikon, location.href).href;
   const garis = 'border-bottom:1px solid #333;';
   const label = 'width:150px;vertical-align:top;padding:7px 0;font-weight:bold;font-size:13px;';
   const titik = 'width:14px;vertical-align:top;padding:7px 0;font-size:13px;';
@@ -386,6 +411,16 @@ function kwitansiHTML(d, bahasa, finId, opsi){
   const barisJumlah = kode.map(function(u){
     return baris(L.jumlah, '<b>' + esc(terbilang(k.perUang[u] || 0, u)) + '</b>');
   }).join('');
+  /* "Untuk": SATU BARIS PER PROGRAM, masing-masing bergaris bawah sendiri —
+     sesuai contoh klien. Nominalnya tidak dijumlahkan di sini; totalnya ada di
+     baris Terbilang di bawah. Transaksi tanpa program tetap tampil satu baris. */
+  const isiUntuk = k.baris.length
+    ? '<table cellpadding="0" cellspacing="0" border="0" width="100%">' +
+        k.baris.map(function(x){
+          return '<tr><td style="font-size:13px;padding:4px 0;' + garis + '">' +
+            kwitansiBarisProgramHTML(x) + '</td></tr>';
+        }).join('') + '</table>'
+    : esc('Pelayanan Kartidaya Sahabat');
   const barisTerbilang = kode.map(function(u){
     return '<tr><td style="width:150px;padding:10px 0 0;font-weight:bold;font-size:13px">' +
         esc(L.terbilang) + (kode.length > 1 ? ' (' + esc(u) + ')' : '') + '</td>' +
@@ -420,16 +455,26 @@ function kwitansiHTML(d, bahasa, finId, opsi){
         baris(L.dari, esc(namaPenerima) + instansi) +
         barisJumlah +
         kosong +
-        baris(L.untuk, esc(k.program || 'Pelayanan Kartidaya Sahabat')) +
-        kosong +
-        '<tr><td colspan="3" style="padding:14px 0 0;text-align:right;font-size:13px">' +
-          esc(L.kota) + ', ' + esc(tanggalKwitansi(k.tanggal)) + '</td></tr>' +
-        '<tr><td colspan="3" style="padding:6px 0 0;text-align:right">' +
-          '<div style="font-family:Georgia,serif;font-size:19px;color:#2f6f9f;font-weight:bold">kartidaya</div>' +
-          '<div style="font-size:12px;font-weight:bold;margin-top:2px">Lidya Tambunan</div>' +
-          '<div style="font-size:11px;color:#444">Head of Finance, Accounting &amp; Tax</div>' +
-        '</td></tr>' +
+        baris(L.untuk, isiUntuk) +
         barisTerbilang +
+        /* Tanda tangan: teks rata kanan, ikon "K" di sisi paling kanan —
+           mengikuti contoh klien. Ikon diletakkan sebaris dengan teksnya
+           supaya tetap rapi walau lebar layar berbeda. */
+        '<tr><td colspan="3" style="padding:12px 0 0">' +
+          '<table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>' +
+            '<td style="font-size:13px;vertical-align:middle;text-align:right">' +
+              esc(L.kota) + ', ' + esc(tanggalKwitansi(k.tanggal)) + '<br>' +
+              '<span style="font-family:Georgia,serif;font-size:17px;color:#2f6f9f;' +
+                'font-weight:bold">kartidaya</span><br>' +
+              '<span style="font-size:12px;font-weight:bold">Lidya Tambunan</span><br>' +
+              '<span style="font-size:11px;color:#444">Head of Finance, Accounting &amp; Tax</span>' +
+            '</td>' +
+            '<td style="width:58px;vertical-align:middle;text-align:right">' +
+              '<img src="' + esc(ikonAbs) + '" alt="" width="52" ' +
+                'style="display:block;border:0;max-width:52px;margin-left:auto">' +
+            '</td>' +
+          '</tr></table>' +
+        '</td></tr>' +
         '<tr><td colspan="3" style="padding:8px 0 0;font-size:10.5px;color:#666">' +
           'No. ' + esc(k.nomor) + (k.ada ? '' : ' — belum ada transaksi keuangan untuk donor ini') +
         '</td></tr>' +
@@ -540,16 +585,45 @@ function gambarKwitansi(ctx, d, bahasa, finId, opsi, ukurSaja){
   const kode = k.kodeUang.length ? k.kodeUang : ['IDR'];
   kode.forEach(function(u){ barisIsi(L.jumlah, terbilang(k.perUang[u] || 0, u), true); });
   barisKosong();
-  barisIsi(L.untuk, k.program || 'Pelayanan Kartidaya Sahabat');
-  barisKosong();
 
-  /* --- Tempat & tanggal, lalu tanda tangan --- */
-  teks(L.kota + ', ' + tanggalKwitansi(k.tanggal), x1, y + 16, 13, false, '#111', 'right');
-  y += 30;
-  teks('kartidaya', x1, y + 20, 19, true, '#2f6f9f', 'right', true);
-  teks('Lidya Tambunan', x1, y + 38, 12, true, '#111', 'right');
-  teks('Head of Finance, Accounting & Tax', x1, y + 53, 11, false, '#444', 'right');
-  y += 66;
+  /* --- "Untuk": satu baris per program, masing-masing bergaris bawah.
+     Nominal tidak dijumlahkan di sini — totalnya ada di baris Terbilang.
+     Garis ditaruh 13 px di bawah baseline supaya tidak menyentuh huruf
+     baris berikutnya (ditemukan saat memeriksa hasil gambar). --- */
+  const barisProgram = k.baris.length
+    ? k.baris
+    : [{ nama: 'Pelayanan Kartidaya Sahabat', jumlah: 0, mataUang: kode[0] }];
+  teks(L.untuk, x0, y + 19, 13, true);
+  teks(':', x0 + 150, y + 19, 13, false);
+  if(k.baris.length){
+    /* Nama program boleh panjang: dibungkus, nominal tetap di kanan. */
+    let yp = y + 19;
+    barisProgram.forEach(function(x){
+      const u = x.mataUang || 'IDR';
+      const simbol = uangInfo(u).simbol;
+      const angka = angkaUang(x.jumlah, u);
+      font(13, true);
+      const wAngka = Math.max(ctx.measureText(angka).width, 74);
+      font(13, false);
+      const wSimbol = ctx.measureText(simbol).width;
+      const lebarNama = lebarNilai - wAngka - wSimbol - 26;
+      const potong = bungkus(x.nama || '', Math.max(lebarNama, 90), 13, false);
+      potong.forEach(function(b, i){
+        teks(b, xNilai, yp + i * 18, 13, false);
+      });
+      const yBaris = yp + (potong.length - 1) * 18;
+      teks(simbol, x1 - wAngka - wSimbol - 8, yBaris, 13, false, '#444', 'left');
+      teks(angka, x1, yBaris, 13, true, '#111', 'right');
+      garis(x0, yBaris + 13, x1, yBaris + 13, GARIS, 1);
+      yp = yBaris + 26;
+    });
+    y = yp - 6;
+  }else{
+    teks(barisProgram[0].nama, xNilai, y + 19, 13, false);
+    garis(x0, y + 30, x1, y + 30, GARIS, 1);
+    y += 30;
+  }
+  barisKosong();
 
   /* --- Terbilang: satu baris per mata uang, angka di dalam kotak garis --- */
   kode.forEach(function(u){
@@ -570,6 +644,23 @@ function gambarKwitansi(ctx, d, bahasa, finId, opsi, ukurSaja){
     garis(xNilai + wSimbol, y + 24, xNilai + wSimbol + wAngka, y + 24, GARIS, 1);
     y += 30;
   });
+
+  /* --- Tempat & tanggal, lalu tanda tangan + ikon "K" di kanan ---
+     Ikon memakan ruang 52 px di kanan, jadi semua teks tanda tangan
+     diakhiri di x1 - 64 supaya tidak tertimpa. */
+  const xTtd = x1 - 64;
+  teks(L.kota + ', ' + tanggalKwitansi(k.tanggal), xTtd, y + 16, 13, false, '#111', 'right');
+  y += 30;
+  teks('kartidaya', xTtd, y + 20, 19, true, '#2f6f9f', 'right', true);
+  teks('Lidya Tambunan', xTtd, y + 38, 12, true, '#111', 'right');
+  teks('Head of Finance, Accounting & Tax', xTtd, y + 53, 11, false, '#444', 'right');
+  /* Ikon digambar di sisi paling kanan, sebaris dengan blok tanda tangan. */
+  const ikonH = (opsi.ikon && opsi.ikon.width)
+    ? Math.round(46 * opsi.ikon.height / opsi.ikon.width) : 0;
+  if(opsi.ikon && !ukurSaja){
+    ctx.drawImage(opsi.ikon, x1 - 44, y + 2, 44, ikonH);
+  }
+  y += Math.max(66, ikonH + 8);
 
   /* --- Kaki: nomor, kode, dan cara menghubungi kalau ada kekeliruan --- */
   y += 4;
@@ -604,10 +695,16 @@ async function kwitansiCanvas(d, bahasa, finId, opsi){
   opsi = opsi || {};
   const logo = state.settings.logoUrl || 'vendor/kartidaya-logo.png';
   const logoAbs = /^https?:/i.test(logo) ? logo : new URL(logo, location.href).href;
-  const img = await muatGambar(logoAbs);
+  const ikon = state.settings.ikonUrl || 'vendor/kartidaya-icon.png';
+  const ikonAbs = /^https?:/i.test(ikon) ? ikon : new URL(ikon, location.href).href;
+  /* Logo dan ikon dimuat bersamaan; kalau salah satu gagal, kwitansi tetap
+     digambar tanpa gambar itu — jangan sampai kwitansi gagal dibuat hanya
+     karena gambar tidak terbaca. */
+  const gambar = await Promise.all([muatGambar(logoAbs), muatGambar(ikonAbs)]);
   const S = opsi.skala || 2;
   const ukur = document.createElement('canvas').getContext('2d');
-  const tinggi = Math.ceil(gambarKwitansi(ukur, d, bahasa, finId, { logo:img }, true));
+  const tinggi = Math.ceil(gambarKwitansi(ukur, d, bahasa, finId,
+    { logo:gambar[0], ikon:gambar[1] }, true));
   const cv = document.createElement('canvas');
   cv.width = PNG_LEBAR * S;
   cv.height = tinggi * S;
@@ -615,7 +712,7 @@ async function kwitansiCanvas(d, bahasa, finId, opsi){
   ctx.scale(S, S);
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, PNG_LEBAR, tinggi);
-  gambarKwitansi(ctx, d, bahasa, finId, { logo:img }, false);
+  gambarKwitansi(ctx, d, bahasa, finId, { logo:gambar[0], ikon:gambar[1] }, false);
   return cv;
 }
 
@@ -3024,10 +3121,18 @@ function gambarPratinjauEmail(d){
         'No. ' + k.nomor + '\n' +
         'Telah terima dari: ' + donorName(d) + '\n' +
         (k.kodeUang.length ? k.kodeUang : ['IDR']).map(function(u){
-          return 'Jumlah: ' + terbilang(k.perUang[u] || 0, u) + ' (' +
-            fmtUang(k.perUang[u] || 0, u) + ')\n';
+                  return 'Uang sejumlah: ' + terbilang(k.perUang[u] || 0, u) + '\n';
+                }).join('') +
+                'Untuk:\n' +
+                (k.baris.length
+                  ? k.baris.map(function(x){
+                      return '  - ' + (x.nama ? x.nama + ' · ' : '') + fmtUang(x.jumlah, x.mataUang) + '\n';
+                    }).join('')
+                  : '  - Pelayanan Kartidaya Sahabat\n') +
+                (k.kodeUang.length ? k.kodeUang : ['IDR']).map(function(u){
+                  return 'Terbilang' + (k.kodeUang.length > 1 ? ' (' + u + ')' : '') + ': ' +
+                    fmtUang(k.perUang[u] || 0, u) + '\n';
         }).join('') +
-        'Untuk: ' + (k.program || 'Pelayanan Kartidaya Sahabat') + '\n' +
         'Tanggal: ' + tanggalKwitansi(k.tanggal) + '\n'
       : '') +
     (suratState.majalah && majalahInfo() ? '\nMajalah: ' + majalahInfo().halaman + ' halaman\n' : '');

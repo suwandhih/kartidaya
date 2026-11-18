@@ -5033,3 +5033,115 @@ Perbaikan yang di-commit **belum berarti sudah diperbaiki** bagi pemakai
 GitHub Pages — harus di-`push` dulu. Mulai sekarang, setiap kali menyelesaikan
 pekerjaan yang perlu dicoba di alamat publik, saya sebutkan apakah sudah
 terkirim atau belum.
+
+---
+
+## 31. Kwitansi — rincian per program & ikon Kartidaya (18 November 2026)
+
+**Permintaan klien lewat Anda:**
+
+> *"kwitansi ada perubahan client minta: 1. tidak di jumlah dari beberapa dukung
+> untuk program.. tapi rinci satu satu seperti contoh di pasted image.
+> 2. tambahkan logo icon kartidaya > posisi seperti di pasted image"*
+
+**Arahan itu sudah jelas** dan dikerjakan apa adanya. Satu hal yang perlu
+diputuskan sudah Anda jawab: baris **Uang sejumlah** tetap ada, dan mata uang
+**tetap dipisah per mata uang** — baik untuk rincian program maupun Terbilang.
+
+### 31.1 Sebelum & sesudah
+
+| Bagian | Sebelum | Sesudah |
+|---|---|---|
+| **Untuk** | Semua program digabung satu baris: *"Beasiswa Anak Pelayan, Pembangunan Gedung"* — nominalnya tidak terlihat | **Satu baris per program**, masing-masing bergaris bawah sendiri, dengan nominal di kanan: *"Beasiswa Anak Pelayan · Rp 450.000"* |
+| **Tanda tangan** | Teks saja (kartidaya · Lidya Tambunan · jabatan) | Teks yang sama **+ ikon "K" Kartidaya** di sisi paling kanan |
+| Versi teks (WhatsApp/pratinjau) | `Untuk: Beasiswa Anak Pelayan, Pembangunan Gedung` | `Untuk:` lalu `- Beasiswa Anak Pelayan · Rp 450.000` per baris |
+| Versi PNG (WhatsApp) | Sama-sama digabung | Ikut dirinci per program, ikon ikut digambar |
+
+**Baris Uang sejumlah & Terbilang tidak diubah** — tetap berisi total, sesuai
+keputusan Anda. Jadi kwitansinya berbentuk:
+
+```
+Telah terima dari : Ferry Kangsadjaja
+Uang sejumlah     : Dua puluh tiga juta empat ratus lima puluh ribu rupiah
+
+Untuk             : Beasiswa Anak Pelayan        Rp    450.000
+                    Pembangunan Gedung           Rp 23.000.000
+                  ─────────────────────────────────────────────
+Terbilang         : Rp 23.450.000
+```
+
+### 31.2 Mata uang dipisah, termasuk di rincian
+
+Sesuai jawaban Anda — *"tetap dipisah per mata uang per dukung untuk program"*:
+
+| Keadaan | Hasil |
+|---|---|
+| Semua program rupiah | Rincian rupiah saja; satu baris Terbilang |
+| Campur (mis. Rp 450.000 + Rp 23.000.000 + USD 100) | Tiga baris rincian dengan simbol masing-masing (`Rp`, `$`); **dua** baris Terbilang: `(IDR)` dan `(USD)` |
+| Tidak pernah | Dolar dijumlahkan ke rupiah — kursnya berbeda, jadi tidak sah |
+
+### 31.3 Berkas ikon
+
+| Hal | Keterangan |
+|---|---|
+| Berkas sumber | `tes/KARTIDAYA_LOGO_ICON_New_2024-removebg-preview.png` (dari Anda) |
+| Disalin ke | `vendor/kartidaya-icon.png` — supaya ikut terbit di GitHub Pages |
+| Kenapa disalin | Folder `tes/` di-gitignore, jadi kalau dipakai langsung dari sana, ikonnya tidak akan pernah terbit dan kwitansi di email donor akan tampil kosong |
+| Bisa diganti | `settings.ikonUrl` (sama polanya dengan `settings.logoUrl` yang sudah ada) |
+
+### 31.4 Berkas
+
+| Berkas | Perubahan |
+|---|---|
+| `app.js` | `dataKwitansi()` menambah `baris` (rincian per program: nama, jumlah, mata uang); `kwitansiBarisProgramHTML()` baru; `kwitansiHTML()` mencetak satu baris per program + ikon di blok tanda tangan; `gambarKwitansi()` (PNG) ikut dirinci + ikon; `kwitansiCanvas()` memuat logo & ikon bersamaan; versi teks pratinjau ikut dirinci |
+| `panduan.js` | Bab **Mencatat keuangan**: bagian "Bentuk kwitansi yang dikirim" + tabel contoh + penjelasan mata uang campuran |
+| `vendor/kartidaya-icon.png` | **Baru** — ikon "K" Kartidaya |
+| `index.html` | Versi aset `v=76` |
+| `tes/uji-kwitansi-program.js` | **Baru** — 41 pemeriksaan logika |
+
+### 31.5 Pengujian
+
+**Uji logika (`node tes/uji-kwitansi-program.js`) — 41 pemeriksaan, semua lulus:**
+
+| Kelompok | Yang diperiksa |
+|---|---|
+| Rincian per program | 2 baris terpisah, nama & nominal masing-masing benar, tidak ada penggabungan jadi satu teks, total tidak muncul di baris program |
+| Terbilang | Tetap berisi total (Rp 23.450.000) dan ejaannya benar |
+| Ikon | `kartidaya-icon.png` dipakai, alamat absolut (bisa dibuka klien email), lebar dibatasi 52 px, logo lama tetap ada |
+| Satu program | Tetap benar, tidak error |
+| Campur mata uang | 3 baris rincian, total dipisah `{IDR: 23.450.000, USD: 100}`, dua baris Terbilang, dolar **tidak** dijumlahkan ke rupiah |
+| Transaksi bentuk lama (tanpa array `program`) | Tetap tampil satu baris dengan nominal dari `jumlah` — tidak hilang, nama program tidak dikarang |
+| Tanpa transaksi | Tidak melempar galat, tetap menyebut "belum ada transaksi", ikon tetap tampil |
+| Nama program panjang | Tidak memotong nominal |
+
+**Uji gambar (Canvas sungguhan, `node-canvas`) — hasilnya diperiksa secara visual:**
+
+| # | Yang diuji | Hasil |
+|---|---|---|
+| 1 | Kwitansi 2 program rupiah | ✅ rincian terpisah, garis tidak menimpa teks, ikon rapi di kanan |
+| 2 | Kwitansi campur (IDR + USD) | ✅ 3 baris rincian, 2 baris Terbilang berlabel (IDR)/(USD) |
+| 3 | Ikon tidak menimpa teks tanda tangan | ✅ teks digeser, ikon di kolom sendiri |
+| 4 | Tinggi kwitansi | 504 px (2 program), 591 px (3 program + 2 mata uang) |
+
+**Uji di DOM (jsdom, aplikasi sungguhan dijalankan) — semua lulus:** nama
+program, nominal terpisah, tidak ada teks gabungan, ikon & logo dipakai dengan
+alamat absolut, dan ejaan terbilang benar.
+
+### 31.6 Dua cacat yang ditemukan saat memeriksa hasil gambar
+
+Keduanya **hanya kelihatan dari gambar**, bukan dari membaca kode:
+
+| # | Cacat | Perbaikan |
+|---|---|---|
+| 1 | Garis pemisah antar-program **menimpa huruf** baris berikutnya | Garis ditaruh **13 px** di bawah baseline baris, jarak antar-program dinaikkan ke 26 px |
+| 2 | Ikon "K" **menempel** teks tanda tangan sehingga terlihat sesak | Teks tanda tangan diakhiri 64 px sebelum tepi kanan; ikon 44 px di kolom sendiri |
+
+### 31.7 Yang perlu Anda tahu
+
+- **Email donor**: ikon & logo adalah gambar. Kalau penerima memblokir gambar
+  (bawaan Gmail kadang begitu untuk pengirim baru), keduanya tidak tampil —
+  teksnya tetap utuh. Ini batasan klien email, bukan kesalahan data.
+- **Versi WhatsApp (PNG)**: ikon digambar langsung, jadi selalu ikut.
+- **Nama program di rincian** diambil dari daftar Program. Kalau nama program
+  diubah, kwitansi yang **dibuat ulang** memakai nama baru; salinan kwitansi
+  yang sudah terkirim tidak berubah (tersimpan sebagai HTML/PNG saat dikirim).

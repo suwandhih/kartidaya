@@ -318,7 +318,8 @@ var PANDUAN = [
     kata: ['keuangan', 'kwitansi', 'rp 0', 'nol', 'transaksi', 'jumlah', 'program',
                'mata uang', 'riwayat kirim', 'kode kwitansi', 'donor masuk',
                'cari donor', 'tidak ditemukan', 'nama tidak ditemukan', 'pencarian',
-               'tanpa donor', 'yatim', 'id lama', 'perbaiki transaksi'],
+               'tanpa donor', 'yatim', 'id lama', 'perbaiki transaksi',
+               'rincian program', 'per program', 'terbilang', 'logo', 'ikon'],
     isi: '' +
       '<p class="pd-lead">Kwitansi yang dikirim ke donor <b>mengambil angkanya dari ' +
         'menu Keuangan</b>. Tanpa catatan di sini, kwitansi akan berisi Rp 0.</p>' +
@@ -348,6 +349,27 @@ var PANDUAN = [
         '<li>Tombol <b>🕘 Riwayat kirim</b> menampilkan semua kwitansi yang pernah ' +
           'dikirim, urut tanggal.</li>' +
       '</ul>' +
+
+      '<h4>Bentuk kwitansi yang dikirim</h4>' +
+      '<p>Bagian <b>Untuk</b> menampilkan <b>satu baris per program</b>, ' +
+        'masing-masing dengan nominalnya sendiri — tidak dijumlahkan. Contoh:</p>' +
+      '<table class="pd-tabel"><thead><tr><th>Program</th><th class="right">Jumlah</th></tr></thead>' +
+        '<tbody>' +
+        '<tr><td>Beasiswa Anak Pelayan</td><td class="right mono">Rp 450.000</td></tr>' +
+        '<tr><td>Pembangunan Gedung</td><td class="right mono">Rp 23.000.000</td></tr>' +
+        '<tr><td><b>Terbilang</b></td><td class="right mono"><b>Rp 23.450.000</b></td></tr>' +
+        '</tbody></table>' +
+        '<p>Jadi donor bisa melihat dukungannya <b>per program</b>, bukan hanya totalnya. ' +
+        'Totalnya tetap ada di baris <b>Terbilang</b> di bawah, karena itulah jumlah yang ' +
+        'sah untuk kwitansi.</p>' +
+        '<p>Di sisi kanan blok tanda tangan ada <b>ikon Kartidaya</b>. Kalau ikon atau logo ' +
+        'tidak tampil di email donor, itu bukan kesalahan data — gambar tidak dimuat ' +
+        '(lihat bab <b>Mengirim email</b>).</p>' +
+
+      '<div class="warnbox"><b>Kalau satu transaksi memuat lebih dari satu mata uang:</b> ' +
+        'rincian per program <b>tidak</b> digabung lintas mata uang. Baris <b>Uang sejumlah</b> ' +
+        'dan <b>Terbilang</b> muncul satu kali untuk tiap mata uang (mis. rupiah dan dolar), ' +
+        'karena kursnya berbeda dan tidak boleh dijumlahkan.</div>' +
 
       '<div class="warnbox"><b>Kalau kwitansi berisi Rp 0:</b> periksa tiga hal — ' +
         '(1) donor itu sudah punya transaksi di Keuangan, (2) penerima yang dipilih ' +
