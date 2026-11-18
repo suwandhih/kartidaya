@@ -317,7 +317,8 @@ var PANDUAN = [
     ico: '◫',
     kata: ['keuangan', 'kwitansi', 'rp 0', 'nol', 'transaksi', 'jumlah', 'program',
                'mata uang', 'riwayat kirim', 'kode kwitansi', 'donor masuk',
-               'cari donor', 'tidak ditemukan', 'nama tidak ditemukan', 'pencarian'],
+               'cari donor', 'tidak ditemukan', 'nama tidak ditemukan', 'pencarian',
+               'tanpa donor', 'yatim', 'id lama', 'perbaiki transaksi'],
     isi: '' +
       '<p class="pd-lead">Kwitansi yang dikirim ke donor <b>mengambil angkanya dari ' +
         'menu Keuangan</b>. Tanpa catatan di sini, kwitansi akan berisi Rp 0.</p>' +
@@ -368,8 +369,27 @@ var PANDUAN = [
       'Penyebab yang paling sering: transaksi itu tercatat untuk <b>ID donor yang lama</b> ' +
       '— terjadi kalau ID donor pernah diubah sebelum perbaikan ini. Sejak versi ini, ' +
       'mengubah ID donor ikut memindahkan transaksi keuangannya, dan menghapus donor ' +
-      'ikut menghapus transaksinya (jumlahnya disebut di konfirmasi). Kalau transaksi ' +
-      'lama masih tertinggal, ubah donornya pada transaksi itu lewat tombol <b>Ubah</b>.</div>' +
+      'ikut menghapus transaksinya (jumlahnya disebut di konfirmasi).</div>' +
+
+            '<h4>Transaksi tanpa donor — alat perbaikan</h4>' +
+            '<p>Kalau ada transaksi yang masih menunjuk ID donor lama, halaman <b>Keuangan</b> ' +
+      'menampilkan kotak peringatan kuning di paling atas:</p>' +
+            '<p><b>⚠ N transaksi tidak terhubung ke donor</b> … dengan tombol ' +
+      '<b>Perbaiki sekarang</b>.</p>' +
+            '<ol class="pd-langkah">' +
+      '<li>Tekan <b>Perbaiki sekarang</b>.</li>' +
+      '<li>Setiap transaksi ditampilkan lengkap: kode kwitansi, tanggal, <b>ID lama</b> ' +
+        '(ditandai merah), program, dan jumlahnya.</li>' +
+      '<li>Pilih donor yang benar pada daftar di bawah masing-masing transaksi.</li>' +
+      '<li>Tekan <b>Simpan perbaikan</b>. Transaksi yang dibiarkan kosong tidak diubah.</li>' +
+            '</ol>' +
+            '<p>Sesudah itu transaksi muncul di riwayat surat donor tersebut dan bisa ditemukan ' +
+      'lewat namanya. Kwitansinya juga kembali berisi angka yang benar.</p>' +
+
+            '<div class="warnbox"><b>Kenapa tidak diperbaiki otomatis?</b> Karena aplikasi tidak ' +
+      'tahu donor mana yang dimaksud — ID lamanya sudah tidak ada. Menebak bisa ' +
+      'menempelkan transaksi ke donor yang salah, dan itu lebih sulit dibetulkan ' +
+      'daripada memilih sendiri satu kali.</div>' +
 
       '<p><button class="btn sm" data-panduan-halaman="keuangan">Buka halaman Keuangan</button></p>'
   },

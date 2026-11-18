@@ -4921,3 +4921,115 @@ Jadi jelas bahwa yang kurang adalah **catatan transaksinya**, bukan namanya.
 diperbaiki otomatis — aplikasi tidak bisa menebak donor mana yang dimaksud.
 Jalan keluarnya ada di panduan: buka transaksi itu lewat **Ubah**, lalu pilih
 donornya kembali. Kalau perlu, bisa dibuatkan alat pembersih sekali pakai.
+
+---
+
+## 30. "Nama Ferry sudah diubah, tetap tidak ditemukan" — 18 November 2026
+
+**Laporan Anda:** *"nama ferry sudah di ubah.. dan tetap tidak di temukan ...
+jadi harus apa"*
+
+### 30.1 Sebab pertama: perbaikannya belum terkirim
+
+Perbaikan §29 sudah di-commit ** tetapi belum di-`push`**. Repo lokal
+`main` berada **2 commit di depan** `origin/main`, sehingga
+`https://suwandhih.github.io/kartidaya/` masih memakai `v=73` — versi sebelum
+perbaikan. Jadi apa pun yang Anda coba saat itu pasti tetap gagal.
+
+**Sudah dikirim:** `ba024ec..0863681`. Kalau browser masih memakai salinan lama,
+muat ulang dengan **Ctrl+Shift+R** (Chrome/Edge) atau **Ctrl+F5**.
+
+### 30.2 Sebab kedua: transaksi yang menunjuk ID donor lama
+
+Mengubah nama/ID donor **sebelum** perbaikan aktif membuat transaksi keuangan
+tetap menunjuk ID lama. Baris itu:
+
+- tidak punya nama donor (nama sudah tidak terhubung),
+- tidak bisa ditemukan lewat pencarian nama,
+- kwitansinya berisi Rp 0.
+
+Perbaikan §29 mencegah hal ini terjadi **ke depan**, tetapi **tidak bisa**
+membetulkan baris yang sudah telanjur yatim — aplikasi tidak tahu donor mana
+yang dimaksud.
+
+### 30.3 Alat perbaikan yang ditambahkan
+
+Halaman **Keuangan** sekarang memeriksa sendiri apakah ada transaksi yatim. Kalau
+ada, muncul kotak peringatan di paling atas:
+
+> **⚠ 1 transaksi tidak terhubung ke donor.** Transaksinya ada, tetapi menunjuk
+> ID donor yang sudah tidak ada — jadi tidak bisa ditemukan lewat nama donor dan
+> kwitansinya kosong.
+> **[Perbaiki sekarang]**
+
+Tombol itu membuka layar perbaikan:
+
+| Bagian | Isi |
+|---|---|
+| Satu kartu per transaksi | kode kwitansi · tanggal · **ID lama** (chip merah) · program · jumlah |
+| Pemilih donor | daftar semua donor, urut nama: `Ferry Kangsadjaja · F00004R` |
+| Tombol **Simpan perbaikan** | menyimpan semua baris yang sudah dipilih |
+| Baris yang dibiarkan kosong | **tidak diubah** — aman untuk memperbaiki sebagian dulu |
+
+**Kenapa tidak otomatis:** ID lama sudah tidak ada, jadi tidak ada dasar untuk
+menebak. Menebak bisa menempelkan transaksi ke donor yang salah, dan itu lebih
+sulit dibetulkan daripada memilih sendiri satu kali.
+
+### 30.4 Langkah untuk Anda sekarang
+
+| # | Langkah |
+|---|---|
+| 1 | Muat ulang aplikasi dengan **Ctrl+Shift+R** (jangan klik biasa — browser menyimpan salinan lama) |
+| 2 | Buka menu **Keuangan** |
+| 3 | Kalau muncul kotak kuning **"N transaksi tidak terhubung ke donor"**, tekan **Perbaiki sekarang** |
+| 4 | Pilih **Ferry Kangsadjaja** pada transaksi yang dimaksud, lalu **Simpan perbaikan** |
+| 5 | Ketik `ferry` di kotak cari — transaksinya sekarang muncul |
+
+**Kalau kotak kuning tidak muncul** tetapi Ferry tetap tidak ditemukan, berarti
+transaksinya memang belum pernah dicatat. Layar akan mengatakan
+*"1 donor ditemukan, tetapi belum punya transaksi"* beserta nama & ID donornya.
+Catat transaksinya lewat **+ Tambah**.
+
+### 30.5 Berkas
+
+| Berkas | Perubahan |
+|---|---|
+| `app.js` | `finTanpaDonor()`, `openPerbaikiYatim()`, `simpanPerbaikiYatim()`; kotak peringatan di halaman Keuangan; petunjuk di layar kosong |
+| `panduan.js` | Bab **Mencatat keuangan**: bagian "Transaksi tanpa donor — alat perbaikan" + kata kunci pencarian baru |
+| `index.html` | Versi aset `v=75` |
+| `tes/uji-yatim-keuangan.js` | **Baru** — 11 pemeriksaan logika |
+
+### 30.6 Pengujian
+
+**Uji logika (`node tes/uji-yatim-keuangan.js`) — 11 pemeriksaan, semua lulus:**
+
+| Yang diperiksa |
+|---|
+| Hanya baris yatim yang terdeteksi (baris sehat tidak ikut) |
+| ID lama yang ditunjuk dilaporkan dengan benar |
+| Tanpa yatim → daftar kosong, kotak peringatan tidak muncul |
+| Pencarian tetap bisa menemukan baris yatim lewat ID lama & kode kwitansi |
+| Perbaikan menyimpan donor yang dipilih, membiarkan yang kosong |
+| Baris yang tidak ada / pemilih kosong tidak membuat galat |
+
+**Uji di DOM (jsdom, aplikasi sungguhan) — 13 pemeriksaan, semua lulus:**
+
+| # | Yang diuji | Hasil |
+|---|---|---|
+| 1 | Kotak peringatan muncul dengan jumlah yang benar | ✅ |
+| 2 | Tombol **Perbaiki sekarang** ada | ✅ |
+| 3 | Layar perbaikan menampilkan kode, tanggal, ID lama, program, jumlah | ✅ |
+| 4 | Pemilih donor berisi semua donor + pilihan kosong | ✅ |
+| 5 | Simpan → transaksi terhubung ke donor yang dipilih | ✅ |
+| 6 | Kotak peringatan hilang setelah diperbaiki | ✅ |
+| 7 | Pencarian nama Ferry menemukan transaksi itu | ✅ |
+| 8 | Nama Ferry tampil di tabel transaksi | ✅ |
+| 9 | Batal / tutup tidak mengubah data | ✅ |
+| 10 | Halaman lain tetap normal, tanpa galat | ✅ |
+
+### 30.7 Pelajaran
+
+Perbaikan yang di-commit **belum berarti sudah diperbaiki** bagi pemakai
+GitHub Pages — harus di-`push` dulu. Mulai sekarang, setiap kali menyelesaikan
+pekerjaan yang perlu dicoba di alamat publik, saya sebutkan apakah sudah
+terkirim atau belum.

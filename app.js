@@ -3835,6 +3835,16 @@ function bindAkun(){
 /* ---------- KEUANGAN ---------- */
 let finFilter = { q:'', program:'', uang:'', dari:'', sampai:'', kirim:'' };
 
+/* Transaksi yang menunjuk ID donor yang sudah tidak ada.
+   Penyebabnya: ID donor pernah diubah (atau donornya dihapus) SEBELUM aplikasi
+   ikut memindahkan transaksi keuangan. Baris seperti ini tidak punya nama —
+   jadi tidak bisa ditemukan lewat pencarian nama, dan kwitansinya kosong.
+   Tidak bisa dibetulkan otomatis karena aplikasi tidak tahu donor mana yang
+   dimaksud; pengguna harus memilih sendiri. */
+function finTanpaDonor(){
+  return state.finance.filter(function(f){ return !findDonor(f.donorId); });
+}
+
 function finList(){
   const q = rapiKata(finFilter.q);
   return state.finance.filter(function(f){
@@ -3859,7 +3869,9 @@ function finList(){
         /* Pencarian memakai kolom yang SAMA dengan halaman Donor (teksCariDonor).
            Sebelumnya hanya nama PIC, kategori, program, catatan & mata uang yang
            dicari — jadi nama yang bisa ditemukan di halaman Donor (mis. dari
-           Nama Lengkap, instansi, nomor HP, atau Email 2) tidak ditemukan di sini. */
+           Nama Lengkap, instansi, nomor HP, atau Email 2) tidak ditemukan di sini.
+           Transaksi tanpa donor tetap ikut dicari lewat ID lamanya, supaya baris
+           yatim pun bisa ditemukan dan dibetulkan. */
         const teks = [teksCariDonor(d), f.donorId, f.kode,
       baris.map(function(x){ return programNama(x.id); }).join(' '),
       f.catatan, f.mataUang,
@@ -3879,6 +3891,10 @@ function viewKeuangan(){
      belum punya transaksi. */
   const donorCocok = (list.length || !rapiKata(finFilter.q)) ? [] :
     state.donors.filter(function(d){ return teksCariDonor(d).indexOf(rapiKata(finFilter.q)) >= 0; });
+  /* Transaksi yatim: menunjuk ID donor yang sudah tidak ada. Ini yang membuat
+     transaksi tidak bisa ditemukan lewat nama donor — nama donor tidak lagi
+     terhubung ke barisnya. */
+  const yatim = finTanpaDonor();
 
   /* Total per program, dipisah per mata uang supaya tidak salah jumlah. */
   const perProgram = state.programs.map(function(p){
@@ -3900,6 +3916,15 @@ function viewKeuangan(){
   }).join('');
 
   return '' +
+    (yatim.length
+      ? '<div class="card"><div class="warnbox"><b>⚠ ' + yatim.length + ' transaksi tidak terhubung ke donor.</b> ' +
+          'Transaksinya ada, tetapi menunjuk ID donor yang sudah tidak ada — jadi tidak bisa ditemukan ' +
+          'lewat nama donor dan kwitansinya kosong. Ini terjadi kalau ID donor diubah sebelum ' +
+          'aplikasi ikut memindahkan transaksi.' +
+          '<div class="btn-row" style="margin-top:10px">' +
+            '<button class="btn sm primary" data-action="fin-perbaiki-yatim">Perbaiki sekarang</button>' +
+          '</div></div></div>'
+      : '') +
   '<div class="card">' +
     '<div class="card-head"><h2>Ringkasan</h2>' +
       '<button class="btn sm primary" data-action="fin-baru">+ Tambah</button>' +
@@ -3985,7 +4010,11 @@ function viewKeuangan(){
                     (donorCocok.length > 5 ? ' · …' : '') +
                     '<div class="small muted" style="margin-top:10px">Catat transaksinya lewat <b>+ Tambah</b>, ' +
                       'lalu ketik nama donor itu di kotak <b>Donor</b>.</div></div>'
-                : '<div class="empty"><span class="big">◫</span>Belum ada transaksi yang cocok.</div>')) +
+                : '<div class="empty"><span class="big">◫</span>Belum ada transaksi yang cocok.' +
+                  (yatim.length
+                    ? '<div class="small" style="margin-top:10px">Ada <b>' + yatim.length + '</b> transaksi yang ' +
+                      'tidak terhubung ke donor — lihat kotak peringatan di atas.</div>'
+                    : '') + '</div>')) +
   '</div>';
 }
 
@@ -4394,6 +4423,77 @@ function hapusFin(id){
 }
 
 /* ---------- Master Program ---------- */
+/* Layar perbaikan transaksi yatim. Dibuat sederhana: satu baris per transaksi,
+   pemilih donor di tiap baris. Tidak ada perbaikan otomatis karena aplikasi
+   tidak bisa menebak donor yang dimaksud — menebak justru berbahaya. */
+function openPerbaikiYatim(){
+  const yatim = finTanpaDonor();
+  if(!yatim.length){
+    openModal({
+      title:'Tidak ada yang perlu diperbaiki',
+      body:'<p class="small">Semua transaksi sudah terhubung ke donor.</p>',
+      footer:'<button class="btn" data-close>Tutup</button>'
+    });
+    return;
+  }
+  const optsDonor = function(dipilih){
+    return '<option value="">— pilih donor —</option>' + state.donors.slice()
+      .sort(function(a,b){ return donorName(a).localeCompare(donorName(b), 'id', { sensitivity:'base' }); })
+      .map(function(d){
+        return '<option value="' + esc(d.id) + '"' + (dipilih === d.id ? ' selected' : '') + '>' +
+          esc(donorName(d)) + ' · ' + esc(d.id) + '</option>';
+      }).join('');
+  };
+  const body =
+    '<p class="small">Transaksi di bawah ini <b>tidak punya donor</b> — ID donornya sudah tidak ada. ' +
+      'Pilih donor yang benar untuk masing-masing, lalu tekan <b>Simpan perbaikan</b>. ' +
+      'Transaksi yang dibiarkan kosong tidak diubah.</p>' +
+    '<div class="stack">' + yatim.map(function(f, i){
+      const prog = (Array.isArray(f.program) ? f.program : []).map(function(x){
+        return esc(programNama(x.id));
+      }).join(', ') || '<span class="muted">tanpa program</span>';
+      return '<div class="card" style="padding:12px">' +
+        '<div class="row" style="flex-wrap:wrap;gap:8px">' +
+          '<span class="chip plain mono">' + esc(f.kode || '(tanpa kode)') + '</span>' +
+          '<span class="tiny muted mono">' + esc(f.tanggal || '—') + '</span>' +
+          '<span class="chip warn mono" title="ID donor yang tidak ada">' + esc(f.donorId || '(kosong)') + '</span>' +
+          '<span class="small" style="flex:1;min-width:120px">' + prog + '</span>' +
+          '<span class="mono">' + totalTransaksiHTML(f) + '</span>' +
+        '</div>' +
+        '<div class="field" style="margin-top:10px"><label>Donor untuk transaksi ini</label>' +
+          '<select class="grow" data-yatim="' + esc(f.id) + '">' + optsDonor('') + '</select></div>' +
+      '</div>';
+    }).join('') + '</div>';
+
+  openModal({
+    title:'Perbaiki transaksi tanpa donor (' + yatim.length + ')',
+    body: body,
+    wide: true,
+    footer:'<button class="btn primary" data-action="fin-perbaiki-yatim-simpan">Simpan perbaikan</button>' +
+           '<button class="btn" data-close>Batal</button>'
+  });
+}
+
+function simpanPerbaikiYatim(){
+  const root = document.getElementById('modal-root');
+  let n = 0;
+  root.querySelectorAll('[data-yatim]').forEach(function(sel){
+    const id = sel.getAttribute('data-yatim');
+    const donorId = sel.value;
+    if(!id || !donorId) return;                       /* dibiarkan kosong */
+    const f = state.finance.filter(function(x){ return x.id === id; })[0];
+    if(!f || !findDonor(donorId)) return;
+    f.donorId = donorId;
+    n++;
+  });
+  if(!n){ toast('Belum ada donor yang dipilih', true); return; }
+  save('finance');
+  catatAksi('ubah', 'keuangan', n + ' transaksi', 'dihubungkan ulang ke donor');
+  closeModal();
+  toast(n + ' transaksi dihubungkan ke donor');
+  render();
+}
+
 function openPrgKelola(){
   const body = (state.programs.length
     ? '<div class="stack">' + state.programs.map(function(p){
@@ -7414,6 +7514,8 @@ document.addEventListener('click', function(e){
     case 'fin-reset':
       finFilter = { q:'', program:'', uang:'', dari:'', sampai:'', kirim:'' };
       render(); break;
+        case 'fin-perbaiki-yatim': openPerbaikiYatim(); break;
+        case 'fin-perbaiki-yatim-simpan': simpanPerbaikiYatim(); break;
     case 'fin-baris-tambah': {
       const box = document.getElementById('k-program');
       if(box){
