@@ -5145,3 +5145,83 @@ Keduanya **hanya kelihatan dari gambar**, bukan dari membaca kode:
 - **Nama program di rincian** diambil dari daftar Program. Kalau nama program
   diubah, kwitansi yang **dibuat ulang** memakai nama baru; salinan kwitansi
   yang sudah terkirim tidak berubah (tersimpan sebagai HTML/PNG saat dikirim).
+
+---
+
+## 32. Kwitansi — ikon tanda tangan tidak boleh menimpa teks (18 November 2026)
+
+### 32.1 Permintaan
+
+> "tanda tangan dengan icon di gambar pasted image di lingkari merah"
+
+Yang dilingkari adalah blok tanda tangan (Jakarta, tanggal · kartidaya · Lidya
+Tambunan · Head of Finance, Accounting & Tax) **beserta ikon oranye** di
+sebelahnya.
+
+### 32.2 Yang ditemukan
+
+Gambar yang dikirim diukur piksel demi piksel, bukan dikira-kira:
+
+| Ukur | Nilai |
+|---|---|
+| Ujung kanan teks tanda tangan | x = 611 px |
+| Ikon oranye mulai | x = 622 px |
+| Puncak ikon | y = 409, sedangkan baris pertama teks y = 405 |
+
+Artinya ikon **masih menyentuh** batas kotak teks: selisih 11 px dengan lebar
+ikon 63 px. Di klien email yang tidak menghormati atribut `width` pada `<img>`
+(Outlook/Word dan beberapa webmail lama), ikon tampil pada ukuran aslinya
+(389×641 px) dan **menembus** teks — persis yang terlihat di gambar.
+
+Penyebab di kode: sel ikon hanya diberi `style="width:58px"` tanpa atribut
+`width`, gambar hanya diberi `width="52"` tanpa `height`, dan tidak ada
+`overflow:hidden`. Kolom teks juga tidak `nowrap`, sehingga bisa menyempit
+tanpa batas dan makin mendekat ke ikon.
+
+### 32.3 Perbaikan
+
+| Sebelum | Sesudah |
+|---|---|
+| `<td style="width:58px">` | `<td width="64" style="width:64px;overflow:hidden">` |
+| `<img width="52" style="max-width:52px">` | `<img width="48" height="79" style="width:48px;max-width:48px">` |
+| Teks tanda tangan tanpa `nowrap` | `white-space:nowrap` supaya kolom teks tidak menyempit liar |
+| Label baris (`Uang sejumlah`, `Terbilang`) bisa pecah jadi "Ua ng sej um lah" di layar HP | `white-space:nowrap` pada kolom label; kolom nilai `overflow-wrap:anywhere` |
+| Rincian program: nama & nominal dalam satu sel | dua sel terpisah — nama kiri, nominal rata kanan `nowrap` |
+
+Berkas gambar juga diperiksa lebih dulu: `vendor/kartidaya-icon.png` berukuran
+**389×641**. Tinggi 79 px di atas adalah hasil `48 × 641 / 389` — bukan angka
+kira-kira. Percobaan pertama saya memakai 52×52 (persegi) dan itu **malah
+memelarkan** ikon; langsung dibatalkan.
+
+### 32.4 Diuji pada kondisi terburuk
+
+Bukan hanya "tampil benar di browser saya". Kwitansi diuji pada lima lebar
+(340 / 400 / 520 / 720 / 1040 px) dengan tiga tingkat kerusakan klien email:
+
+| Kondisi | Hasil |
+|---|---|
+| Normal (atribut & gaya dihormati) | Ikon 48×79, teks berhenti 16 px sebelum ikon — tidak menimpa |
+| `max-width` diabaikan | Tetap 48×79 (lebar dari atribut `width`) — tidak menimpa |
+| **Semua** atribut lebar + gaya lebar dibuang | Ikon 389 px selebar selnya, teks 353 px — **tidak menimpa** karena `overflow:hidden` + `nowrap` |
+
+Pemeriksaan dilakukan dengan mengukur kotak nyata (`getBoundingClientRect`)
+lalu membandingkan `icon.left` dengan `text.right`, bukan dengan mata.
+
+### 32.5 Berkas
+
+| Berkas | Perubahan |
+|---|---|
+| `app.js` | `kwitansiHTML()`: sel ikon `width`+`overflow:hidden`, gambar `width`+`height`; teks tanda tangan `nowrap`; label baris `nowrap`; rincian program jadi dua sel. Helper `kwitansiBarisProgramHTML()` dipecah jadi `programUntukHTML.program()` / `.nilai()` |
+| `tes/uji-kwitansi-program.js` | 41 → **45** pemeriksaan; dua pemeriksaan lama yang mengunci bentuk lama diganti; tambah bagian **2b** (label tidak pecah) |
+
+### 32.6 Yang perlu Anda tahu
+
+- **Bentuk rincian berubah sedikit**: dulu "Beasiswa Anak Pelayan · Rp 450.000"
+  (satu baris dengan titik pemisah), sekarang nama di kiri dan nominal di kanan
+  dengan garis bawah masing-masing. Ini perlu karena pemisah `·` membuat
+  nominal ikut terpotong saat nama program panjang.
+- **Email yang sudah terkirim tidak berubah** — perbaikan berlaku untuk
+  kwitansi yang dibuat/dikirim setelah ini.
+- Kalau nanti ikon diganti lewat `settings.ikonUrl`, tinggi 79 px akan salah.
+  Untuk sementara ukuran itu ditulis tetap; kalau ikonnya diganti bentuk,
+  angka `height` perlu disesuaikan.

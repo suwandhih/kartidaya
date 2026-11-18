@@ -319,7 +319,9 @@ var PANDUAN = [
                'mata uang', 'riwayat kirim', 'kode kwitansi', 'donor masuk',
                'cari donor', 'tidak ditemukan', 'nama tidak ditemukan', 'pencarian',
                'tanpa donor', 'yatim', 'id lama', 'perbaiki transaksi',
-               'rincian program', 'per program', 'terbilang', 'logo', 'ikon'],
+                              'rincian program', 'per program', 'terbilang', 'logo', 'ikon',
+                              'tanda tangan', 'ttd', 'menimpa', 'tumpang tindih', 'nowrap',
+                              'pecah baris', 'outlook', 'gambar melar'],
     isi: '' +
       '<p class="pd-lead">Kwitansi yang dikirim ke donor <b>mengambil angkanya dari ' +
         'menu Keuangan</b>. Tanpa catatan di sini, kwitansi akan berisi Rp 0.</p>' +
@@ -365,6 +367,9 @@ var PANDUAN = [
         '<p>Di sisi kanan blok tanda tangan ada <b>ikon Kartidaya</b>. Kalau ikon atau logo ' +
         'tidak tampil di email donor, itu bukan kesalahan data — gambar tidak dimuat ' +
         '(lihat bab <b>Mengirim email</b>).</p>' +
+                '<p>Nama program ditaruh di kiri dan nominalnya <b>rata kanan</b>, jadi nominal ' +
+                'tetap terbaca walau nama programnya panjang. Di layar HP, label seperti ' +
+                '<b>Uang sejumlah</b> tetap satu baris (tidak pecah jadi "Ua ng sej um lah").</p>' +
 
       '<div class="warnbox"><b>Kalau satu transaksi memuat lebih dari satu mata uang:</b> ' +
         'rincian per program <b>tidak</b> digabung lintas mata uang. Baris <b>Uang sejumlah</b> ' +

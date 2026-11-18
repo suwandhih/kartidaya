@@ -365,16 +365,21 @@ function dataKwitansi(d, finId){
     catatan: f ? (f.catatan || '') : ''
   };
 }
-/* Satu baris rincian program untuk kwitansi: nama · simbol jumlah.
-   Contoh: "Beasiswa Anak Pelayan · Rp 450.000". */
-function kwitansiBarisProgramHTML(x){
-  const u = x.mataUang || 'IDR';
-  const nama = String(x.nama || '').trim();
-  return (nama ? esc(nama) + '<span style="color:#888"> &middot; </span>' : '') +
-    '<span style="color:#444">' + esc(uangInfo(u).simbol) + '</span>' +
-    '<span style="display:inline-block;min-width:74px;text-align:right;' +
-      'padding-left:6px">' + esc(angkaUang(x.jumlah, u)) + '</span>';
-}
+/* Rincian program untuk kwitansi, dipecah dua bagian supaya nama program dan
+   nominalnya bisa ditaruh di sel tabel yang berbeda — nominal selalu rata kanan
+   dan tidak ikut terpotong saat nama program panjang. */
+const programUntukHTML = {
+  program: function(x){
+    const nama = String(x.nama || '').trim();
+    return nama ? esc(nama) : '<span style="color:#888">Pelayanan Kartidaya</span>';
+  },
+  nilai: function(x){
+    const u = x.mataUang || 'IDR';
+    return '<span style="color:#444">' + esc(uangInfo(u).simbol) + '</span>' +
+      '<span style="display:inline-block;min-width:74px;text-align:right;' +
+        'padding-left:6px;font-weight:bold">' + esc(angkaUang(x.jumlah, u)) + '</span>';
+  }
+};
 /* HTML kwitansi. Semua gaya ditulis inline karena klien email membuang <style>.
    `opsi` boleh memuat { kodeKiriman, waktuKirim } — dua hal ini dicetak di
    kwitansi supaya user bisa mencocokkan dengan catatannya sendiri. */
@@ -388,9 +393,13 @@ function kwitansiHTML(d, bahasa, finId, opsi){
   const ikon = state.settings.ikonUrl || 'vendor/kartidaya-icon.png';
   const ikonAbs = /^https?:/i.test(ikon) ? ikon : new URL(ikon, location.href).href;
   const garis = 'border-bottom:1px solid #333;';
-  const label = 'width:150px;vertical-align:top;padding:7px 0;font-weight:bold;font-size:13px;';
+  /* "nowrap" pada label & titik dua penting: tanpa itu kolom label yang sempit
+       memecah "Uang sejumlah" jadi "Ua ng sej um lah" di layar HP. Lebarnya
+       ditulis sebagai atribut (bukan hanya gaya) supaya klien email lama ikut
+       menghormatinya. */
+    const label = 'width:150px;vertical-align:top;padding:7px 0;font-weight:bold;font-size:13px;white-space:nowrap;';
   const titik = 'width:14px;vertical-align:top;padding:7px 0;font-size:13px;';
-  const isi = 'vertical-align:top;padding:7px 0;font-size:13px;' + garis;
+    const isi = 'vertical-align:top;padding:7px 0;font-size:13px;overflow-wrap:anywhere;' + garis;
   const baris = function(l, v){
     return '<tr><td style="' + label + '">' + esc(l) + '</td>' +
       '<td style="' + titik + '">:</td>' +
@@ -413,16 +422,23 @@ function kwitansiHTML(d, bahasa, finId, opsi){
   }).join('');
   /* "Untuk": SATU BARIS PER PROGRAM, masing-masing bergaris bawah sendiri —
      sesuai contoh klien. Nominalnya tidak dijumlahkan di sini; totalnya ada di
-     baris Terbilang di bawah. Transaksi tanpa program tetap tampil satu baris. */
+       baris Terbilang di bawah. Nama program & nominal ditaruh di dua sel
+       terpisah supaya nominal selalu rata kanan dan tidak ikut terpotong. */
   const isiUntuk = k.baris.length
     ? '<table cellpadding="0" cellspacing="0" border="0" width="100%">' +
         k.baris.map(function(x){
-          return '<tr><td style="font-size:13px;padding:4px 0;' + garis + '">' +
-            kwitansiBarisProgramHTML(x) + '</td></tr>';
+            return '<tr>' +
+              '<td style="font-size:13px;padding:4px 0;vertical-align:bottom;' + garis + '">' +
+                programUntukHTML.program(x) + '</td>' +
+              '<td style="padding:4px 0;vertical-align:bottom;text-align:right;' +
+                'white-space:nowrap;' + garis + '">' +
+                programUntukHTML.nilai(x) + '</td>' +
+            '</tr>';
         }).join('') + '</table>'
     : esc('Pelayanan Kartidaya Sahabat');
   const barisTerbilang = kode.map(function(u){
-    return '<tr><td style="width:150px;padding:10px 0 0;font-weight:bold;font-size:13px">' +
+      return '<tr><td style="width:150px;padding:10px 0 0;font-weight:bold;font-size:13px;' +
+          'white-space:nowrap">' +
         esc(L.terbilang) + (kode.length > 1 ? ' (' + esc(u) + ')' : '') + '</td>' +
       '<td style="width:14px;padding:10px 0 0;font-size:13px">:</td>' +
       '<td style="padding:10px 0 0">' +
@@ -440,8 +456,9 @@ function kwitansiHTML(d, bahasa, finId, opsi){
     'font-family:Arial,Helvetica,sans-serif;color:#111;background:#fff">' +
     '<tr><td style="padding:16px 18px 6px">' +
       '<table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>' +
-        '<td style="width:150px;vertical-align:middle">' +
-          '<img src="' + esc(logoAbs) + '" alt="Kartidaya" width="140" style="display:block;border:0;max-width:140px">' +
+        '<td width="150" style="width:150px;vertical-align:middle">' +
+                  '<img src="' + esc(logoAbs) + '" alt="Kartidaya" width="140" ' +
+                    'style="display:block;border:0;max-width:140px">' +
         '</td>' +
         '<td style="vertical-align:middle;text-align:center">' +
           '<div style="font-family:Georgia,\'Times New Roman\',serif;font-size:21px;font-weight:bold;' +
@@ -458,20 +475,25 @@ function kwitansiHTML(d, bahasa, finId, opsi){
         baris(L.untuk, isiUntuk) +
         barisTerbilang +
         /* Tanda tangan: teks rata kanan, ikon "K" di sisi paling kanan —
-           mengikuti contoh klien. Ikon diletakkan sebaris dengan teksnya
-           supaya tetap rapi walau lebar layar berbeda. */
+           mengikuti contoh klien. Tiga hal yang membuat ikon TIDAK menimpa
+           teks (sebelumnya bisa, di klien email yang mengabaikan lebar):
+           1. sel ikon diberi `width` atribut (bukan hanya gaya),
+           2. `white-space:nowrap` supaya kolom teks tidak menyempit liar,
+           3. `overflow:hidden` pada sel ikon supaya gambar tidak melar
+              melewati batasnya walau atribut width diabaikan. */
         '<tr><td colspan="3" style="padding:12px 0 0">' +
           '<table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>' +
-            '<td style="font-size:13px;vertical-align:middle;text-align:right">' +
+            '<td style="font-size:13px;vertical-align:middle;text-align:right;white-space:nowrap">' +
               esc(L.kota) + ', ' + esc(tanggalKwitansi(k.tanggal)) + '<br>' +
               '<span style="font-family:Georgia,serif;font-size:17px;color:#2f6f9f;' +
                 'font-weight:bold">kartidaya</span><br>' +
               '<span style="font-size:12px;font-weight:bold">Lidya Tambunan</span><br>' +
               '<span style="font-size:11px;color:#444">Head of Finance, Accounting &amp; Tax</span>' +
             '</td>' +
-            '<td style="width:58px;vertical-align:middle;text-align:right">' +
-              '<img src="' + esc(ikonAbs) + '" alt="" width="52" ' +
-                'style="display:block;border:0;max-width:52px;margin-left:auto">' +
+            '<td width="64" style="width:64px;vertical-align:middle;text-align:right;' +
+              'overflow:hidden">' +
+                          '<img src="' + esc(ikonAbs) + '" alt="" width="48" height="79" ' +
+                            'style="display:block;border:0;width:48px;max-width:48px;margin-left:auto">' +
             '</td>' +
           '</tr></table>' +
         '</td></tr>' +
