@@ -389,9 +389,12 @@ function kwitansiHTML(d, bahasa, finId, opsi){
   const k = dataKwitansi(d, finId);
   const logo = state.settings.logoUrl || 'vendor/kartidaya-logo.png';
   const logoAbs = /^https?:/i.test(logo) ? logo : new URL(logo, location.href).href;
-  /* Ikon "K" Kartidaya — dipakai di blok tanda tangan, sesuai contoh klien. */
-  const ikon = state.settings.ikonUrl || 'vendor/kartidaya-icon.png';
-  const ikonAbs = /^https?:/i.test(ikon) ? ikon : new URL(ikon, location.href).href;
+  /* Blok tanda tangan (kartidaya / Lidya Tambunan / Head of Finance) dipasang
+     sebagai SATU GAMBAR UTUH, bukan teks. Tiga baris itu tidak pernah berubah,
+     dan ikon Kartidaya memang MENIMPA teksnya — persis seperti contoh klien.
+     Bisa diganti lewat settings.ttdUrl. */
+  const ttd = state.settings.ttdUrl || 'vendor/kartidaya-ttd.png';
+  const ttdAbs = /^https?:/i.test(ttd) ? ttd : new URL(ttd, location.href).href;
   const garis = 'border-bottom:1px solid #333;';
   /* "nowrap" pada label & titik dua penting: tanpa itu kolom label yang sempit
        memecah "Uang sejumlah" jadi "Ua ng sej um lah" di layar HP. Lebarnya
@@ -474,28 +477,19 @@ function kwitansiHTML(d, bahasa, finId, opsi){
         kosong +
         baris(L.untuk, isiUntuk) +
         barisTerbilang +
-        /* Tanda tangan: teks rata kanan, ikon "K" di sisi paling kanan —
-           mengikuti contoh klien. Tiga hal yang membuat ikon TIDAK menimpa
-           teks (sebelumnya bisa, di klien email yang mengabaikan lebar):
-           1. sel ikon diberi `width` atribut (bukan hanya gaya),
-           2. `white-space:nowrap` supaya kolom teks tidak menyempit liar,
-           3. `overflow:hidden` pada sel ikon supaya gambar tidak melar
-              melewati batasnya walau atribut width diabaikan. */
-        '<tr><td colspan="3" style="padding:12px 0 0">' +
-          '<table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>' +
-            '<td style="font-size:13px;vertical-align:middle;text-align:right;white-space:nowrap">' +
-              esc(L.kota) + ', ' + esc(tanggalKwitansi(k.tanggal)) + '<br>' +
-              '<span style="font-family:Georgia,serif;font-size:17px;color:#2f6f9f;' +
-                'font-weight:bold">kartidaya</span><br>' +
-              '<span style="font-size:12px;font-weight:bold">Lidya Tambunan</span><br>' +
-              '<span style="font-size:11px;color:#444">Head of Finance, Accounting &amp; Tax</span>' +
-            '</td>' +
-            '<td width="64" style="width:64px;vertical-align:middle;text-align:right;' +
-              'overflow:hidden">' +
-                          '<img src="' + esc(ikonAbs) + '" alt="" width="48" height="79" ' +
-                            'style="display:block;border:0;width:48px;max-width:48px;margin-left:auto">' +
-            '</td>' +
-          '</tr></table>' +
+        /* Tanda tangan: "Jakarta, <tanggal>" sebagai teks (tanggalnya berubah),
+                   lalu tiga baris tetap (kartidaya / Lidya Tambunan / Head of Finance)
+                   dipasang sebagai SATU GAMBAR UTUH — ikonnya memang menimpa teks,
+                   sama seperti contoh klien. Gambar dibuat lebih kecil dari kolomnya
+                   supaya tidak pernah melar walau klien email mengabaikan lebar. */
+                '<tr><td colspan="3" style="padding:12px 0 0;text-align:right">' +
+                  '<div style="font-size:13px;white-space:nowrap">' +
+                    esc(L.kota) + ', ' + esc(tanggalKwitansi(k.tanggal)) + '</div>' +
+                  '<img src="' + esc(ttdAbs) + '" alt="kartidaya — Lidya Tambunan, ' +
+                    'Head of Finance, Accounting &amp; Tax" ' +
+                    'width="262" height="84" ' +
+                    'style="display:inline-block;border:0;width:262px;max-width:262px;' +
+                    'margin-top:2px">' +
         '</td></tr>' +
         '<tr><td colspan="3" style="padding:8px 0 0;font-size:10.5px;color:#666">' +
           'No. ' + esc(k.nomor) + (k.ada ? '' : ' — belum ada transaksi keuangan untuk donor ini') +
@@ -667,22 +661,19 @@ function gambarKwitansi(ctx, d, bahasa, finId, opsi, ukurSaja){
     y += 30;
   });
 
-  /* --- Tempat & tanggal, lalu tanda tangan + ikon "K" di kanan ---
-     Ikon memakan ruang 52 px di kanan, jadi semua teks tanda tangan
-     diakhiri di x1 - 64 supaya tidak tertimpa. */
-  const xTtd = x1 - 64;
-  teks(L.kota + ', ' + tanggalKwitansi(k.tanggal), xTtd, y + 16, 13, false, '#111', 'right');
-  y += 30;
-  teks('kartidaya', xTtd, y + 20, 19, true, '#2f6f9f', 'right', true);
-  teks('Lidya Tambunan', xTtd, y + 38, 12, true, '#111', 'right');
-  teks('Head of Finance, Accounting & Tax', xTtd, y + 53, 11, false, '#444', 'right');
-  /* Ikon digambar di sisi paling kanan, sebaris dengan blok tanda tangan. */
-  const ikonH = (opsi.ikon && opsi.ikon.width)
-    ? Math.round(46 * opsi.ikon.height / opsi.ikon.width) : 0;
-  if(opsi.ikon && !ukurSaja){
-    ctx.drawImage(opsi.ikon, x1 - 44, y + 2, 44, ikonH);
+  /* --- Tempat & tanggal, lalu blok tanda tangan sebagai GAMBAR UTUH ---
+     Gambar memuat tiga baris tetap (kartidaya / Lidya Tambunan / Head of
+     Finance) beserta ikon yang menimpanya. Ditepikan ke kanan; lebar tetap
+     200 px supaya tidak berubah-ubah. */
+  const ttdW = 262;
+  const ttdH = (opsi.ttd && opsi.ttd.width)
+    ? Math.round(ttdW * opsi.ttd.height / opsi.ttd.width) : 0;
+  teks(L.kota + ', ' + tanggalKwitansi(k.tanggal), x1, y + 16, 13, false, '#111', 'right');
+  y += 26;
+  if(opsi.ttd && !ukurSaja){
+    ctx.drawImage(opsi.ttd, x1 - ttdW, y, ttdW, ttdH);
   }
-  y += Math.max(66, ikonH + 8);
+  y += Math.max(ttdH, 64) + 10;
 
   /* --- Kaki: nomor, kode, dan cara menghubungi kalau ada kekeliruan --- */
   y += 4;
@@ -717,16 +708,16 @@ async function kwitansiCanvas(d, bahasa, finId, opsi){
   opsi = opsi || {};
   const logo = state.settings.logoUrl || 'vendor/kartidaya-logo.png';
   const logoAbs = /^https?:/i.test(logo) ? logo : new URL(logo, location.href).href;
-  const ikon = state.settings.ikonUrl || 'vendor/kartidaya-icon.png';
-  const ikonAbs = /^https?:/i.test(ikon) ? ikon : new URL(ikon, location.href).href;
-  /* Logo dan ikon dimuat bersamaan; kalau salah satu gagal, kwitansi tetap
-     digambar tanpa gambar itu — jangan sampai kwitansi gagal dibuat hanya
-     karena gambar tidak terbaca. */
-  const gambar = await Promise.all([muatGambar(logoAbs), muatGambar(ikonAbs)]);
+  const ttd = state.settings.ttdUrl || 'vendor/kartidaya-ttd.png';
+    const ttdAbs = /^https?:/i.test(ttd) ? ttd : new URL(ttd, location.href).href;
+    /* Logo dan tanda tangan dimuat bersamaan; kalau salah satu gagal, kwitansi
+       tetap digambar tanpa gambar itu — jangan sampai kwitansi gagal dibuat
+       hanya karena gambar tidak terbaca. */
+    const gambar = await Promise.all([muatGambar(logoAbs), muatGambar(ttdAbs)]);
   const S = opsi.skala || 2;
   const ukur = document.createElement('canvas').getContext('2d');
   const tinggi = Math.ceil(gambarKwitansi(ukur, d, bahasa, finId,
-    { logo:gambar[0], ikon:gambar[1] }, true));
+      { logo:gambar[0], ttd:gambar[1] }, true));
   const cv = document.createElement('canvas');
   cv.width = PNG_LEBAR * S;
   cv.height = tinggi * S;
@@ -734,7 +725,7 @@ async function kwitansiCanvas(d, bahasa, finId, opsi){
   ctx.scale(S, S);
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, PNG_LEBAR, tinggi);
-  gambarKwitansi(ctx, d, bahasa, finId, { logo:gambar[0], ikon:gambar[1] }, false);
+    gambarKwitansi(ctx, d, bahasa, finId, { logo:gambar[0], ttd:gambar[1] }, false);
   return cv;
 }
 

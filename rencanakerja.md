@@ -5225,3 +5225,73 @@ lalu membandingkan `icon.left` dengan `text.right`, bukan dengan mata.
 - Kalau nanti ikon diganti lewat `settings.ikonUrl`, tinggi 79 px akan salah.
   Untuk sementara ukuran itu ditulis tetap; kalau ikonnya diganti bentuk,
   angka `height` perlu disesuaikan.
+
+---
+
+## 33. Koreksi bab 32 — tanda tangan dipasang sebagai gambar utuh (18 November 2026)
+
+### 33.1 Saya salah membaca permintaan
+
+Di bab 32 saya menganggap ikon yang menimpa teks adalah **cacat**, lalu
+memisahkan ikon ke kolomnya sendiri. Ternyata maksud Anda sebaliknya:
+
+> "salah harusnya menimpa.. bagaimana tinggal memasukan pasted image karena
+> dari kata kartidaya lidya Tambunan Head of Finance itu tidak berubah ... jadi
+> dimasuk secara utuh"
+
+Jadi: **ikon memang harus menimpa teks**, dan karena tiga baris itu
+(kartidaya / Lidya Tambunan / Head of Finance, Accounting & Tax) **tidak pernah
+berubah**, tidak perlu disusun ulang dari teks — cukup pasang gambar yang sudah
+jadi.
+
+### 33.2 Yang dikerjakan
+
+| Sebelum (bab 31–32) | Sesudah |
+|---|---|
+| Tiga baris ditulis sebagai teks HTML (`<span>` per baris) + ikon di kolom terpisah | Satu `<img>` berisi ketiga baris **beserta** ikon yang menimpanya |
+| Ukuran ikon 48×79 (dipaksa kecil supaya tidak menimpa) | Gambar 262×84 px, menimpa teks sebagaimana contoh |
+| `settings.ikonUrl` | `settings.ttdUrl` |
+| Aset `vendor/kartidaya-icon.png` (389×641, ikon saja) | Aset `vendor/kartidaya-ttd.png` (536×171, tanda tangan utuh) |
+
+Tanggal (`Jakarta, 11 November 2026`) **tetap teks**, karena berubah tiap
+kwitansi. Hanya tiga baris tetap yang jadi gambar.
+
+### 33.3 Aset dibuat dari gambar yang Anda kirim
+
+| Langkah | Hasil |
+|---|---|
+| Gambar asli | 566 × 192 px |
+| Diukur isinya | x 20–549, y 13–177 (ada margin putih) |
+| Dipangkas + padding 3 px | **536 × 171 px** → `vendor/kartidaya-ttd.png` (23.091 byte) |
+| Ditampilkan | 262 × 84 px (rasio tetap 536:171) |
+
+Warna teksnya diperiksa: hitam murni `#000000`, bukan biru seperti teks lama
+(`#2f6f9f`). Ini sesuai gambar yang Anda kirim.
+
+### 33.4 Berkas
+
+| Berkas | Perubahan |
+|---|---|
+| `app.js` | `kwitansiHTML()`: blok tanda tangan jadi satu `<img>` (262×84) di dalam sel rata kanan, tanggal tetap teks. `gambarKwitansi()` (PNG): `opsi.ttd` menggambar gambar utuh 262 px di kanan. `kwitansiCanvas()`: memuat `kartidaya-ttd.png`. `settings.ikonUrl` → `settings.ttdUrl` |
+| `vendor/kartidaya-ttd.png` | **Baru** — tanda tangan utuh hasil pangkas gambar klien |
+| `panduan.js` | Penjelasan blok tanda tangan sebagai gambar utuh + kata kunci `gambar tanda tangan` |
+| `tes/uji-kwitansi-program.js` | Pemeriksaan ikon diganti pemeriksaan gambar tanda tangan (44 pemeriksaan) |
+
+### 33.5 Diuji
+
+| Pemeriksaan | Hasil |
+|---|---|
+| Gambar termuat (`img.complete`, natural 536×171) | ya |
+| Ukuran tampil 262×84 di lebar 360 / 420 / 560 / 720 / 1040 px | tetap, tidak melar |
+| Selalu muat di dalam selnya | ya, di semua lebar |
+| Render PNG (WhatsApp) | diperiksa langsung — ikon menimpa teks seperti contoh |
+
+### 33.6 Yang perlu Anda tahu
+
+- `vendor/kartidaya-icon.png` **masih ada** di repo tapi tidak dipakai lagi.
+  Boleh dihapus kalau tidak diperlukan.
+- Kalau nanti tanda tangan berganti orang, cukup ganti
+  `vendor/kartidaya-ttd.png` (atau isi `settings.ttdUrl`) — tidak perlu ubah kode.
+- Gambar tanda tangan **tidak tajam** kalau diperbesar, karena sumbernya 536 px
+  dan ditampilkan 262 px. Itu sudah 2× kerapatan, jadi cukup tajam di layar
+  biasa maupun HP.

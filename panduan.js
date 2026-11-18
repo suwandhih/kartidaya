@@ -321,7 +321,7 @@ var PANDUAN = [
                'tanpa donor', 'yatim', 'id lama', 'perbaiki transaksi',
                               'rincian program', 'per program', 'terbilang', 'logo', 'ikon',
                               'tanda tangan', 'ttd', 'menimpa', 'tumpang tindih', 'nowrap',
-                              'pecah baris', 'outlook', 'gambar melar'],
+                              'pecah baris', 'outlook', 'gambar melar', 'gambar tanda tangan'],
     isi: '' +
       '<p class="pd-lead">Kwitansi yang dikirim ke donor <b>mengambil angkanya dari ' +
         'menu Keuangan</b>. Tanpa catatan di sini, kwitansi akan berisi Rp 0.</p>' +
@@ -364,9 +364,12 @@ var PANDUAN = [
         '<p>Jadi donor bisa melihat dukungannya <b>per program</b>, bukan hanya totalnya. ' +
         'Totalnya tetap ada di baris <b>Terbilang</b> di bawah, karena itulah jumlah yang ' +
         'sah untuk kwitansi.</p>' +
-        '<p>Di sisi kanan blok tanda tangan ada <b>ikon Kartidaya</b>. Kalau ikon atau logo ' +
-        'tidak tampil di email donor, itu bukan kesalahan data — gambar tidak dimuat ' +
-        '(lihat bab <b>Mengirim email</b>).</p>' +
+        '<p>Blok tanda tangan — <b>kartidaya / Lidya Tambunan / Head of Finance, Accounting ' +
+                '&amp; Tax</b> — dipasang sebagai <b>satu gambar utuh</b>, termasuk ikon Kartidaya ' +
+                'yang menimpa tulisannya. Karena ketiga baris itu tidak pernah berubah, gambarnya ' +
+                'tidak perlu disusun ulang dari teks. Tanggal di atasnya tetap ditulis sebagai teks ' +
+                'karena berubah tiap kwitansi. Kalau ikon atau logo tidak tampil di email donor, itu ' +
+                'bukan kesalahan data — gambar tidak dimuat (lihat bab <b>Mengirim email</b>).</p>' +
                 '<p>Nama program ditaruh di kiri dan nominalnya <b>rata kanan</b>, jadi nominal ' +
                 'tetap terbaca walau nama programnya panjang. Di layar HP, label seperti ' +
                 '<b>Uang sejumlah</b> tetap satu baris (tidak pecah jadi "Ua ng sej um lah").</p>' +
