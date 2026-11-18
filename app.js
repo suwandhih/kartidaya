@@ -1495,6 +1495,20 @@ async function copyText(t){
   }
 }
 function donorLabel(d){ return (d.panggilan ? d.panggilan + ' ' : '') + donorName(d); }
+/* Bentuk teks yang dipakai untuk SEMUA pencarian: huruf kecil, spasi
+   dirapatkan. Tanpa ini, kata yang diketik dengan spasi berlebih (mis.
+   "ferry  " hasil koreksi otomatis di HP) tidak menemukan apa pun. */
+function rapiKata(s){
+  return String(s === null || s === undefined ? '' : s).toLowerCase().replace(/\s+/g, ' ').trim();
+}
+/* Satu daftar kolom donor untuk pencarian, dipakai halaman Donor DAN halaman
+   Keuangan. Dulu kedua halaman menyusun daftarnya sendiri, sehingga ada kolom
+   yang bisa ditemukan di Donor tetapi tidak ditemukan di Keuangan. */
+function teksCariDonor(d){
+  if(!d) return '';
+  return rapiKata([d.id, d.pic, d.namaLengkap, d.instansi, d.panggilan,
+    d.email, d.email2, d.hp1, d.hp2, d.kategori, d.alamat].join(' '));
+}
 function findDonor(id){
   for(let i = 0; i < state.donors.length; i++) if(state.donors[i].id === id) return state.donors[i];
   return null;
@@ -2225,12 +2239,11 @@ let donorFilter = { q:'', kategori:'', sort:'id' };
 
 function viewDonor(){
   setTitle('Donor','Setiap donor punya riwayat surat sendiri');
-  const q = donorFilter.q.toLowerCase();
+  const q = rapiKata(donorFilter.q);
   let list = state.donors.filter(function(d){
     if(donorFilter.kategori && d.kategori !== donorFilter.kategori) return false;
     if(!q) return true;
-    return [d.id,d.pic,d.namaLengkap,d.instansi,d.email,d.email2,d.hp1,d.hp2,d.kategori,d.alamat]
-      .join(' ').toLowerCase().indexOf(q) >= 0;
+        return teksCariDonor(d).indexOf(q) >= 0;
   });
   const sorters = {
     id:      function(a,b){ return String(a.id).localeCompare(String(b.id)); },
@@ -2249,7 +2262,7 @@ function viewDonor(){
 
   return '' +
   '<div class="toolbar">' +
-    '<input type="search" class="grow" id="f-q" placeholder="Cari nama, instansi, email, alamat, ID…" value="' + esc(donorFilter.q) + '">' +
+    '<input type="search" class="grow" id="fd-q" placeholder="Cari nama, instansi, email, alamat, ID…" value="' + esc(donorFilter.q) + '">' +
     '<select id="f-kat" style="max-width:190px">' + katOpts + '</select>' +
     '<select id="f-sort" style="max-width:160px">' +
       '<option value="id"' + (donorFilter.sort==='id'?' selected':'') + '>Urut ID</option>' +
@@ -3823,7 +3836,7 @@ function bindAkun(){
 let finFilter = { q:'', program:'', uang:'', dari:'', sampai:'', kirim:'' };
 
 function finList(){
-  const q = finFilter.q.toLowerCase();
+  const q = rapiKata(finFilter.q);
   return state.finance.filter(function(f){
     /* Transaksi lama tidak punya array `program` — hanya `mataUang` + `jumlah`.
        Tanpa cabang di bawah, transaksi seperti itu hilang dari daftar begitu
@@ -3843,11 +3856,15 @@ function finList(){
     }
     if(!q) return true;
     const d = findDonor(f.donorId);
-    const teks = [f.donorId, f.kode, d ? donorName(d) : '', d ? d.kategori : '',
+        /* Pencarian memakai kolom yang SAMA dengan halaman Donor (teksCariDonor).
+           Sebelumnya hanya nama PIC, kategori, program, catatan & mata uang yang
+           dicari — jadi nama yang bisa ditemukan di halaman Donor (mis. dari
+           Nama Lengkap, instansi, nomor HP, atau Email 2) tidak ditemukan di sini. */
+        const teks = [teksCariDonor(d), f.donorId, f.kode,
       baris.map(function(x){ return programNama(x.id); }).join(' '),
       f.catatan, f.mataUang,
-      Object.keys(totalPerUangTransaksi(f)).join(' ')].join(' ').toLowerCase();
-    return teks.indexOf(q) >= 0;
+          Object.keys(totalPerUangTransaksi(f)).join(' ')].join(' ');
+        return rapiKata(teks).indexOf(q) >= 0;
   }).sort(function(a,b){ return String(b.tanggal || '').localeCompare(String(a.tanggal || '')); });
 }
 
@@ -3856,6 +3873,12 @@ function viewKeuangan(){
   const list = finList();
   const total = totalPerUang(list);
   const kodeUang = Object.keys(total).sort();
+  /* Kalau pencarian tidak menemukan transaksi, periksa apakah yang dicari itu
+     NAMA DONOR. Tanpa ini, layar hanya berkata "belum ada transaksi" dan
+     pengguna mengira nama donor tidak dikenali — padahal donornya ada, hanya
+     belum punya transaksi. */
+  const donorCocok = (list.length || !rapiKata(finFilter.q)) ? [] :
+    state.donors.filter(function(d){ return teksCariDonor(d).indexOf(rapiKata(finFilter.q)) >= 0; });
 
   /* Total per program, dipisah per mata uang supaya tidak salah jumlah. */
   const perProgram = state.programs.map(function(p){
@@ -3953,7 +3976,16 @@ function viewKeuangan(){
                 '<button class="btn sm ghost" data-action="fin-hapus" data-id="' + esc(f.id) + '">Hapus</button>' +
               '</td></tr>';
           }).join('') + '</tbody></table></div>'
-      : '<div class="empty"><span class="big">◫</span>Belum ada transaksi yang cocok.</div>') +
+      : (donorCocok.length
+                ? '<div class="empty"><span class="big">◫</span>' +
+                    '<b>' + donorCocok.length + ' donor ditemukan, tetapi belum punya transaksi.</b><br>' +
+                    donorCocok.slice(0, 5).map(function(d){
+                      return esc(donorName(d)) + ' <span class="mono muted">' + esc(d.id) + '</span>';
+                    }).join(' · ') +
+                    (donorCocok.length > 5 ? ' · …' : '') +
+                    '<div class="small muted" style="margin-top:10px">Catat transaksinya lewat <b>+ Tambah</b>, ' +
+                      'lalu ketik nama donor itu di kotak <b>Donor</b>.</div></div>'
+                : '<div class="empty"><span class="big">◫</span>Belum ada transaksi yang cocok.</div>')) +
   '</div>';
 }
 
@@ -4043,11 +4075,10 @@ function abjadDari(nama){
 
 /* Daftar donor diurutkan per abjad nama, lalu dikelompokkan. */
 function donorPerAbjad(q){
-  const kata = String(q || '').trim().toLowerCase();
+  const kata = rapiKata(q);
   const list = state.donors.filter(function(d){
     if(!kata) return true;
-    return [d.id, d.pic, d.namaLengkap, d.instansi, donorName(d)]
-      .join(' ').toLowerCase().indexOf(kata) >= 0;
+    return teksCariDonor(d).indexOf(kata) >= 0;
   }).sort(function(a, b){
     return donorName(a).localeCompare(donorName(b), 'id', { sensitivity:'base' });
   });
@@ -5646,9 +5677,15 @@ function saveDonorFromForm(isNew, oldId){
     if(oldId !== f.id){
       state.messages.forEach(function(m){ if(m.donorId === oldId) m.donorId = f.id; });
       save('messages');
-        catatAksi('ubah', 'donor', f.id, 'ID diubah dari ' + oldId);
-      }else{
-        catatAksi('ubah', 'donor', f.id, donorName(f));
+          /* Transaksi keuangan juga harus ikut pindah. Kalau tidak, baris
+             keuangannya menunjuk ID yang sudah tidak ada — kwitansinya kosong dan
+             transaksi itu tidak lagi ditemukan lewat pencarian nama. */
+          let fin = 0;
+          state.finance.forEach(function(x){ if(x.donorId === oldId){ x.donorId = f.id; fin++; } });
+          if(fin) save('finance');
+          catatAksi('ubah', 'donor', f.id, 'ID diubah dari ' + oldId + (fin ? ' (+' + fin + ' transaksi)' : ''));
+        }else{
+          catatAksi('ubah', 'donor', f.id, donorName(f));
     }
     toast('Donor ' + f.id + ' diperbarui');
   }
@@ -5660,12 +5697,19 @@ function deleteDonor(id){
   const d = findDonor(id);
   if(!d) return;
   const n = state.messages.filter(function(m){ return m.donorId === id; }).length;
+  /* Transaksi keuangan ikut dihapus: kalau tertinggal, barisnya menunjuk ID
+     yang sudah tidak ada — tidak bisa dibuka, tidak punya nama, dan kwitansinya
+     kosong. Jumlahnya disebut di konfirmasi supaya tidak terhapus diam-diam. */
+  const nf = state.finance.filter(function(f){ return f.donorId === id; }).length;
   if(!confirm('Hapus donor ' + donorName(d) + ' (' + id + ')?' +
-      (n ? '\n' + n + ' surat di riwayatnya juga akan dihapus.' : ''))) return;
+      (n ? '\n' + n + ' surat di riwayatnya juga akan dihapus.' : '') +
+      (nf ? '\n' + nf + ' transaksi keuangan donor ini juga akan dihapus.' : ''))) return;
   state.donors = state.donors.filter(function(x){ return x.id !== id; });
   state.messages = state.messages.filter(function(m){ return m.donorId !== id; });
-  save('donors'); save('messages');
-  catatAksi('hapus', 'donor', id, donorName(d) + (n ? ' (+' + n + ' surat)' : ''));
+  state.finance = state.finance.filter(function(f){ return f.donorId !== id; });
+  save('donors'); save('messages'); save('finance');
+  catatAksi('hapus', 'donor', id, donorName(d) + (n ? ' (+' + n + ' surat)' : '') +
+    (nf ? ' (+' + nf + ' transaksi)' : ''));
   closeModal();
   toast('Donor dihapus');
   render();
@@ -7747,10 +7791,20 @@ document.addEventListener('change', function(e){
 });
 
 document.addEventListener('input', function(e){
-  if(e.target.id === 'f-q'){
+  /* Kotak cari halaman Donor memakai id `fd-q`, halaman Keuangan `f-q`.
+     Sebelumnya keduanya memakai `f-q`, sehingga mengetik di Keuangan ikut
+     mengubah saringan halaman Donor — dan sebaliknya. */
+  if(e.target.id === 'fd-q'){
     donorFilter.q = e.target.value;
     const pos = e.target.selectionStart;
     render();
+    const el = document.getElementById('fd-q');
+    if(el){ el.focus(); el.setSelectionRange(pos,pos); }
+  }
+  if(e.target.id === 'f-q'){
+    finFilter.q = e.target.value;
+    const pos = e.target.selectionStart;
+    refreshKeuangan();
     const el = document.getElementById('f-q');
     if(el){ el.focus(); el.setSelectionRange(pos,pos); }
   }

@@ -31,6 +31,7 @@ Surat yang "dikirim" tercatat di buku donor, surat masuk bisa dicatat manual.
 | **Balas semua / Teruskan** | Balas semua mengisi Cc otomatis; Teruskan menyalin isi + kepala surat |
 | **Lampiran berkas** | PDF/foto/dokumen maks. 10 MB, tersimpan di Worker, bisa dibuka lagi |
 | **Cetak label alamat** | Untuk kiriman POS/kurir: stiker A4 **2 kolom (Avery L7163, 14 label)** atau **3 kolom (Avery L7160, 21 label)**. Huruf mengecil sendiri kalau alamat panjang |
+| **Cari di Keuangan** | Kotak cari memakai kolom yang sama dengan halaman Donor (nama, instansi, panggilan, kedua email, kedua HP, alamat, ID), ditambah kode kwitansi, program & catatan |
 | **Dua kanal** | Email dan WhatsApp, dipilih per pengiriman |
 | **Buku per donor** | Surat keluar + masuk urut waktu, bubble masuk/keluar |
 | **Kotak Masuk / Keluar** | Tampilan global semua donor, bisa dicari & difilter per kanal |

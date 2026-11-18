@@ -316,7 +316,8 @@ var PANDUAN = [
     judul: 'Mencatat keuangan (untuk kwitansi)',
     ico: '◫',
     kata: ['keuangan', 'kwitansi', 'rp 0', 'nol', 'transaksi', 'jumlah', 'program',
-           'mata uang', 'riwayat kirim', 'kode kwitansi', 'donor masuk'],
+               'mata uang', 'riwayat kirim', 'kode kwitansi', 'donor masuk',
+               'cari donor', 'tidak ditemukan', 'nama tidak ditemukan', 'pencarian'],
     isi: '' +
       '<p class="pd-lead">Kwitansi yang dikirim ke donor <b>mengambil angkanya dari ' +
         'menu Keuangan</b>. Tanpa catatan di sini, kwitansi akan berisi Rp 0.</p>' +
@@ -351,6 +352,24 @@ var PANDUAN = [
         '(1) donor itu sudah punya transaksi di Keuangan, (2) penerima yang dipilih ' +
         'memang donor yang punya transaksi itu, (3) transaksi yang dipilih di halaman ' +
         'Tulis cocok dengan donornya.</div>' +
+
+      '<h4>Mencari transaksi</h4>' +
+      '<p>Kotak <b>Cari donor / program / catatan</b> mencari di <b>kolom yang sama ' +
+      'dengan halaman Donor</b>: ID, nama PIC, nama lengkap, instansi, panggilan, ' +
+      'Email 1 &amp; 2, HP 1 &amp; 2, kategori, dan alamat — ditambah kode kwitansi, ' +
+      'nama program, catatan, dan mata uang. Huruf besar/kecil dan spasi berlebih ' +
+      'tidak berpengaruh.</p>' +
+      '<p>Kalau yang Anda cari adalah <b>nama donor</b> tetapi transaksinya belum ada, ' +
+      'layar tidak akan berkata “belum ada transaksi” begitu saja — donor yang cocok ' +
+      'disebutkan namanya, jadi jelas bahwa yang kurang adalah catatan transaksinya, ' +
+      'bukan nama donornya.</p>' +
+
+      '<div class="warnbox"><b>Nama ditemukan di menu Donor tetapi tidak di Keuangan?</b> ' +
+      'Penyebab yang paling sering: transaksi itu tercatat untuk <b>ID donor yang lama</b> ' +
+      '— terjadi kalau ID donor pernah diubah sebelum perbaikan ini. Sejak versi ini, ' +
+      'mengubah ID donor ikut memindahkan transaksi keuangannya, dan menghapus donor ' +
+      'ikut menghapus transaksinya (jumlahnya disebut di konfirmasi). Kalau transaksi ' +
+      'lama masih tertinggal, ubah donornya pada transaksi itu lewat tombol <b>Ubah</b>.</div>' +
 
       '<p><button class="btn sm" data-panduan-halaman="keuangan">Buka halaman Keuangan</button></p>'
   },

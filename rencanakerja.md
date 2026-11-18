@@ -4792,3 +4792,132 @@ Ini bukan pekerjaan yang tertinggal di pihak kita — semuanya menunggu pihak la
 
 **Tidak ada perubahan kode di bab ini.** Versi aset tetap `v=73`, jadi tidak
 ada yang perlu dimuat ulang di browser.
+
+---
+
+## 29. Pencarian di halaman Keuangan — 18 November 2026
+
+**Laporan Anda:** *"transaksi — cari donor / program / catatan… cari nama ferry
+tidak ditemukan padahal ada. jika cek di donor bisa ditemukan nama ferry"*
+
+**Ini bug nyata, bukan salah pakai.** Dua penyebabnya ditemukan dan diperbaiki,
+ditambah dua lubang lain yang ketemu saat memeriksa.
+
+### 29.1 Penyebab 1 — dua halaman memakai `id="f-q"` yang sama
+
+Kotak cari halaman **Donor** dan halaman **Keuangan** sama-sama memakai
+`id="f-q"`. Pendengar `input` global tidak tahu halaman mana yang sedang
+terbuka, jadi:
+
+| Yang terjadi | Akibat |
+|---|---|
+| Mengetik di halaman Donor | `donorFilter.q` terisi — wajar |
+| Mengetik di halaman Keuangan | **`donorFilter.q` juga terisi**, bukan `finFilter.q` murni |
+| Membuka halaman Donor sesudahnya | kotak cari berisi kata terakhir dari Keuangan, dan daftar donor tampak kosong — seolah nama donor "hilang" |
+
+Jadi satu kata yang diketik di Keuangan bisa membuat halaman Donor menyaring
+dengan kata yang salah. Sebaliknya juga berlaku.
+
+**Perbaikan:** kotak cari Donor diganti menjadi `fd-q` (donor) dan `f-q` tetap
+milik Keuangan. Masing-masing punya pendengar sendiri, dan halaman Keuangan
+memakai `refreshKeuangan()` — bukan `render()` — supaya fokus di kotak cari
+tidak hilang saat mengetik.
+
+### 29.2 Penyebab 2 — kolom yang dicari berbeda antara dua halaman
+
+Halaman Donor mencari di **9 kolom**; halaman Keuangan hanya mencari di
+**nama PIC**, kategori, program, catatan, kode, ID, dan mata uang. Artinya nama
+yang bisa ditemukan di Donor **belum tentu** ditemukan di Keuangan:
+
+| Kolom | Bisa dicari di Donor | Bisa dicari di Keuangan (sebelum) |
+|---|---|---|
+| ID donor, nama PIC, kategori | ✅ | ✅ |
+| **Nama Lengkap** | ✅ | ❌ |
+| **Instansi** | ✅ | ❌ |
+| **Panggilan** (Ibu/Bapak/…) | ❌ | ❌ |
+| **Email 1 / Email 2** | ✅ | ❌ |
+| **HP 1 / HP 2** | ✅ | ❌ |
+| **Alamat** | ✅ | ❌ |
+| Kode kwitansi, program, catatan | ❌ | ✅ |
+
+**Perbaikan:** dibuat satu fungsi `teksCariDonor(d)` yang dipakai **kedua
+halaman**, berisi gabungan seluruh kolom di atas. Jadi mustahil lagi ada kolom
+yang "bisa ditemukan di Donor tetapi tidak di Keuangan".
+
+Sekalian ditambahkan `rapiKata()` — huruf kecil + spasi dirapatkan. Sebelumnya
+kata dengan spasi berlebih (mis. hasil koreksi otomatis di HP: `"ferry "`) tidak
+menemukan apa pun.
+
+### 29.3 Dua lubang lain yang ditemukan saat memeriksa
+
+**Lubang 1 — mengubah ID donor tidak memindahkan transaksi keuangan.**
+
+Saat ID donor diubah, hanya `messages` yang ikut diperbarui. Transaksi
+keuangannya tetap menunjuk ID lama yang sudah tidak ada. Akibatnya: kwitansinya
+Rp 0, dan transaksi itu **tidak lagi ditemukan lewat nama donor** — persis
+gejala yang Anda lihat.
+
+Sekarang `state.finance` ikut dipindah, dan jumlah transaksi yang pindah
+disebutkan di catatan aktivitas.
+
+**Lubang 2 — menghapus donor meninggalkan transaksi yatim.**
+
+`deleteDonor()` menghapus donor dan suratnya, tetapi **tidak** transaksi
+keuangannya. Baris itu tertinggal tanpa nama: tidak bisa dibuka, dan kwitansinya
+kosong.
+
+Sekarang transaksi ikut terhapus, dan **jumlahnya disebut di konfirmasi** supaya
+tidak ada yang terhapus diam-diam.
+
+### 29.4 Layar kosong sekarang menjelaskan diri
+
+Kalau yang dicari adalah nama donor yang ada tetapi transaksinya belum dicatat,
+layar tidak lagi berkata *"Belum ada transaksi yang cocok"* begitu saja:
+
+> **◫ 1 donor ditemukan, tetapi belum punya transaksi.**
+> Ferry Kangsadjaja `F00004R`
+> Catat transaksinya lewat **+ Tambah**, lalu ketik nama donor itu di kotak **Donor**.
+
+Jadi jelas bahwa yang kurang adalah **catatan transaksinya**, bukan namanya.
+
+### 29.5 Berkas
+
+| Berkas | Perubahan |
+|---|---|
+| `app.js` | `teksCariDonor()`, `rapiKata()`; `finList()`, `viewDonor()`, `donorPerAbjad()` memakai keduanya; `id="fd-q"` untuk Donor; pendengar `input` dipisah; `saveDonorFromForm()` memindahkan transaksi; `deleteDonor()` menghapus transaksi; layar kosong Keuangan diperjelas |
+| `panduan.js` | Bab **Mencatat keuangan**: bagian "Mencari transaksi" + kotak waspada tentang ID donor lama |
+| `index.html` | Versi aset `v=74` |
+| `tes/uji-cari-keuangan.js` | **Baru** — 43 pemeriksaan logika pencarian |
+
+### 29.6 Pengujian
+
+**Uji logika (`node tes/uji-cari-keuangan.js`) — 43 pemeriksaan, semua lulus:**
+
+| Kelompok | Yang diperiksa |
+|---|---|
+| Kolom donor di Keuangan | `ferry`, `Ferry`, `FERRY`, `  ferry  `, `kangsadjaja`, ID, kedua email, kedua HP, panggilan, kategori, alamat, instansi — semuanya menemukan transaksi yang benar |
+| Kolom transaksi | nama program, catatan, mata uang |
+| Kata yang tidak ada | tidak menemukan apa pun; transaksi bentuk lama (tanpa array `program`) tetap ikut |
+| Halaman Donor | memakai kolom yang sama; hasil sama dengan Keuangan untuk kata yang sama |
+| Saringan terpisah | `finFilter` dan `donorFilter` tidak saling mengubah |
+| `rapiKata` / `teksCariDonor` | spasi berlebih, huruf besar, nilai `null`/`undefined` tidak membuat galat |
+
+**Uji di DOM (jsdom, aplikasi sungguhan dijalankan) — 10 pemeriksaan, semua lulus:**
+
+| # | Yang diuji | Hasil |
+|---|---|---|
+| 1 | Mengetik di Keuangan → hanya `finFilter` yang berubah | ✅ |
+| 2 | Kotak cari Donor tetap kosong setelah mengetik di Keuangan | ✅ |
+| 3 | Pencarian "Ferry" di Keuangan menghasilkan 1 baris | ✅ |
+| 4 | Fokus tetap di kotak cari saat mengetik | ✅ |
+| 5 | Mengetik di Donor tidak mengubah `finFilter` | ✅ |
+| 6 | Donor tanpa transaksi → pesan menyebut nama & ID donor | ✅ |
+| 7 | Panduan memuat bagian "Mencari transaksi" | ✅ |
+| 8 | Panduan menjelaskan akibat ID donor yang pernah diubah | ✅ |
+| 9 | 8 halaman lain tetap tampil normal | ✅ |
+| 10 | Tidak ada galat konsol | ✅ |
+
+**Catatan jujur:** transaksi yang **sudah** tertinggal dengan ID lama tidak
+diperbaiki otomatis — aplikasi tidak bisa menebak donor mana yang dimaksud.
+Jalan keluarnya ada di panduan: buka transaksi itu lewat **Ubah**, lalu pilih
+donornya kembali. Kalau perlu, bisa dibuatkan alat pembersih sekali pakai.
