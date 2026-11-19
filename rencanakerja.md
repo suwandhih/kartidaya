@@ -5358,3 +5358,39 @@ kiri**, mengikuti contoh klien.
   tidak mengganggu.
 - Kalau pejabatnya berganti: **Setelan → Tanda Tangan → Nama & jabatan →
   Simpan nama & jabatan**. Tidak perlu gambar baru, tidak perlu ubah kode.
+---
+
+## Bab 35 — Blok tanda tangan dipindah ke sisi kanan
+
+### 35.1 Permintaan
+
+Setelah bab 34, blok tanda tangan sudah rata kiri tetapi **ditempatkan di
+kiri** kwitansi. Klien ingin teksnya tetap rata kiri, tetapi **seluruh blok
+berada di sisi kanan** — seperti contoh yang dikirim ulang.
+
+### 35.2 Yang berubah
+
+| Berkas | Perubahan |
+|---|---|
+| `app.js` | `kwitansiHTML()`: blok tanda tangan dibungkus tabel dua sel — sel kiri kosong sebagai pengganjal, sel kanan selebar 260 px berisi teks rata kiri. `gambarKwitansi()` (PNG WhatsApp): teks digambar pada `ttdX = x1 - 260` (sisi kanan), tetap rata kiri. |
+| `panduan.js` | Penjelasan diubah: blok **di sisi kanan**, teks di dalamnya **rata kiri**; kata kunci ditambah (`rata kanan`, `sisi kanan`) |
+| `README.md` | Ringkasan fitur kwitansi diperbarui |
+| `tes/uji-kwitansi-program.js` | Pemeriksaan arah blok diperbarui (52 pemeriksaan) |
+
+### 35.3 Kenapa pakai sel pengganjal, bukan `align="right"`
+
+`align="right"` dan `margin-left:auto` memang memindahkan tabel ke kanan, tetapi
+keduanya **tidak dihormati Outlook** (mesin render Word). Sel pengganjal
+(`<td>&nbsp;</td>` tanpa lebar + `<td width="260">`) bekerja di semua klien
+email, termasuk Outlook, karena hanya memakai aturan tabel lama.
+
+### 35.4 Diuji
+
+| Pemeriksaan | Hasil |
+|---|---|
+| `node tes/uji-kwitansi-program.js` | **52 pemeriksaan lulus** |
+| `node tes/uji-cari-keuangan.js` | 43 pemeriksaan lulus |
+| `node tes/uji-yatim-keuangan.js` | 11 pemeriksaan lulus |
+| Render HTML di browser | blok tanda tangan di kanan, teks rata kiri |
+| Render PNG (WhatsApp) | ikon oranye berada di x 882–1002 dari lebar 1440 px — di kanan tengah kwitansi |
+| Tampilan 340 px (HP) | blok tetap di kanan, tidak meluber |

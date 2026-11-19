@@ -489,19 +489,27 @@ function kwitansiHTML(d, bahasa, finId, opsi){
         kosong +
         baris(L.untuk, isiUntuk) +
         barisTerbilang +
-        /* Tanda tangan rata kiri, mengikuti contoh klien: tempat & tanggal,
-           "Hormat Kami,", ikon Kartidaya, lalu nama dan jabatan. Nama dan
-           jabatan diambil dari Setelan, jadi tidak perlu gambar baru kalau
-           pejabatnya berganti. */
+        /* Tanda tangan: teksnya rata kiri, tetapi seluruh blok ditempatkan di
+           sisi kanan kwitansi — sesuai contoh klien. Caranya dengan sel
+           pengganjal di kiri: sel itu menghabiskan sisa lebar, sehingga sel
+           berisi tanda tangan terdorong ke kanan. Pola ini dipakai (bukan
+           float atau text-align) karena paling aman di Outlook yang memakai
+           mesin render Word. Nama dan jabatan diambil dari Setelan, jadi tidak
+           perlu gambar baru kalau pejabatnya berganti. */
         '<tr><td colspan="3" style="padding:14px 0 0">' +
-          '<div style="font-size:13px">' +
-            esc(L.kota) + ', ' + esc(tanggalKwitansi(k.tanggal)) + '</div>' +
-          '<div style="font-size:13px;margin-top:2px">' + esc(L.hormat) + '</div>' +
-          '<img src="' + esc(ikonAbs) + '" alt="Kartidaya" width="73" height="120" ' +
-            'style="display:block;border:0;width:73px;height:120px;max-width:73px;' +
-            'margin:6px 0 4px">' +
-          '<div style="font-size:14px;font-weight:bold">' + esc(namaTtd) + '</div>' +
-          '<div style="font-size:13px;color:#333">' + esc(jabatanTtd) + '</div>' +
+          '<table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>' +
+            '<td>&nbsp;</td>' +
+            '<td width="260" style="width:260px;text-align:left">' +
+              '<div style="font-size:13px">' +
+                esc(L.kota) + ', ' + esc(tanggalKwitansi(k.tanggal)) + '</div>' +
+              '<div style="font-size:13px;margin-top:2px">' + esc(L.hormat) + '</div>' +
+              '<img src="' + esc(ikonAbs) + '" alt="Kartidaya" width="73" height="120" ' +
+                'style="display:block;border:0;width:73px;height:120px;max-width:73px;' +
+                'margin:6px 0 4px">' +
+              '<div style="font-size:14px;font-weight:bold">' + esc(namaTtd) + '</div>' +
+              '<div style="font-size:13px;color:#333">' + esc(jabatanTtd) + '</div>' +
+            '</td>' +
+          '</tr></table>' +
         '</td></tr>' +
         '<tr><td colspan="3" style="padding:8px 0 0;font-size:10.5px;color:#666">' +
           'No. ' + esc(k.nomor) + (k.ada ? '' : ' — belum ada transaksi keuangan untuk donor ini') +
@@ -549,6 +557,11 @@ function gambarKwitansi(ctx, d, bahasa, finId, opsi, ukurSaja){
   const x0 = pad, x1 = W - pad;
   const xNilai = x0 + 164;
   const lebarNilai = x1 - xNilai;
+  /* Blok tanda tangan: teksnya rata kiri, tetapi seluruh blok ditempatkan di
+     sisi kanan kwitansi. Lebarnya dipatok supaya nama & jabatan panjang tetap
+     punya ruang dan tidak melewati tepi kanan. */
+  const ttdLebar = 260;
+  const ttdX = x1 - ttdLebar;
   const GARIS = '#333';
   let y = pad;
 
@@ -674,22 +687,23 @@ function gambarKwitansi(ctx, d, bahasa, finId, opsi, ukurSaja){
   });
 
   /* --- Tempat & tanggal, "Hormat Kami,", ikon, lalu nama & jabatan ---
-     Ditulis rata kiri seperti contoh klien. Ikon dibuat tetap 73 × 120 px
-     (perbandingan aslinya 389 × 641) supaya tidak berubah antar kwitansi. */
+     Teksnya rata kiri, tetapi seluruh blok digeser ke sisi kanan kwitansi
+     (ttdX) seperti contoh klien. Ikon dibuat tetap 73 × 120 px (perbandingan
+     aslinya 389 × 641) supaya tidak berubah antar kwitansi. */
   const namaTtd = namaPenandaTangan();
   const jabatanTtd = jabatanPenandaTangan();
   const ikonW = 73;
   const ikonH = (opsi.ikon && opsi.ikon.width)
     ? Math.round(ikonW * opsi.ikon.height / opsi.ikon.width) : 0;
-  teks(L.kota + ', ' + tanggalKwitansi(k.tanggal), x0, y + 16, 13, false, '#111', 'left');
-  teks(L.hormat, x0, y + 34, 13, false, '#111', 'left');
+  teks(L.kota + ', ' + tanggalKwitansi(k.tanggal), ttdX, y + 16, 13, false, '#111', 'left');
+  teks(L.hormat, ttdX, y + 34, 13, false, '#111', 'left');
   y += 42;
   if(opsi.ikon && !ukurSaja){
-    ctx.drawImage(opsi.ikon, x0, y, ikonW, ikonH);
+    ctx.drawImage(opsi.ikon, ttdX, y, ikonW, ikonH);
   }
   if(!ukurSaja){
-    teks(namaTtd, x0, y + ikonH + 22, 14, true, '#111', 'left');
-    teks(jabatanTtd, x0, y + ikonH + 40, 13, false, '#333', 'left');
+    teks(namaTtd, ttdX, y + ikonH + 22, 14, true, '#111', 'left');
+    teks(jabatanTtd, ttdX, y + ikonH + 40, 13, false, '#333', 'left');
   }
   y += ikonH + 46;
 

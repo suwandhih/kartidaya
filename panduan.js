@@ -324,7 +324,7 @@ var PANDUAN = [
                               'tanda tangan', 'ttd', 'nama penanda tangan', 'jabatan',
                               'head of finance', 'lidya tambunan', 'ganti pejabat',
                               'nowrap', 'pecah baris', 'outlook', 'gambar melar',
-                              'hormat kami', 'rata kiri'],
+                              'hormat kami', 'rata kiri', 'rata kanan', 'sisi kanan'],
     isi: '' +
       '<p class="pd-lead">Kwitansi yang dikirim ke donor <b>mengambil angkanya dari ' +
         'menu Keuangan</b>. Tanpa catatan di sini, kwitansi akan berisi Rp 0.</p>' +
@@ -367,7 +367,8 @@ var PANDUAN = [
         '<p>Jadi donor bisa melihat dukungannya <b>per program</b>, bukan hanya totalnya. ' +
         'Totalnya tetap ada di baris <b>Terbilang</b> di bawah, karena itulah jumlah yang ' +
         'sah untuk kwitansi.</p>' +
-        '<p>Blok tanda tangan ditulis <b>rata kiri</b> dengan urutan: ' +
+        '<p>Blok tanda tangan <b>ditempatkan di sisi kanan</b> kwitansi, ' +
+        'sedangkan teks di dalamnya <b>rata kiri</b>. Urutannya: ' +
         '<b>Jakarta, &lt;tanggal&gt;</b>, <b>Hormat Kami,</b>, ikon Kartidaya, lalu ' +
         '<b>nama</b> dan <b>jabatan</b>. Tulisan "kartidaya" tidak lagi dicetak — ' +
         'tempatnya digantikan ikon. <b>Nama dan jabatan diisi di Setelan</b> ' +
