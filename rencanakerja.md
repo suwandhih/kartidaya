@@ -5629,3 +5629,162 @@ Uji yang ada tetap lulus:
 | `app.js` | −11 baris: nilai bawaan, kotak isian, tombol, dan penangan `sign-save` dihapus |
 | `panduan.js` | Penjelasan kartu Tanda Tangan: disebutkan kartu itu hanya berisi nama & jabatan |
 | `index.html` | `v=83` → `v=84` |
+
+---
+
+## Bab 39 — RENCANA: Menu baru "Buletin" (belum dikerjakan)
+
+> **Status: RENCANA.** Belum ada satu baris kode pun yang diubah untuk bab ini.
+> Dicatat 19 November 2026, akan dikerjakan menyusul.
+
+### 39.1 Permintaan
+
+Di halaman **Tulis Surat** ada tombol **Lampirkan majalah**. Yang diinginkan:
+mengirim email yang bentuknya seperti **buletin** — bukan surat resmi biasa.
+
+Contoh yang jadi acuan (email "Firman Hidup Edisi November 2026" dari
+Public Relations Kartidaya) berisi, dari atas ke bawah:
+
+| Bagian | Isi |
+|---|---|
+| Gambar besar | Foto kegiatan, dengan judul tercetak di atas gambar |
+| Paragraf teks | Beberapa paragraf berita |
+| **"Baca di sini!"** | Tautan teks di tengah badan surat |
+| Kotak gelap | Judul oranye + sub-bagian (Wilayah Barat / Tengah / Timur) |
+| Kotak krem | Bagian "Torus Berjalan Bersama Pelayanan Firman" |
+| Kaki gelap | Tombol oranye "BACA FIRMAN HIDUP EDISI NOVEMBER" + ikon sosial + hak cipta |
+
+Pertanyaan yang diajukan: **apakah editor template bisa membuat email seperti
+itu, dan apakah "Baca di sini!" bisa menuju alamat yang sama dengan tombol
+"Baca majalah (16 halaman)"?**
+
+### 39.2 Jawaban atas pertanyaan itu
+
+**Belum bisa.** Yang sudah ada sekarang:
+
+| Sudah ada | Di mana |
+|---|---|
+| Blok majalah (sampul + tombol "Baca majalah (N halaman)") | `majalahHTML()` — app.js:888 |
+| Tombol "Lampirkan majalah" (Aktif/Mati) | `blokMajalah()` — app.js:3679 |
+| Pemilih edisi majalah | `pemilihEdisiMajalah()` |
+| Alamat halaman pembaca | `workerBase() + '/baca/' + id` |
+| Format teks: `**tebal**`, `*miring*`, `==stabilo==`, `- poin`, `1. nomor` | `formatTeksHTML()` — app.js:5998 |
+| Toolbar format | `toolbarSurat()` — app.js:2735 (**hanya di halaman Tulis**) |
+| 18 token (`{/PIC}`, `{/NAMA}`, `{/ISI1}` …) | `TOKENS` — app.js:145 |
+
+Yang **belum ada**, dan itulah jaraknya:
+
+| Belum ada | Akibatnya |
+|---|---|
+| Token majalah | Blok majalah **selalu di paling bawah** email, tidak bisa ditaruh di tengah |
+| Tautan teks biasa | Tidak bisa membuat "Baca di sini!" di tengah paragraf |
+| Judul bagian | Tidak bisa membuat judul seperti "Dari Sumatera hingga Papua…" |
+| Kotak berwarna | Tidak bisa membuat bagian gelap / krem |
+| Toolbar di editor template | Editor template hanya punya kotak token — tidak ada tombol B/I/stabilo |
+
+### 39.3 Keputusan: dibuat TERPISAH, bukan ditambahkan ke Tulis Surat
+
+Atas permintaan pemilik aplikasi, buletin dibuat sebagai **fitur/menu baru yang
+berdiri sendiri**, bukan tambahan penanda di halaman Tulis Surat.
+
+**Alasannya:**
+
+| Alasan | Penjelasan |
+|---|---|
+| Tulis Surat tetap sederhana | Halaman itu untuk surat resmi: teks bebas + token. Tidak perlu ikut rumit |
+| Cara menyusunnya memang berbeda | Surat resmi = teks mengalir. Buletin = **blok tersusun** yang bisa digeser naik-turun |
+| Kalau bermasalah, tidak menular | Kerusakan pada buletin tidak menyentuh surat resmi |
+| Bisa dikembangkan sendiri | Blok baru bisa ditambah tanpa mengubah Tulis Surat |
+
+### 39.4 Rancangan menu baru
+
+**Nama menu: `Buletin`** — ditaruh di navigasi, setelah **Tulis**.
+
+**Halaman daftar buletin**
+
+| Isi | Keterangan |
+|---|---|
+| Daftar buletin tersimpan | Judul, edisi, tanggal, jumlah penerima terakhir |
+| Tombol `+ Buat buletin` | Membuka editor blok |
+| Tombol per baris | `Ubah`, `Duplikat`, `Pratinjau`, `Kirim`, `Hapus` |
+
+**Editor blok** — inti fiturnya. Bukan kotak teks bebas, melainkan daftar blok
+yang bisa disusun:
+
+| Blok | Isi yang diisi | Jadi apa di email |
+|---|---|---|
+| **Gambar utama** | Gambar + judul di atas gambar | Foto besar dengan judul menimpa |
+| **Teks** | Paragraf (mendukung `**tebal**`, `*miring*`, `==stabilo==`) | Paragraf biasa |
+| **Tautan baca** | Teks tautan (bawaan "Baca di sini!") | Tautan ke halaman pembaca majalah |
+| **Kotak gelap** | Judul + beberapa sub-bagian (judul kecil + isi) | Kotak latar gelap, judul oranye |
+| **Kotak krem** | Judul + paragraf | Kotak latar krem |
+| **Kaki** | Teks tombol + tautan + hak cipta | Kaki gelap dengan tombol oranye |
+
+Setiap blok bisa: **naik**, **turun**, **duplikat**, **hapus**, **ubah**.
+Ada **pratinjau langsung** di sebelah kanan (atau di bawah, di HP).
+
+**Penerima & pengiriman** — memakai yang sudah ada, tidak dibuat baru:
+
+| Bagian | Memakai |
+|---|---|
+| Daftar penerima | Daftar donor yang sama, dengan token `{/PIC}`, `{/NAMA}`, `{/INST}` |
+| Pengiriman | Gmail API yang sama |
+| Tanda dibaca & tombol konfirmasi | `pixelHTML()` dan `terimaHTML()` yang sudah ada |
+| Halaman pembaca majalah | `majalahBacaURL()` yang sudah ada — **inilah yang menjawab "Baca di sini!"** |
+
+### 39.5 Tahapan pengerjaan
+
+Tiap tahap berdiri sendiri. Bisa berhenti di tahap mana pun dan aplikasi tetap
+sehat — tidak ada tahap yang meninggalkan setengah jadi.
+
+| Tahap | Isi | Ukuran | Hasil yang bisa dilihat |
+|---|---|---|---|
+| **A** | Kerangka menu: menu `Buletin`, halaman daftar, simpan/muat ke server (koleksi baru `buletin`) | kecil | Menu muncul, buletin bisa disimpan & dibuka lagi |
+| **B** | Editor blok: 6 jenis blok, geser naik-turun, pratinjau langsung | sedang | Buletin bisa disusun dan dilihat bentuknya |
+| **C** | Perender email: blok → HTML email (tabel + gaya sebaris) + versi teks biasa | sedang | Pratinjau sama dengan yang akan diterima donor |
+| **D** | Kirim: pilih penerima, kirim lewat Gmail, catat di riwayat donor | sedang | Buletin benar-benar terkirim |
+| **E** | Sambungan majalah: blok tautan baca → `/baca/<id>`, blok gambar utama bisa pakai sampul majalah | kecil | "Baca di sini!" menuju halaman pembaca yang sama dengan tombol majalah |
+
+**Urutan yang disarankan:** A → B → C → D → E.
+Tahap E sengaja di akhir karena halaman pembaca majalah sudah ada dan tinggal
+disambungkan.
+
+### 39.6 Yang perlu diputuskan sebelum mulai
+
+| Pertanyaan | Pilihan |
+|---|---|
+| Nama menu | `Buletin` — atau usulan lain? |
+| Jenis blok | Tetap 6 jenis di atas, atau perlu blok lain (mis. kutipan, daftar angka)? |
+| Riwayat | Buletin masuk riwayat surat donor (kanal baru `buletin`), atau disimpan terpisah? |
+| Ikon sosial | Gambar tetap (perlu diunggah), atau cukup tautan teks? |
+| Warna | Ikut warna Kartidaya (hijau), atau bebas seperti contoh (oranye/gelap)? |
+| Teks tautan | Tetap "Baca di sini!", atau bisa diubah sendiri? |
+
+### 39.7 Yang TIDAK akan dikerjakan
+
+| Jangan | Alasan |
+|---|---|
+| Editor WYSIWYG penuh | Klien email membuang hampir semua CSS — hasilnya akan mengecewakan |
+| Kolom bersebelahan | Outlook (mesin Word) tidak mendukung; di HP jadi berantakan |
+| Meniru contoh **persis** | Contoh itu dibuat di alat buletin khusus, bukan editor teks |
+| Menyematkan gambar ke dalam email | Gmail memotong email di atas ±102 KB; gambar harus dari Worker |
+
+### 39.8 Risiko yang harus dijaga
+
+| Risiko | Penanganan |
+|---|---|
+| Outlook membuang gaya | Hanya pakai `<table>` + gaya sebaris. **Wajib diuji**, seperti waktu memindahkan blok tanda tangan (bab 35) |
+| Email dianggap spam | Gambar diambil dari Worker (bukan disematkan), ukuran email dijaga kecil |
+| Penerima memblokir HTML | Setiap blok wajib punya versi teks biasa di `formatTeksPolos()` |
+| Data buletin hilang | Koleksi `buletin` ikut disinkronkan ke server seperti koleksi lain |
+
+### 39.9 Berkas yang akan tersentuh
+
+| Berkas | Perubahan |
+|---|---|
+| `app.js` | Halaman `viewBuletin()`, editor blok, perender `buletinHTML()`, koleksi `buletin` di `state` & `Server` |
+| `app.css` | Gaya editor blok & pratinjau |
+| `index.html` | Menu baru + naikkan versi aset |
+| `panduan.js` | Bab panduan baru untuk Buletin |
+| `README.md` | Baris fitur baru |
+| `tes/uji-buletin.js` | **Baru** — uji perender blok → HTML & teks biasa |
