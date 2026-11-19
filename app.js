@@ -197,12 +197,22 @@ const KODE_UANG = MATA_UANG.map(function(m){ return m.kode; });
    supaya penambahan bahasa lain cukup menambah satu baris. */
 const KWITANSI_LABEL = {
   id: { judul:'KWITANSI', dari:'Telah terima dari', jumlah:'Uang sejumlah',
-        untuk:'Untuk', terbilang:'Terbilang', kota:'Jakarta' },
+        untuk:'Untuk', terbilang:'Terbilang', kota:'Jakarta', hormat:'Hormat Kami,' },
   en: { judul:'FUND RECEIPT', dari:'Received from', jumlah:'The sum of',
-        untuk:'On account of', terbilang:'Amount', kota:'Jakarta' }
+        untuk:'On account of', terbilang:'Amount', kota:'Jakarta', hormat:'Sincerely,' }
 };
 const KWITANSI_BAHASA = ['id','en'];
 const KWITANSI_NAMA_BAHASA = { id:'Indonesia', en:'Inggris' };
+
+/* Nama & jabatan penanda tangan di kwitansi. Diambil dari Setelan supaya bisa
+   diganti tanpa mengubah kode — dulu ditulis tetap di dalam gambar tanda
+   tangan, jadi setiap pergantian pejabat harus minta gambar baru. */
+function namaPenandaTangan(){
+  return state.settings.namaTtd || 'Lidya Tambunan';
+}
+function jabatanPenandaTangan(){
+  return state.settings.jabatanTtd || 'Head of Finance, Accounting & Tax';
+}
 
 /* Ubah angka jadi kata untuk baris "Terbilang".
    Contoh: 14088444 → "Empat belas juta delapan puluh delapan ribu empat ratus
@@ -389,12 +399,14 @@ function kwitansiHTML(d, bahasa, finId, opsi){
   const k = dataKwitansi(d, finId);
   const logo = state.settings.logoUrl || 'vendor/kartidaya-logo.png';
   const logoAbs = /^https?:/i.test(logo) ? logo : new URL(logo, location.href).href;
-  /* Blok tanda tangan (kartidaya / Lidya Tambunan / Head of Finance) dipasang
-     sebagai SATU GAMBAR UTUH, bukan teks. Tiga baris itu tidak pernah berubah,
-     dan ikon Kartidaya memang MENIMPA teksnya — persis seperti contoh klien.
-     Bisa diganti lewat settings.ttdUrl. */
-  const ttd = state.settings.ttdUrl || 'vendor/kartidaya-ttd.png';
-  const ttdAbs = /^https?:/i.test(ttd) ? ttd : new URL(ttd, location.href).href;
+  /* Blok tanda tangan: "Jakarta, <tanggal>" + "Hormat Kami," sebagai teks,
+     lalu ikon Kartidaya, lalu nama & jabatan dari Setelan. Ditulis rata kiri
+     sesuai contoh klien. Ikon dipasang dengan lebar DAN tinggi atribut supaya
+     klien email yang mengabaikan gaya tetap tidak melarnya. */
+  const ikon = state.settings.ikonUrl || 'vendor/kartidaya-icon.png';
+  const ikonAbs = /^https?:/i.test(ikon) ? ikon : new URL(ikon, location.href).href;
+  const namaTtd = namaPenandaTangan();
+  const jabatanTtd = jabatanPenandaTangan();
   const garis = 'border-bottom:1px solid #333;';
   /* "nowrap" pada label & titik dua penting: tanpa itu kolom label yang sempit
        memecah "Uang sejumlah" jadi "Ua ng sej um lah" di layar HP. Lebarnya
@@ -477,19 +489,19 @@ function kwitansiHTML(d, bahasa, finId, opsi){
         kosong +
         baris(L.untuk, isiUntuk) +
         barisTerbilang +
-        /* Tanda tangan: "Jakarta, <tanggal>" sebagai teks (tanggalnya berubah),
-                   lalu tiga baris tetap (kartidaya / Lidya Tambunan / Head of Finance)
-                   dipasang sebagai SATU GAMBAR UTUH — ikonnya memang menimpa teks,
-                   sama seperti contoh klien. Gambar dibuat lebih kecil dari kolomnya
-                   supaya tidak pernah melar walau klien email mengabaikan lebar. */
-                '<tr><td colspan="3" style="padding:12px 0 0;text-align:right">' +
-                  '<div style="font-size:13px;white-space:nowrap">' +
-                    esc(L.kota) + ', ' + esc(tanggalKwitansi(k.tanggal)) + '</div>' +
-                  '<img src="' + esc(ttdAbs) + '" alt="kartidaya — Lidya Tambunan, ' +
-                    'Head of Finance, Accounting &amp; Tax" ' +
-                    'width="262" height="84" ' +
-                    'style="display:inline-block;border:0;width:262px;max-width:262px;' +
-                    'margin-top:2px">' +
+        /* Tanda tangan rata kiri, mengikuti contoh klien: tempat & tanggal,
+           "Hormat Kami,", ikon Kartidaya, lalu nama dan jabatan. Nama dan
+           jabatan diambil dari Setelan, jadi tidak perlu gambar baru kalau
+           pejabatnya berganti. */
+        '<tr><td colspan="3" style="padding:14px 0 0">' +
+          '<div style="font-size:13px">' +
+            esc(L.kota) + ', ' + esc(tanggalKwitansi(k.tanggal)) + '</div>' +
+          '<div style="font-size:13px;margin-top:2px">' + esc(L.hormat) + '</div>' +
+          '<img src="' + esc(ikonAbs) + '" alt="Kartidaya" width="73" height="120" ' +
+            'style="display:block;border:0;width:73px;height:120px;max-width:73px;' +
+            'margin:6px 0 4px">' +
+          '<div style="font-size:14px;font-weight:bold">' + esc(namaTtd) + '</div>' +
+          '<div style="font-size:13px;color:#333">' + esc(jabatanTtd) + '</div>' +
         '</td></tr>' +
         '<tr><td colspan="3" style="padding:8px 0 0;font-size:10.5px;color:#666">' +
           'No. ' + esc(k.nomor) + (k.ada ? '' : ' — belum ada transaksi keuangan untuk donor ini') +
@@ -661,19 +673,25 @@ function gambarKwitansi(ctx, d, bahasa, finId, opsi, ukurSaja){
     y += 30;
   });
 
-  /* --- Tempat & tanggal, lalu blok tanda tangan sebagai GAMBAR UTUH ---
-     Gambar memuat tiga baris tetap (kartidaya / Lidya Tambunan / Head of
-     Finance) beserta ikon yang menimpanya. Ditepikan ke kanan; lebar tetap
-     200 px supaya tidak berubah-ubah. */
-  const ttdW = 262;
-  const ttdH = (opsi.ttd && opsi.ttd.width)
-    ? Math.round(ttdW * opsi.ttd.height / opsi.ttd.width) : 0;
-  teks(L.kota + ', ' + tanggalKwitansi(k.tanggal), x1, y + 16, 13, false, '#111', 'right');
-  y += 26;
-  if(opsi.ttd && !ukurSaja){
-    ctx.drawImage(opsi.ttd, x1 - ttdW, y, ttdW, ttdH);
+  /* --- Tempat & tanggal, "Hormat Kami,", ikon, lalu nama & jabatan ---
+     Ditulis rata kiri seperti contoh klien. Ikon dibuat tetap 73 × 120 px
+     (perbandingan aslinya 389 × 641) supaya tidak berubah antar kwitansi. */
+  const namaTtd = namaPenandaTangan();
+  const jabatanTtd = jabatanPenandaTangan();
+  const ikonW = 73;
+  const ikonH = (opsi.ikon && opsi.ikon.width)
+    ? Math.round(ikonW * opsi.ikon.height / opsi.ikon.width) : 0;
+  teks(L.kota + ', ' + tanggalKwitansi(k.tanggal), x0, y + 16, 13, false, '#111', 'left');
+  teks(L.hormat, x0, y + 34, 13, false, '#111', 'left');
+  y += 42;
+  if(opsi.ikon && !ukurSaja){
+    ctx.drawImage(opsi.ikon, x0, y, ikonW, ikonH);
   }
-  y += Math.max(ttdH, 64) + 10;
+  if(!ukurSaja){
+    teks(namaTtd, x0, y + ikonH + 22, 14, true, '#111', 'left');
+    teks(jabatanTtd, x0, y + ikonH + 40, 13, false, '#333', 'left');
+  }
+  y += ikonH + 46;
 
   /* --- Kaki: nomor, kode, dan cara menghubungi kalau ada kekeliruan --- */
   y += 4;
@@ -708,16 +726,16 @@ async function kwitansiCanvas(d, bahasa, finId, opsi){
   opsi = opsi || {};
   const logo = state.settings.logoUrl || 'vendor/kartidaya-logo.png';
   const logoAbs = /^https?:/i.test(logo) ? logo : new URL(logo, location.href).href;
-  const ttd = state.settings.ttdUrl || 'vendor/kartidaya-ttd.png';
-    const ttdAbs = /^https?:/i.test(ttd) ? ttd : new URL(ttd, location.href).href;
-    /* Logo dan tanda tangan dimuat bersamaan; kalau salah satu gagal, kwitansi
-       tetap digambar tanpa gambar itu — jangan sampai kwitansi gagal dibuat
-       hanya karena gambar tidak terbaca. */
-    const gambar = await Promise.all([muatGambar(logoAbs), muatGambar(ttdAbs)]);
+  const ikon = state.settings.ikonUrl || 'vendor/kartidaya-icon.png';
+  const ikonAbs = /^https?:/i.test(ikon) ? ikon : new URL(ikon, location.href).href;
+  /* Logo dan ikon dimuat bersamaan; kalau salah satu gagal, kwitansi tetap
+     digambar tanpa gambar itu — jangan sampai kwitansi gagal dibuat hanya
+     karena gambar tidak terbaca. */
+  const gambar = await Promise.all([muatGambar(logoAbs), muatGambar(ikonAbs)]);
   const S = opsi.skala || 2;
   const ukur = document.createElement('canvas').getContext('2d');
   const tinggi = Math.ceil(gambarKwitansi(ukur, d, bahasa, finId,
-      { logo:gambar[0], ttd:gambar[1] }, true));
+    { logo:gambar[0], ikon:gambar[1] }, true));
   const cv = document.createElement('canvas');
   cv.width = PNG_LEBAR * S;
   cv.height = tinggi * S;
@@ -725,7 +743,7 @@ async function kwitansiCanvas(d, bahasa, finId, opsi){
   ctx.scale(S, S);
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, PNG_LEBAR, tinggi);
-    gambarKwitansi(ctx, d, bahasa, finId, { logo:gambar[0], ttd:gambar[1] }, false);
+  gambarKwitansi(ctx, d, bahasa, finId, { logo:gambar[0], ikon:gambar[1] }, false);
   return cv;
 }
 
@@ -1506,6 +1524,10 @@ function loadState(){
   if(state.settings.waAutoSync === undefined) state.settings.waAutoSync = true;
   if(!state.settings.waSyncMinutes) state.settings.waSyncMinutes = 10;
   if(!state.settings.waLastSync) state.settings.waLastSync = '';
+  /* Nama & jabatan penanda tangan di kwitansi — dicetak di bawah ikon
+     Kartidaya. Disimpan di Setelan supaya bisa diganti tanpa mengubah kode. */
+  if(!state.settings.namaTtd) state.settings.namaTtd = 'Lidya Tambunan';
+  if(!state.settings.jabatanTtd) state.settings.jabatanTtd = 'Head of Finance, Accounting & Tax';
   /* Alamat untuk koreksi kwitansi — dicetak di kwitansi supaya donor tahu
      harus menghubungi ke mana kalau ada yang salah. */
   if(!state.settings.kontakKoreksi) state.settings.kontakKoreksi = 'finance@kartidaya.org';
@@ -3146,7 +3168,11 @@ function gambarPratinjauEmail(d){
                   return 'Terbilang' + (k.kodeUang.length > 1 ? ' (' + u + ')' : '') + ': ' +
                     fmtUang(k.perUang[u] || 0, u) + '\n';
         }).join('') +
-        'Tanggal: ' + tanggalKwitansi(k.tanggal) + '\n'
+        'Tanggal: ' + tanggalKwitansi(k.tanggal) + '\n' +
+        KWITANSI_LABEL[suratState.kwitansiBahasa === 'en' ? 'en' : 'id'].kota + ', ' +
+          tanggalKwitansi(k.tanggal) + '\n' +
+        KWITANSI_LABEL[suratState.kwitansiBahasa === 'en' ? 'en' : 'id'].hormat + '\n' +
+        namaPenandaTangan() + '\n' + jabatanPenandaTangan() + '\n'
       : '') +
     (suratState.majalah && majalahInfo() ? '\nMajalah: ' + majalahInfo().halaman + ' halaman\n' : '');
 
@@ -4862,6 +4888,19 @@ function viewPengaturan(){
     '<div class="field"><label>Ditambahkan di akhir surat baru</label>' +
       '<textarea id="set-sign" style="min-height:80px">' + esc(state.settings.signature) + '</textarea></div>' +
     '<button class="btn" data-action="sign-save">Simpan</button>' +
+    '<div class="sep"></div>' +
+    '<p class="small" style="margin:0 0 8px"><b>Nama &amp; jabatan di kwitansi</b> ' +
+      '<span class="hint">— dicetak di bawah ikon Kartidaya</span></p>' +
+    '<div class="field"><label>Nama</label>' +
+      '<input type="text" id="set-nama-ttd" value="' + esc(namaPenandaTangan()) + '" ' +
+        'placeholder="Lidya Tambunan"></div>' +
+    '<div class="field"><label>Jabatan</label>' +
+      '<input type="text" id="set-jabatan-ttd" value="' + esc(jabatanPenandaTangan()) + '" ' +
+        'placeholder="Head of Finance, Accounting &amp; Tax"></div>' +
+    '<button class="btn" data-action="ttd-save">Simpan nama &amp; jabatan</button>' +
+    '<p class="tiny muted" style="margin-top:8px">Nama dan jabatan ini dipakai di ' +
+      'kwitansi email maupun gambar kwitansi WhatsApp. Kalau pejabatnya berganti, ' +
+      'cukup ubah di sini — tidak perlu menyiapkan gambar baru.</p>' +
   '</div>' +
 
   '<div class="card">' +
@@ -7938,6 +7977,21 @@ document.addEventListener('click', function(e){
         ? 'Pratinjau wajib diaktifkan — kirim akan lewat layar periksa dulu'
         : 'Pratinjau wajib dimatikan — kirim langsung tanpa periksa');
       break;
+    case 'ttd-save': {
+      const elNama = document.getElementById('set-nama-ttd');
+      const elJab = document.getElementById('set-jabatan-ttd');
+      const nama = (elNama ? elNama.value : '').trim();
+      const jab = (elJab ? elJab.value : '').trim();
+      if(!nama){
+        toast('Nama penanda tangan tidak boleh kosong', true);
+        break;
+      }
+      state.settings.namaTtd = nama;
+      state.settings.jabatanTtd = jab;
+      save('settings'); render();
+      toast('Nama & jabatan di kwitansi disimpan');
+      break;
+    }
     case 'koreksi-save': {
       const el = document.getElementById('set-koreksi');
       state.settings.kontakKoreksi = (el ? el.value.trim() : '') || 'finance@kartidaya.org';

@@ -5295,3 +5295,66 @@ Warna teksnya diperiksa: hitam murni `#000000`, bukan biru seperti teks lama
 - Gambar tanda tangan **tidak tajam** kalau diperbesar, karena sumbernya 536 px
   dan ditampilkan 262 px. Itu sudah 2× kerapatan, jadi cukup tajam di layar
   biasa maupun HP.
+
+## 34. Kwitansi — nama & jabatan penanda tangan pindah ke Setelan (19 November 2026)
+
+### 34.1 Koreksi bab 33
+
+Bab 33 memasang blok tanda tangan sebagai satu gambar utuh, dengan alasan
+"tiga baris itu tidak pernah berubah". Klien mengoreksi lagi:
+
+> "jakarta, tanggal kirim / tulisan kartidaya dihapus / diganti icon kartidaya /
+> lalu, nama / dan jabatan / nama dan jabatan diset di setelan"
+
+Jadi gambar utuh itu keliru: **nama dan jabatan adalah data**, bukan gambar.
+Kalau pejabatnya berganti, gambar harus dibuat ulang — itu tidak masuk akal
+untuk aplikasi yang dipakai staf.
+
+### 34.2 Bentuk akhir blok tanda tangan
+
+```
+Jakarta, 11 November 2026
+Hormat Kami,
+[ikon Kartidaya 73 x 120]
+Lidya Tambunan
+Head of Finance, Accounting & Tax
+```
+
+| Bagian | Sumbernya |
+|---|---|
+| `Jakarta, <tanggal>` | Teks. Tanggal = **tanggal transaksi** kwitansi (bukan tanggal kirim) |
+| `Hormat Kami,` | Teks label — `KWITANSI_LABEL[bahasa].hormat` (`Hormat Kami,` / `Sincerely,`) |
+| Ikon | `vendor/kartidaya-icon.png`, tampil 73 × 120 px (rasio asli 389:641) |
+| Nama | `settings.namaTtd` — diisi di **Setelan → Tanda Tangan** |
+| Jabatan | `settings.jabatanTtd` — diisi di **Setelan → Tanda Tangan** |
+
+Tulisan "kartidaya" dihapus; tempatnya digantikan ikon. Posisi blok **rata
+kiri**, mengikuti contoh klien.
+
+### 34.3 Yang berubah di kode
+
+| Berkas | Perubahan |
+|---|---|
+| `app.js` | Fungsi baru `namaPenandaTangan()` / `jabatanPenandaTangan()` (baca Setelan, ada nilai bawaan). `kwitansiHTML()`: blok tanda tangan rata kiri, berisi kota+tanggal, "Hormat Kami,", ikon 73×120, nama, jabatan. `gambarKwitansi()` (PNG WhatsApp): komposisi sama, digambar rata kiri. `kwitansiCanvas()`: memuat `kartidaya-icon.png` (bukan lagi `kartidaya-ttd.png`). Versi teks polos ikut memuat nama & jabatan. Kartu **Tanda Tangan** di Setelan bertambah dua isian + tombol `ttd-save`. |
+| `panduan.js` | Penjelasan blok tanda tangan ditulis ulang; kata kunci pencarian ditambah (`nama penanda tangan`, `jabatan`, `ganti pejabat`, `rata kiri`) |
+| `README.md` | Ringkasan fitur kwitansi diperbarui |
+| `index.html` | `v=79` |
+| `tes/uji-kwitansi-program.js` | 51 pemeriksaan: ikon menggantikan tulisan "kartidaya", "Hormat Kami," tercetak, nama & jabatan mengikuti Setelan dan kembali ke nilai bawaan kalau dikosongkan |
+
+### 34.4 Diuji
+
+| Pemeriksaan | Hasil |
+|---|---|
+| `node tes/uji-kwitansi-program.js` | **51 pemeriksaan lulus** |
+| Render HTML (pratinjau di browser) | tanda tangan rata kiri, ikon 73×120, nama & jabatan tercetak |
+| Render PNG untuk WhatsApp | komposisi sama; nama & jabatan ikut tercetak |
+| Ganti nama di Setelan | kwitansi langsung memakai nama baru; dikosongkan kembali ke nilai bawaan |
+
+### 34.5 Yang perlu Anda tahu
+
+- `vendor/kartidaya-ttd.png` (gambar tanda tangan utuh dari bab 33) **tidak
+  dipakai lagi**. Boleh dihapus dari repo.
+- `settings.ttdUrl` tidak dibaca lagi, jadi nilai lama di browser pengguna
+  tidak mengganggu.
+- Kalau pejabatnya berganti: **Setelan → Tanda Tangan → Nama & jabatan →
+  Simpan nama & jabatan**. Tidak perlu gambar baru, tidak perlu ubah kode.

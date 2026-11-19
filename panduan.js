@@ -53,7 +53,8 @@ var PANDUAN = [
         '<tr><td><b>Keuangan</b></td><td>Catatan donor masuk; menjadi sumber angka kwitansi</td></tr>' +
         '<tr><td><b>Kategori</b></td><td>Pengelompokan donor</td></tr>' +
         '<tr><td><b>Akun</b></td><td>Hanya untuk admin: daftar akun dan catatan aktivitas</td></tr>' +
-        '<tr><td><b>Setelan</b></td><td>Gmail, pengaman pengiriman, cadangan data, tampilan</td></tr>' +
+        '<tr><td><b>Setelan</b></td><td>Tanda tangan &amp; nama penanda tangan kwitansi, Gmail, ' +
+          'pengaman pengiriman, cadangan data, tampilan</td></tr>' +
       '</tbody></table></div>' +
 
       '<h4>Dua hal yang perlu diingat</h4>' +
@@ -320,8 +321,10 @@ var PANDUAN = [
                'cari donor', 'tidak ditemukan', 'nama tidak ditemukan', 'pencarian',
                'tanpa donor', 'yatim', 'id lama', 'perbaiki transaksi',
                               'rincian program', 'per program', 'terbilang', 'logo', 'ikon',
-                              'tanda tangan', 'ttd', 'menimpa', 'tumpang tindih', 'nowrap',
-                              'pecah baris', 'outlook', 'gambar melar', 'gambar tanda tangan'],
+                              'tanda tangan', 'ttd', 'nama penanda tangan', 'jabatan',
+                              'head of finance', 'lidya tambunan', 'ganti pejabat',
+                              'nowrap', 'pecah baris', 'outlook', 'gambar melar',
+                              'hormat kami', 'rata kiri'],
     isi: '' +
       '<p class="pd-lead">Kwitansi yang dikirim ke donor <b>mengambil angkanya dari ' +
         'menu Keuangan</b>. Tanpa catatan di sini, kwitansi akan berisi Rp 0.</p>' +
@@ -364,12 +367,18 @@ var PANDUAN = [
         '<p>Jadi donor bisa melihat dukungannya <b>per program</b>, bukan hanya totalnya. ' +
         'Totalnya tetap ada di baris <b>Terbilang</b> di bawah, karena itulah jumlah yang ' +
         'sah untuk kwitansi.</p>' +
-        '<p>Blok tanda tangan — <b>kartidaya / Lidya Tambunan / Head of Finance, Accounting ' +
-                '&amp; Tax</b> — dipasang sebagai <b>satu gambar utuh</b>, termasuk ikon Kartidaya ' +
-                'yang menimpa tulisannya. Karena ketiga baris itu tidak pernah berubah, gambarnya ' +
-                'tidak perlu disusun ulang dari teks. Tanggal di atasnya tetap ditulis sebagai teks ' +
-                'karena berubah tiap kwitansi. Kalau ikon atau logo tidak tampil di email donor, itu ' +
-                'bukan kesalahan data — gambar tidak dimuat (lihat bab <b>Mengirim email</b>).</p>' +
+        '<p>Blok tanda tangan ditulis <b>rata kiri</b> dengan urutan: ' +
+        '<b>Jakarta, &lt;tanggal&gt;</b>, <b>Hormat Kami,</b>, ikon Kartidaya, lalu ' +
+        '<b>nama</b> dan <b>jabatan</b>. Tulisan "kartidaya" tidak lagi dicetak — ' +
+        'tempatnya digantikan ikon. <b>Nama dan jabatan diisi di Setelan</b> ' +
+        '(kartu <b>Tanda Tangan</b>), jadi kalau pejabatnya berganti cukup ubah ' +
+        'di sana; tidak perlu menyiapkan gambar baru. Ikon diambil dari ' +
+        '<span class="mono">vendor/kartidaya-icon.png</span> dan ditampilkan 73 × 120 px.</p>' +
+        '<p>Tanggal di baris <b>Jakarta, …</b> memakai <b>tanggal transaksi keuangan</b> ' +
+        'yang tercetak di kwitansi — bukan tanggal surat dikirim, supaya angka dan ' +
+        'tanggal selalu berasal dari catatan yang sama. Kalau ikon atau logo tidak ' +
+        'tampil di email donor, itu bukan kesalahan data — gambar tidak dimuat ' +
+        '(lihat bab <b>Mengirim email</b>).</p>' +
                 '<p>Nama program ditaruh di kiri dan nominalnya <b>rata kanan</b>, jadi nominal ' +
                 'tetap terbaca walau nama programnya panjang. Di layar HP, label seperti ' +
                 '<b>Uang sejumlah</b> tetap satu baris (tidak pecah jadi "Ua ng sej um lah").</p>' +
