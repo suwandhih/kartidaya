@@ -5452,3 +5452,93 @@ Berkas baru `tes/uji-cocok-email.js` (di-gitignore) — **52 pemeriksaan lulus**
 | `panduan.js` | Tabel kolom donor: HP 2 dijelaskan seperti email 2. Bagian "Tentang centang Utama" ditambah satu butir: centang hanya menentukan tujuan kirim, sedangkan surat/pesan masuk dikenali dari kedua email dan kedua nomor. Kata kunci pencarian ditambah. |
 | `index.html` | `v=80` → `v=81` |
 | `tes/uji-cocok-email.js` | **Baru** — 52 pemeriksaan (di-gitignore) |
+
+---
+
+## Bab 37 — Membersihkan script yang tidak dipakai
+
+**Tanggal:** 19 November 2026
+**Sasaran:** menghapus script yang sudah tidak dipakai lagi, tanpa mengubah
+perilaku aplikasi. **Bukan** menghapus data.
+
+### 37.1 Cadangan lebih dulu
+
+Sebelum apa pun diubah, seluruh sistem dicadangkan ke
+`C:\data\_backup-kartidaya\2026-11-19-1429\`:
+
+| Isi | Ukuran | Keterangan |
+|---|---|---|
+| `kartidaya-full.bundle` | 41,1 MB | seluruh riwayat git; `git bundle verify` → "records a complete history" |
+| `kartidaya-kerja.zip` | 1,5 MB | 30 berkas versi kerja |
+| `mentah\` | 7,6 MB | 46 berkas salinan mentah, termasuk yang di-gitignore |
+
+### 37.2 Cara mencari
+
+Dua alat bantu baru di `tes/` (di-gitignore, bukan bagian aplikasi):
+
+| Berkas | Gunanya |
+|---|---|
+| `tes/_analisa-mati.js` | fungsi/variabel tingkat atas yang hanya muncul di deklarasinya |
+| `tes/_analisa-script.js` | lebih luas: fungsi bersarang, kelas CSS, id & `data-*` HTML, kunci setelan, kunci localStorage, token surat |
+
+`_analisa-script.js` membuang komentar dan isi string lebih dulu, lalu
+menghitung kemunculan tiap nama sebagai kata utuh. Untuk kunci setelan,
+kemunculan dipisah menjadi **baca** dan **tulis** — supaya setelan yang hanya
+ditulis (tidak pernah dibaca) ikut ketahuan.
+
+### 37.3 Yang dihapus
+
+| Lokasi | Isi | Alasan |
+|---|---|---|
+| `app.js:771` | `kwitansiPNGBlob()` | tidak pernah dipanggil; komentarnya sendiri berbunyi "dipakai kalau nanti dikirim lewat WhatsApp" |
+| `app.js:1142` | `totalTransaksi()` | tidak pernah dipanggil; yang dipakai `totalTransaksiRingkas()` dan `totalTransaksiHTML()` |
+| `index.html:49` | `<div id="login-root"></div>` | tidak dipakai JS maupun CSS |
+| `index.html:35` | atribut `id="panduan-btn"` | tombolnya dipakai lewat `data-panduan` (delegasi di `panduan.js:1066`), id-nya tidak pernah dirujuk |
+
+### 37.4 Yang ternyata BUKAN sampah — jangan dihapus
+
+Beberapa kandidat awal ternyata sah, jadi dibiarkan:
+
+| Kandidat | Kenapa dibiarkan |
+|---|---|
+| `.kanal-email`, `.kanal-whatsapp` (app.css) | dirakit dinamis: `'chip kanal-' + k` di `kanalChip()` |
+| `vendor/pdf.min.mjs`, `pdf.worker.min.mjs` | dipakai membaca PDF majalah, dimuat dinamis (`import()` di `app.js`) |
+| `vendor/xlsx.full.min.js` | dipakai ekspor Excel |
+| `settings.logoUrl`, `settings.ikonUrl` | dibaca di `kwitansiHTML()` dan `gambarKwitansi()` |
+| `settings.signature` | dibaca di textarea Setelan — lihat 37.5 |
+
+### 37.5 Catatan: setelan "Tanda tangan" yang tidak berpengaruh
+
+Kartu **Setelan → Tanda tangan** punya kotak isian berlabel *"Ditambahkan di
+akhir surat baru"*. Nilainya disimpan ke `settings.signature`, tetapi **tidak
+pernah dipakai** saat menyusun surat baru — surat baru memakai isi template.
+Jadi kotak itu bisa diisi tanpa berpengaruh apa pun.
+
+Ini **tidak dihapus** pada bab ini karena bukan script mati, melainkan fitur
+yang belum tersambung. Perlu keputusan pemilik aplikasi: dihapus, atau
+disambungkan ke penyusun surat.
+
+### 37.6 Hasil akhir
+
+`node tes/_analisa-script.js` → **0 kandidat** di ketujuh bagian.
+
+Uji yang ada tetap lulus:
+
+| Uji | Hasil |
+|---|---|
+| `tes/uji-cari-keuangan.js` | LULUS 43 pemeriksaan |
+| `tes/uji-yatim-keuangan.js` | LULUS 11 pemeriksaan |
+| `tes/uji-kwitansi-program.js` | LULUS 52 pemeriksaan |
+| `tes/uji-cocok-email.js` | LULUS 52 pemeriksaan |
+
+Diperiksa juga di browser (Chrome, `http://localhost:8080`): tidak ada galat,
+tombol Panduan tetap membuka panduan, `kwitansiHTML()` dan `kwitansiPNG()`
+tetap ada.
+
+### 37.7 Yang berubah di kode
+
+| Berkas | Perubahan |
+|---|---|
+| `app.js` | −14 baris: `kwitansiPNGBlob()` dan `totalTransaksi()` dihapus |
+| `index.html` | `#login-root` dihapus, `id="panduan-btn"` dihapus, `v=81` → `v=82` |
+| `tes/_analisa-script.js` | **Baru** — pencari script tidak dipakai (di-gitignore) |

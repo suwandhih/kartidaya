@@ -767,12 +767,6 @@ async function kwitansiPNG(d, bahasa, finId, opsi){
   return cv.toDataURL('image/png');
 }
 
-/* Blob PNG — dipakai kalau nanti dikirim lewat WhatsApp. */
-async function kwitansiPNGBlob(d, bahasa, finId, opsi){
-  const cv = await kwitansiCanvas(d, bahasa, finId, opsi);
-  return new Promise(function(resolve){ cv.toBlob(resolve, 'image/png'); });
-}
-
 /* Pratinjau gambar kwitansi + tombol unduh. */
 async function openKwitansiPNG(donorId){
   const d = findDonor(donorId) || findDonor(suratState.previewId) ||
@@ -1136,14 +1130,6 @@ function totalPerUangTransaksi(f){
     map[k] = (map[k] || 0) + (Number(x.jumlah) || 0);
   });
   return map;
-}
-/* Total satu transaksi kalau semua barisnya sejenis. Kalau campur, kembalikan
-   angka baris pertama saja — dipakai hanya untuk pengurutan/tampilan ringkas. */
-function totalTransaksi(f){
-  const t = totalPerUangTransaksi(f);
-  const kode = Object.keys(t);
-  if(kode.length === 1) return t[kode[0]];
-  return kode.length ? t[kode[0]] : 0;
 }
 /* Mata uang utama transaksi: kalau semua baris sama, pakai itu; kalau campur,
    pakai baris pertama. Dipakai untuk label ringkas di daftar. */
