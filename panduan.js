@@ -379,7 +379,9 @@ var PANDUAN = [
         '<b>nama</b> dan <b>jabatan</b>. Tulisan "kartidaya" tidak lagi dicetak — ' +
         'tempatnya digantikan ikon. <b>Nama dan jabatan diisi di Setelan</b> ' +
         '(kartu <b>Tanda Tangan</b>), jadi kalau pejabatnya berganti cukup ubah ' +
-        'di sana; tidak perlu menyiapkan gambar baru. Ikon diambil dari ' +
+        'di sana; tidak perlu menyiapkan gambar baru. Kartu itu hanya berisi ' +
+        'nama dan jabatan — tidak ada lagi kotak "ditambahkan di akhir surat baru", ' +
+        'karena isinya tidak pernah dipakai saat menyusun surat. Ikon diambil dari ' +
         '<span class="mono">vendor/kartidaya-icon.png</span> dan ditampilkan 73 × 120 px.</p>' +
         '<p>Tanggal di baris <b>Jakarta, …</b> memakai <b>tanggal transaksi keuangan</b> ' +
         'yang tercetak di kwitansi — bukan tanggal surat dikirim, supaya angka dan ' +

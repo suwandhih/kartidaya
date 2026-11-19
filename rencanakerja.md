@@ -5507,16 +5507,27 @@ Beberapa kandidat awal ternyata sah, jadi dibiarkan:
 | `settings.logoUrl`, `settings.ikonUrl` | dibaca di `kwitansiHTML()` dan `gambarKwitansi()` |
 | `settings.signature` | dibaca di textarea Setelan — lihat 37.5 |
 
-### 37.5 Catatan: setelan "Tanda tangan" yang tidak berpengaruh
+### 37.5 Setelan "Tanda tangan" yang tidak berpengaruh — dihapus
 
 Kartu **Setelan → Tanda tangan** punya kotak isian berlabel *"Ditambahkan di
 akhir surat baru"*. Nilainya disimpan ke `settings.signature`, tetapi **tidak
 pernah dipakai** saat menyusun surat baru — surat baru memakai isi template.
 Jadi kotak itu bisa diisi tanpa berpengaruh apa pun.
 
-Ini **tidak dihapus** pada bab ini karena bukan script mati, melainkan fitur
-yang belum tersambung. Perlu keputusan pemilik aplikasi: dihapus, atau
-disambungkan ke penyusun surat.
+Setelah dikonfirmasi pemilik aplikasi, kotak itu **dihapus**. Yang dibuang:
+
+| Lokasi | Isi |
+|---|---|
+| `app.js` (nilai bawaan) | `if(!state.settings.signature) state.settings.signature = 'Hormat kami,\nKartidaya';` |
+| `app.js` (kartu Setelan) | `<textarea id="set-sign">` + tombol `data-action="sign-save"` + pemisah `<div class="sep">` |
+| `app.js` (penangan klik) | blok `case 'sign-save': { … }` |
+
+Kartu **Tanda Tangan** tetap ada dan tetap berisi **Nama** dan **Jabatan**
+penanda tangan kwitansi — bagian itu memang dipakai, baik oleh kwitansi email
+maupun gambar kwitansi WhatsApp. Yang hilang hanya kotak yang tidak berfungsi.
+
+Kunci `settings.signature` yang mungkin masih tersimpan di data lama
+dibiarkan; tidak ada kode yang membacanya lagi, jadi tidak berpengaruh.
 
 ### 37.6 Hasil akhir
 
@@ -5542,3 +5553,79 @@ tetap ada.
 | `app.js` | −14 baris: `kwitansiPNGBlob()` dan `totalTransaksi()` dihapus |
 | `index.html` | `#login-root` dihapus, `id="panduan-btn"` dihapus, `v=81` → `v=82` |
 | `tes/_analisa-script.js` | **Baru** — pencari script tidak dipakai (di-gitignore) |
+
+---
+
+## Bab 38 — Menghapus kotak "Tanda tangan" yang tidak berfungsi
+
+**Tanggal:** 19 November 2026
+**Sasaran:** menghapus satu-satunya sisa fitur yang tidak berfungsi di halaman
+Setelan, sesuai keputusan pemilik aplikasi.
+
+### 38.1 Masalahnya
+
+Kartu **Setelan → Tanda Tangan** punya kotak isian berlabel *"Ditambahkan di
+akhir surat baru"*. Isinya disimpan ke `settings.signature`, tetapi **tidak
+pernah dibaca** saat menyusun surat baru — surat baru memakai isi template.
+Jadi kotak itu bisa diisi berkali-kali tanpa berpengaruh apa pun.
+
+### 38.2 Yang dihapus
+
+| Lokasi | Isi |
+|---|---|
+| `app.js` (nilai bawaan) | `if(!state.settings.signature) state.settings.signature = 'Hormat kami,\nKartidaya';` |
+| `app.js` (kartu Setelan) | `<textarea id="set-sign">`, tombol `data-action="sign-save"`, dan pemisah `<div class="sep">` |
+| `app.js` (penangan klik) | blok `case 'sign-save': { … }` |
+
+### 38.3 Yang TIDAK dihapus
+
+Kartu **Tanda Tangan** tetap ada dan tetap berisi **Nama** dan **Jabatan**
+penanda tangan kwitansi. Bagian itu memang dipakai:
+
+| Dipakai di | Cara |
+|---|---|
+| `kwitansiHTML()` | dicetak di bawah ikon Kartidaya, di sisi kanan kwitansi |
+| `gambarKwitansi()` | digambar di kanvas PNG untuk WhatsApp |
+
+Jadi yang hilang hanya kotak yang tidak berfungsi, bukan seluruh kartunya.
+
+Kunci `settings.signature` yang mungkin masih tersimpan di data lama
+dibiarkan — tidak ada kode yang membacanya lagi, jadi tidak berpengaruh.
+
+### 38.4 Bukti uji
+
+Harness browser baru `_uji-setelan-ttd.html` (berkas sementara, dihapus setelah
+dipakai) memanggil `viewPengaturan()` langsung tanpa masuk akun —
+**10 pemeriksaan lulus**:
+
+| Pemeriksaan | Hasil |
+|---|---|
+| Kartu "Tanda Tangan" masih ada | ✔ |
+| Kotak "Ditambahkan di akhir surat baru" sudah hilang | ✔ |
+| `textarea #set-sign` sudah hilang | ✔ |
+| Tombol `sign-save` sudah hilang | ✔ |
+| Isian Nama masih ada | ✔ |
+| Isian Jabatan masih ada | ✔ |
+| Tombol "Simpan nama & jabatan" masih ada | ✔ |
+| Tidak ada pemisah `<div class="sep">` yatim | ✔ |
+| Nilai Nama terisi → `Lidya Tambunan` | ✔ |
+| Nilai Jabatan terisi → `Head of Finance, Accounting & Tax` | ✔ |
+
+Uji yang ada tetap lulus:
+
+| Uji | Hasil |
+|---|---|
+| `tes/uji-cari-keuangan.js` | LULUS 43 pemeriksaan |
+| `tes/uji-yatim-keuangan.js` | LULUS 11 pemeriksaan |
+| `tes/uji-kwitansi-program.js` | LULUS 52 pemeriksaan |
+| `tes/uji-cocok-email.js` | LULUS 52 pemeriksaan |
+
+`node tes/_analisa-script.js` → **0 kandidat** di ketujuh bagian.
+
+### 38.5 Yang berubah di kode
+
+| Berkas | Perubahan |
+|---|---|
+| `app.js` | −11 baris: nilai bawaan, kotak isian, tombol, dan penangan `sign-save` dihapus |
+| `panduan.js` | Penjelasan kartu Tanda Tangan: disebutkan kartu itu hanya berisi nama & jabatan |
+| `index.html` | `v=83` → `v=84` |

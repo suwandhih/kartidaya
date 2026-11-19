@@ -1510,7 +1510,6 @@ function loadState(){
     state.settings.gmailClientId = DEFAULT_CLIENT_ID;
     save('settings');
   }
-  if(!state.settings.signature) state.settings.signature = 'Hormat kami,\nKartidaya';
   /* Sinkron otomatis: tarik surat masuk sendiri di latar belakang supaya
      pengguna tidak perlu bolak-balik ke Setelan. */
   if(state.settings.autoSync === undefined) state.settings.autoSync = true;
@@ -4885,10 +4884,6 @@ function viewPengaturan(){
 
   '<div class="card">' +
     '<div class="card-head"><h2>Tanda Tangan</h2></div>' +
-    '<div class="field"><label>Ditambahkan di akhir surat baru</label>' +
-      '<textarea id="set-sign" style="min-height:80px">' + esc(state.settings.signature) + '</textarea></div>' +
-    '<button class="btn" data-action="sign-save">Simpan</button>' +
-    '<div class="sep"></div>' +
     '<p class="small" style="margin:0 0 8px"><b>Nama &amp; jabatan di kwitansi</b> ' +
       '<span class="hint">— dicetak di bawah ikon Kartidaya</span></p>' +
     '<div class="field"><label>Nama</label>' +
@@ -7902,12 +7897,6 @@ document.addEventListener('click', function(e){
       if(state.settings.autoSync) sinkronOtomatis(true);
       break;
     case 'cocokkan': cocokkanUlang(); break;
-    case 'sign-save': {
-      const el = document.getElementById('set-sign');
-      state.settings.signature = el ? el.value : '';
-      save('settings'); toast('Tanda tangan disimpan');
-      break;
-    }
     case 'sync-min-save': {
       const el = document.getElementById('set-syncmin');
       const n = Math.min(240, Math.max(1, Number(el ? el.value : 10) || 10));
