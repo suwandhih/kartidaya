@@ -168,7 +168,8 @@ var PANDUAN = [
            'hp 2', 'utama', 'id donor', 'buat id', 'kembar', 'dobel', 'ganda',
            'wajib', 'alamat', 'kategori', 'label', 'cetak label', 'pos', 'kurir', 'stiker',
            'jumlah label', '2 penerima', 'hanya 1 label', '1 nama', 'alamat kurang',
-           'label tidak semua'],
+           'label tidak semua', 'email kedua', 'nomor kedua', 'surat masuk', 'pesan masuk',
+           'balas dari email lain', 'wa dari nomor lain'],
     isi: '' +
       '<p class="pd-lead">Data donor adalah sumber semua isi surat. Kalau data di sini ' +
         'benar, surat akan terisi sendiri dengan benar.</p>' +
@@ -199,7 +200,8 @@ var PANDUAN = [
         '<tr><td><b>Email &amp; Email 2</b></td><td>Dua alamat. Yang dicentang <b>Utama</b> ' +
           'itulah tujuan pengiriman; yang satunya tetap dipakai untuk mengenali surat masuk.</td></tr>' +
         '<tr><td><b>Nomor HP &amp; HP 2</b></td><td>Sama seperti email: yang dicentang ' +
-          '<b>Utama</b> yang dipakai.</td></tr>' +
+          '<b>Utama</b> itulah tujuan pengiriman WhatsApp; yang satunya tetap dipakai ' +
+          'untuk mengenali pesan masuk.</td></tr>' +
         '<tr><td><b>Pengiriman melalui</b></td><td>Catatan saja: Email / WhatsApp / POS / ' +
           'Kurir / Lainnya.</td></tr>' +
         '<tr><td><b>Date Start, Tgl Lahir, Asal Gereja</b></td><td>Keterangan tambahan, ' +
@@ -219,6 +221,10 @@ var PANDUAN = [
         '<li>Token <span class="mono">{/EMAIL}</span> dan <span class="mono">{/HP}</span> ' +
           'berisi yang utama; <span class="mono">{/EMAIL2}</span> dan ' +
           '<span class="mono">{/HP2}</span> berisi yang satunya.</li>' +
+        '<li>Centang <b>Utama</b> hanya menentukan <b>tujuan pengiriman</b>. Untuk ' +
+          '<b>mengenali surat atau pesan masuk</b>, kedua email dan kedua nomor HP ' +
+          'dipakai — jadi donor yang membalas dari email kedua atau mengirim WhatsApp ' +
+          'dari HP kedua tetap masuk ke riwayat donor yang sama.</li>' +
       '</ul>' +
 
       '<h4>Peringatan &ldquo;data sudah dipakai donor lain&rdquo;</h4>' +

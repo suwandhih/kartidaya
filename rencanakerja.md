@@ -5394,3 +5394,61 @@ email, termasuk Outlook, karena hanya memakai aturan tabel lama.
 | Render HTML di browser | blok tanda tangan di kanan, teks rata kiri |
 | Render PNG (WhatsApp) | ikon oranye berada di x 882–1002 dari lebar 1440 px — di kanan tengah kwitansi |
 | Tampilan 340 px (HP) | blok tetap di kanan, tidak meluber |
+
+---
+
+## Bab 36 — Email 2 & HP 2 juga dipakai untuk mengenali surat masuk
+
+### 36.1 Pertanyaan yang diperiksa
+
+Klien bertanya: kalau donor punya dua email dan email 1 ditandai utama, apakah
+surat yang dikirim donor dari **email 2** tetap masuk ke data donor itu?
+Pertanyaan yang sama untuk **HP 1 dan HP 2**.
+
+### 36.2 Jawaban: ya, keduanya dipakai
+
+Centang **Utama** hanya menentukan **tujuan pengiriman** (`emailUtama()` /
+`hpUtama()`). Untuk **mengenali surat masuk**, kedua kolom dipakai:
+
+| Fungsi | Yang dibaca |
+|---|---|
+| `emailDonor(d)` | `d.email` **dan** `d.email2` |
+| `donorByEmail(addr)` | cocok kalau alamat ada di salah satu kolom |
+| `donorByPhone(num)` | cocok kalau nomor ada di `d.hp1` **atau** `d.hp2` |
+
+Perilaku ini sudah ada sejak awal — **tidak ada perubahan kode aplikasi** pada
+bab ini. Yang ditambahkan hanya bukti uji dan penjelasan di panduan.
+
+### 36.3 Yang diperiksa dengan uji
+
+Berkas baru `tes/uji-cocok-email.js` (di-gitignore) — **52 pemeriksaan lulus**:
+
+| Bagian | Isi |
+|---|---|
+| 1–3 | email 1 & email 2 sama-sama dikenali; beda huruf besar/kecil dan spasi tetap cocok |
+| 4 | alamat asing / kosong tidak nyasar ke donor |
+| 5–7 | yang ditandai utama email 2; hanya satu email diisi; utama ditandai di kolom kosong |
+| 8–9 | dua donor memakai alamat sama → jatuh ke donor pertama; email 2 donor A = email 1 donor B |
+| 10 | HP 1 & HP 2 sama-sama dikenali; format `0811…`, `+62…`, `620…`, `8…`, berspasi semua cocok |
+| 10a–10c | utama di HP 2; hanya satu nomor diisi; utama ditandai di kolom kosong |
+| 10d–10e | dua donor memakai nomor sama; HP 2 donor A = HP 1 donor B |
+| 10f | nomor bentuk `62…` dari Worker (lihat `normalizePhone`) cocok |
+| 11 | pengirim berbentuk `Nama <alamat>` diurai dulu oleh `emailOf()` |
+
+### 36.4 Yang perlu diketahui
+
+- **Batasnya sama seperti email:** kalau dua donor memakai alamat/nomor yang
+  sama, surat hanya masuk ke **donor pertama yang cocok**. Aplikasi sudah
+  memperingatkan saat menyimpan data kembar.
+- **Jangan** memasukkan email 2 atau HP 2 sebagai donor baru yang terpisah —
+  riwayat suratnya akan terbelah dua.
+- Surat/pesan lama yang dulu "belum dikenal" ikut dicocokkan ulang otomatis
+  setelah email 2 atau HP 2 diisi.
+
+### 36.5 Yang berubah di kode
+
+| Berkas | Perubahan |
+|---|---|
+| `panduan.js` | Tabel kolom donor: HP 2 dijelaskan seperti email 2. Bagian "Tentang centang Utama" ditambah satu butir: centang hanya menentukan tujuan kirim, sedangkan surat/pesan masuk dikenali dari kedua email dan kedua nomor. Kata kunci pencarian ditambah. |
+| `index.html` | `v=80` → `v=81` |
+| `tes/uji-cocok-email.js` | **Baru** — 52 pemeriksaan (di-gitignore) |
