@@ -56,8 +56,23 @@ const BuletinKirim = (function(){
       if(b.tipe === 'gambar' && !(b.sampul ? opts.sampulUrl : amanURL(gambar))){
         throw new Error('Blok ' + (i + 1) + ' membutuhkan URL gambar atau sampul HTTPS yang valid.');
       }
-      if(b.tipe === 'kaki' && !(url ? amanURL(url) : opts.bacaUrl)){
-        throw new Error('Blok ' + (i + 1) + ' membutuhkan URL tombol atau URL baca majalah HTTPS yang valid.');
+      if(b.tipe === 'kaki'){
+        if(Array.isArray(b.tautan)){
+          if(b.tautan.length > 3) throw new Error('Blok ' + (i + 1) + ': maksimal tiga tautan.');
+          b.tautan.forEach(function(t,n){
+            if(!t || !String(t.teks || '').trim()) throw new Error('Blok ' + (i+1) + ': isi teks tautan ' + (n+1) + '.');
+            if(t.tujuan === 'majalah' && !opts.bacaUrl) throw new Error('Blok ' + (i+1) + ': pilih edisi majalah untuk tautan ' + (n+1) + '.');
+            if(t.tujuan === 'website' && !amanURL(t.url)) throw new Error('Blok ' + (i+1) + ': isi alamat HTTPS tautan ' + (n+1) + '.');
+            if(t.tujuan !== 'majalah' && t.tujuan !== 'website') throw new Error('Tujuan tautan tidak dikenal.');
+          });
+        }else if(!(url ? amanURL(url) : opts.bacaUrl)){
+          throw new Error('Blok ' + (i + 1) + ' membutuhkan URL tombol atau URL baca majalah HTTPS yang valid.');
+        }
+      }
+      if(['teks','gelap','krem'].indexOf(b.tipe) >= 0){
+        const isi = [b.isi].concat((Array.isArray(b.bagian) ? b.bagian : []).map(function(p){return p && p.isi;}));
+        if(isi.some(function(s){return /\]\(\{\/MAJALAH\}\)/.test(String(s || ''));}) && !opts.bacaUrl)
+          throw new Error('Blok ' + (i+1) + ': pilih edisi majalah untuk tautan di teks.');
       }
       if(b.tipe === 'kaki'){
         const links = BuletinRender.sosial(b);

@@ -5836,3 +5836,11 @@ judul opsional dan sub-bagian. Warna tulisan dipilih otomatis agar terbaca;
 setiap isi sub-bagian juga memiliki toolbar. Blok lama tetap tampil seperti
 semula; saat diubah dikonversi menjadi Teks tanpa membuang isinya. Hak cipta
 pada kaki diisi otomatis dengan teks Kartidaya 2026, bisa diedit dan wajib diisi.
+
+### 39.15 Tautan fleksibel — 20 November 2026
+
+Kaki dapat berisi nol sampai tiga tautan teks; setiap tujuan dapat memakai
+edisi majalah terpilih atau alamat website HTTPS. Blok Teks dan sub-bagian
+memiliki tombol untuk memasang tautan pada tulisan ke majalah atau website.
+Edisi yang sama dipakai oleh blok Tautan baca, tautan Teks dan tautan Kaki.
+Tiga ikon sosial tetap terpisah. Kaki lama tetap terbaca.

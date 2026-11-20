@@ -76,7 +76,7 @@ const Buletin = (function(){
     if(tipe === 'gambar') return {tipe:tipe, gambar:'', judul:''};
     if(tipe === 'teks') return {tipe:tipe, judul:'', isi:'', warna:'#ffffff', bagian:[]};
     if(tipe === 'tautan') return {tipe:tipe, teks:'Baca di sini!'};
-    if(tipe === 'kaki') return {tipe:tipe, tombol:'Baca majalah', url:'', sosial:'', hakcipta:'© 2026 Kartidaya Sahabat Indonesia. All Rights Reserved'};
+    if(tipe === 'kaki') return {tipe:tipe, tautan:[], sosial:'', hakcipta:'© 2026 Kartidaya Sahabat Indonesia. All Rights Reserved'};
     return null;
   }
   function bukaEditor(id){
@@ -88,6 +88,10 @@ const Buletin = (function(){
     draft.blok.forEach(function(b){
       if(b && b.tipe === 'kaki' && !String(b.hakcipta || '').trim()){
         b.hakcipta = '© 2026 Kartidaya Sahabat Indonesia. All Rights Reserved';
+        hakciptaDilengkapi = true;
+      }
+      if(b && b.tipe === 'kaki' && !Array.isArray(b.tautan)){
+        aktifkanTautanKaki(b);
         hakciptaDilengkapi = true;
       }
     });
@@ -114,7 +118,7 @@ const Buletin = (function(){
     const tombol = [
       ['tebal','B','Tebal','tb-tebal'], ['miring','I','Miring','tb-miring'],
       ['stabilo','🖍','Stabilo','tb-stabilo'], ['poin','•','Daftar berpoin','tb-poin'],
-      ['nomor','1.','Daftar bernomor','tb-nomor'], ['bersihkan','Hapus format','Hapus format','']
+      ['nomor','1.','Daftar bernomor','tb-nomor'], ['tautan','🔗','Tambah tautan',''], ['bersihkan','Hapus format','Hapus format','']
     ];
     return '<div class="toolbar-surat" role="toolbar" aria-label="Format teks">' + tombol.map(function(t){
       return '<button type="button" class="tb ' + t[3] + '" data-buletin-action="format-teks" data-index="' + i +
@@ -154,7 +158,19 @@ const Buletin = (function(){
       (edisiPilihan(draft) ? '<button class="btn sm" data-buletin-action="baca-majalah">Buka majalah</button>' : '') + '</div>';
     if(b.tipe === 'kaki'){
       const sosial = BuletinRender.sosial(b);
-      isi = field('Teks tombol', 'tombol', b.tombol) + field('Alamat tombol (https)', 'url', b.url) +
+      const daftar = Array.isArray(b.tautan) ? b.tautan : (b.tombol ? [{teks:b.tombol, tujuan:b.url ? 'website' : 'majalah', url:b.url || ''}] : []);
+      isi = '<h4>Tautan kaki</h4><p class="tiny muted">Boleh tanpa tautan atau sampai tiga tautan. Pilih tujuan majalah atau website.</p>' +
+        daftar.slice(0,3).map(function(t,n){
+          const tujuan = t.tujuan === 'website' ? 'website' : 'majalah';
+          return '<div class="buletin-bagian"><div class="row"><b>Tautan ' + (n+1) + '</b>' +
+            '<button class="btn sm ghost" data-buletin-action="hapus-tautan-kaki" data-index="' + i + '" data-tautan="' + n + '">Hapus tautan</button></div>' +
+            field('Teks tautan', 'teks', t.teks, false, ' data-tautan="' + n + '"') +
+            '<div class="field"><label>Tujuan<select data-buletin-field="tujuan" data-tautan="' + n + '">' +
+            '<option value="majalah"' + (tujuan === 'majalah' ? ' selected' : '') + '>Majalah yang dipilih</option>' +
+            '<option value="website"' + (tujuan === 'website' ? ' selected' : '') + '>Website lain</option></select></label></div>' +
+            (tujuan === 'website' ? field('Alamat website (https)', 'url', t.url, false, ' data-tautan="' + n + '"') : '<p class="tiny muted">Menggunakan majalah yang dipilih di atas.</p>') + '</div>';
+        }).join('') +
+        (daftar.length < 3 ? '<button class="btn sm" data-buletin-action="tambah-tautan-kaki" data-index="' + i + '">+ Tambah tautan</button>' : '') +
         '<h4>Tautan sosial</h4><p class="tiny muted">Tiga ikon tetap ditampilkan. Alamatnya dapat diubah.</p>' +
         ['instagram','facebook','website'].map(function(k){
           const nama = {instagram:'Instagram',facebook:'Facebook',website:'Website'}[k];
@@ -205,6 +221,10 @@ const Buletin = (function(){
       '<div class="stack">' + draft.blok.map(editorBlok).join('') + '</div></div>' +
       '<div><h3>Pratinjau langsung</h3><div class="buletin-preview" id="buletin-preview" inert>' + preview() + '</div></div></div>';
   }
+  function aktifkanTautanKaki(b){
+    if(!Array.isArray(b.tautan)) b.tautan = b.tombol ? [{teks:b.tombol, tujuan:b.url ? 'website' : 'majalah', url:b.url || ''}] : [];
+    return b.tautan;
+  }
   function aktifkanTeks(b){
     if(b.tipe === 'gelap' || b.tipe === 'krem'){
       b.warna = b.tipe === 'gelap' ? '#272727' : '#f5ead6';
@@ -224,6 +244,36 @@ const Buletin = (function(){
   document.addEventListener('mousedown', function(e){
     if(e.target.closest('[data-buletin-action="format-teks"]')) e.preventDefault();
   });
+  function formTautan(ta, b){
+    const awal = ta.selectionStart, akhir = ta.selectionEnd;
+    const dipilih = ta.value.slice(awal,akhir);
+    const asal = ta.value, editor = draft;
+    openModal({title:'Tambah tautan', body:
+      '<div class="field"><label>Teks yang ditampilkan<input type="text" id="buletin-link-teks" value="' + esc(dipilih) + '"></label></div>' +
+      '<div class="field"><label>Tujuan<select id="buletin-link-tujuan"><option value="majalah">Majalah yang dipilih</option><option value="website">Website lain</option></select></label></div>' +
+      '<div class="field" id="buletin-link-url-field" hidden><label>Alamat website (https)<input type="url" id="buletin-link-url" placeholder="https://..."></label></div>' +
+      '<p class="tiny muted">Tautan majalah mengikuti edisi yang dipilih pada buletin.</p><p id="buletin-link-error" role="alert"></p>',
+      footer:'<button class="btn primary" id="buletin-link-pasang">Pasang tautan</button><button class="btn" data-close>Batal</button>',
+      onOpen:function(root){
+        const jenis = root.querySelector('#buletin-link-tujuan');
+        const alamat = root.querySelector('#buletin-link-url-field');
+        jenis.addEventListener('change', function(){ alamat.hidden = jenis.value !== 'website'; });
+        root.querySelector('#buletin-link-pasang').addEventListener('click', function(){
+          const teks = root.querySelector('#buletin-link-teks').value.trim();
+          const input = root.querySelector('#buletin-link-url').value.trim();
+          const tujuan = jenis.value === 'majalah' ? '{/MAJALAH}' : BuletinRender.urlAman(input);
+          const error = root.querySelector('#buletin-link-error');
+          if(!teks || /[\[\]\r\n]/.test(teks)){ error.textContent = 'Isi teks tautan tanpa tanda [ atau ] dan tanpa baris baru.'; return; }
+          if(jenis.value === 'majalah' && !opsiMajalah(draft).bacaUrl){ error.textContent = 'Pilih edisi majalah terlebih dahulu di bagian atas editor.'; return; }
+          if(!tujuan){ error.textContent = 'Isi alamat website HTTPS yang benar.'; return; }
+          if(draft !== editor || terkunciLogin || terkunciServer || currentPage !== 'buletin' || draft.blok.indexOf(b) < 0 || ta.value !== asal){ error.textContent = 'Teks berubah. Tutup dan pilih teks kembali.'; return; }
+          const amanTujuan = jenis.value === 'website' ? tujuan.replace(/\(/g,'%28').replace(/\)/g,'%29') : tujuan;
+          const sisip = '[' + teks + '](' + amanTujuan + ')';
+          closeModal();
+          pasangHasilTeks(ta, b, {nilai:asal.slice(0,awal)+sisip+asal.slice(akhir), awal:awal, akhir:awal+sisip.length});
+        });
+      }});
+  }
   document.addEventListener('keydown', function(e){
     if(!draft || terkunciLogin || terkunciServer || currentPage !== 'buletin' || e.key !== 'Enter' || e.isComposing || e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return;
     const ta = e.target;
@@ -249,6 +299,15 @@ const Buletin = (function(){
     const b = container && draft.blok[Number(container.getAttribute('data-blok'))];
     if(!b) return;
     const n = el.getAttribute('data-bagian');
+    const nt = el.getAttribute('data-tautan');
+    if(nt !== null && nt !== undefined && b.tipe === 'kaki'){
+      const list = aktifkanTautanKaki(b);
+      if(!list[Number(nt)] || ['teks','url','tujuan'].indexOf(key) < 0) return;
+      list[Number(nt)][key] = el.value; berubah = true;
+      if(key === 'tujuan') render();
+      else { const p = document.getElementById('buletin-preview'); if(p) p.innerHTML = preview(); }
+      return;
+    }
     if(['gelap','krem'].indexOf(b.tipe) >= 0) aktifkanTeks(b);
     if(n !== null){ if(!b.bagian || !b.bagian[Number(n)]) return; b.bagian[Number(n)][key] = el.value; }
     else if(key.indexOf('sosial-') === 0){
@@ -274,11 +333,26 @@ const Buletin = (function(){
       const bagian = el.getAttribute('data-bagian');
       const ta = document.getElementById('buletin-teks-' + i + (bagian === null ? '' : '-' + bagian));
       if(!b || ['teks','gelap','krem'].indexOf(b.tipe) < 0 || !ta) return;
+      if(el.getAttribute('data-format') === 'tautan'){ formTautan(ta,b); return; }
       if(el.getAttribute('data-format') === 'bersihkan' && ta.selectionStart === ta.selectionEnd){
         toast('Pilih dulu teks yang ingin dibersihkan', true); ta.focus(); return;
       }
       const hasil = BuletinFormat.ubah(ta.value, ta.selectionStart, ta.selectionEnd, el.getAttribute('data-format'));
       pasangHasilTeks(ta, b, hasil);
+    }
+    else if((action === 'tambah-tautan-kaki' || action === 'hapus-tautan-kaki') && draft){
+      const b = draft.blok[Number(el.getAttribute('data-index'))];
+      if(!b || b.tipe !== 'kaki') return;
+      const list = aktifkanTautanKaki(b);
+      if(action === 'tambah-tautan-kaki'){
+        if(list.length >= 3) return;
+        list.push({teks:'', tujuan:'majalah', url:''});
+      }else{
+        const n = Number(el.getAttribute('data-tautan'));
+        if(!Number.isInteger(n) || !list[n]) return;
+        list.splice(n,1);
+      }
+      berubah = true; render();
     }
     else if(action === 'baru') form('');
     else if(action === 'koleksi-foto') BuletinFoto.buka();

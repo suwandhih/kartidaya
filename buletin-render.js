@@ -4,8 +4,10 @@
    URL eksplisit didahulukan; workerBase + majalah.id dapat membentuk URL edisi.
    Gambar dengan pilihan sampul memakai edisi terpilih; kaki tanpa URL memakai URL baca.
    Blok teks: {tipe:'teks', judul, isi, warna, bagian:[{judul,isi}]}; warna menerima
-   #RGB atau #RRGGBB, selainnya putih. Isi mendukung format teks; judul berupa teks biasa.
-   URL tidak aman diabaikan. Tidak membaca state, mengirim, atau mengubah data. */
+   #RGB atau #RRGGBB, selainnya putih. Isi mendukung format teks dan [label](URL HTTPS)
+   atau [label]({/MAJALAH}); judul berupa teks biasa. Kaki dapat memakai tautan (maks. 3)
+   dengan tujuan majalah atau website, menggantikan tombol lama. URL tidak aman diabaikan.
+   Tidak membaca state, mengirim, atau mengubah data. */
 const BuletinRender = (function(){
   function str(v){ return v == null ? '' : String(v); }
   function esc(v){
@@ -30,6 +32,44 @@ const BuletinRender = (function(){
       .replace(/(^|[^*])\*([^*\n]+)\*/g, '$1$2')
       .replace(/==([^=\n]+)==/g, '$1');
   }
+  // Parse balanced parentheses so URLs containing parentheses remain intact.
+  function tautanIsi(s, baca, html, linkColor){
+    linkColor = linkColor || '#bc4b0b';
+    s = str(s);
+    let out = '', last = 0, i = 0;
+    const teks = html ? inline : polos;
+    while(i < s.length){
+      if(s[i] === '\\'){ i += 2; continue; }
+      if(s[i] !== '['){ i++; continue; }
+      const start = i++;
+      let label = '';
+      while(i < s.length && s[i] !== ']' && s[i] !== '\n' && s[i] !== '\r'){
+        if(s[i] === '\\' && i + 1 < s.length && /[\\[\]()]/.test(s[i + 1])) i++;
+        label += s[i++];
+      }
+      if(!label || s[i] !== ']' || s[i + 1] !== '('){ i = start + 1; continue; }
+      i += 2;
+      let destination = '', depth = 1;
+      while(i < s.length && depth && s[i] !== '\n' && s[i] !== '\r'){
+        if(s[i] === '\\' && i + 1 < s.length && /[\\()]/.test(s[i + 1])){
+          destination += s[i + 1]; i += 2; continue;
+        }
+        if(s[i] === '(') depth++;
+        if(s[i] === ')') depth--;
+        if(depth) destination += s[i];
+        i++;
+      }
+      if(depth){ i = start + 1; continue; }
+      const majalah = destination === '{/MAJALAH}';
+      const url = majalah ? baca : urlAman(destination);
+      if(!majalah && !url){ i = start + 1; continue; }
+      out += teks(s.slice(last, start));
+      out += html ? (url ? '<a href="' + esc(url) + '" style="color:' + linkColor + ';text-decoration:underline">' + inline(label) + '</a>' : inline(label)) :
+        polos(label) + (url ? ' (' + url + ')' : '');
+      last = i;
+    }
+    return out + teks(s.slice(last));
+  }
   function sosialInline(s){
     let out = '', last = 0;
     const re = /https:\/\/[^\s<>"']+/gi;
@@ -44,9 +84,9 @@ const BuletinRender = (function(){
     }
     return out + inline(s.slice(last));
   }
-  function format(s, social){
+  function format(s, social, baca, linkColor){
     const out = [];
-    const sebaris = social ? sosialInline : inline;
+    const sebaris = social ? sosialInline : baca !== undefined ? function(line){ return tautanIsi(line, baca, true, linkColor); } : inline;
     let mode = '';
     function tutup(){ if(mode){ out.push('</' + mode + '>'); mode = ''; } }
     str(s).split(/\r\n|\r|\n/).forEach(function(line){
@@ -128,11 +168,11 @@ const BuletinRender = (function(){
       }else if(b.tipe === 'teks'){
         const warna = warnaTeks(b.warna);
         if(str(b.judul)){ content += '<div style="font-size:20px;font-weight:bold;padding-bottom:12px">' + esc(b.judul) + '</div>'; plain.push(str(b.judul)); }
-        if(str(b.isi)){ content += format(b.isi); plain.push(polos(b.isi)); }
+        if(str(b.isi)){ content += format(b.isi, false, baca, warna ? warna.depan : undefined); plain.push(tautanIsi(b.isi, baca, false)); }
         (Array.isArray(b.bagian) ? b.bagian : []).forEach(function(p){
           if(!p || typeof p !== 'object' || Array.isArray(p)) return;
           if(str(p.judul)){ content += '<div style="font-size:16px;font-weight:bold;padding:8px 0">' + esc(p.judul) + '</div>'; plain.push(str(p.judul)); }
-          if(str(p.isi)){ content += '<div>' + format(p.isi) + '</div>'; plain.push(polos(p.isi)); }
+          if(str(p.isi)){ content += '<div>' + format(p.isi, false, baca, warna ? warna.depan : undefined) + '</div>'; plain.push(tautanIsi(p.isi, baca, false)); }
         });
         if(content){
           const style = warna ? 'padding:16px 24px;background-color:' + warna.latar + ';color:' + warna.depan : 'padding:16px 24px;color:#222222';
@@ -155,11 +195,22 @@ const BuletinRender = (function(){
         if(b.isi){ content += format(b.isi); plain.push(polos(b.isi)); }
         if(content) html.push(row(content, 'padding:24px;background-color:#f5ead6;color:#222222'));
       }else if(b.tipe === 'kaki'){
-        const label = str(b.tombol);
-        const target = urlAman(str(b.url).trim() ? b.url : baca);
-        if(label){
-          content += '<div style="padding-bottom:16px">' + link(label, target, 'display:inline-block;background-color:#dd641e;color:#ffffff;font-weight:bold;text-decoration:none;padding:12px 20px') + '</div>';
-          plain.push(label + (target ? ': ' + target : ''));
+        if(Array.isArray(b.tautan)){
+          b.tautan.slice(0, 3).forEach(function(item){
+            if(!item || typeof item !== 'object' || Array.isArray(item)) return;
+            const label = str(item.teks);
+            if(!label || (item.tujuan !== 'majalah' && item.tujuan !== 'website')) return;
+            const target = item.tujuan === 'majalah' ? baca : urlAman(item.url);
+            content += '<div style="padding-bottom:8px">' + link(label, target, 'color:#ff984f;text-decoration:underline') + '</div>';
+            plain.push(label + (target ? ': ' + target : ''));
+          });
+        }else{
+          const label = str(b.tombol);
+          const target = urlAman(str(b.url).trim() ? b.url : baca);
+          if(label){
+            content += '<div style="padding-bottom:16px">' + link(label, target, 'display:inline-block;background-color:#dd641e;color:#ffffff;font-weight:bold;text-decoration:none;padding:12px 20px') + '</div>';
+            plain.push(label + (target ? ': ' + target : ''));
+          }
         }
         const links = sosial(b);
         const nama = {instagram:'Instagram', facebook:'Facebook', website:'Website'};

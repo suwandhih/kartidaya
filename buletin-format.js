@@ -11,6 +11,7 @@ const BuletinFormat = (function(){
       if(awal === akhir) return {nilai:teks, awal:awal, akhir:akhir};
       const bersih = teks.slice(awal,akhir).replace(/\*\*([^*\n]+)\*\*/g,'$1')
         .replace(/(^|[^*])\*([^*\n]+)\*/g,'$1$2').replace(/==([^=\n]+)==/g,'$1')
+        .replace(/\[([^\]\n]+)\]\((?:\{\/MAJALAH\}|https:\/\/[^\s)]+)\)/g,'$1')
         .replace(/^[ \t]*(?:[-•]|\d+[.)])[ \t]+/gm,'');
       return {nilai:teks.slice(0,awal)+bersih+teks.slice(akhir),awal:awal,akhir:awal+bersih.length};
     }
