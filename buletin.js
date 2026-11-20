@@ -28,6 +28,7 @@ const Buletin = (function(){
       return String(b.diubah || b.dibuat || '').localeCompare(String(a.diubah || a.dibuat || ''));
     });
     return '<div class="card"><div class="card-head"><h2>Buletin tersimpan</h2>' +
+      '<button class="btn" data-buletin-action="koleksi-foto">Koleksi foto</button>' +
       '<button class="btn primary" data-buletin-action="baru">+ Buat buletin</button></div>' +
       '<p class="small muted">Susun isi buletin, pilih edisi majalah, lalu periksa sebelum mengirim.</p>' +
       (daftar.length ? '<div class="stack">' + daftar.map(function(b){
@@ -100,9 +101,16 @@ const Buletin = (function(){
       ? '<textarea' + attrs + ' rows="3">' + esc(value || '') + '</textarea>'
       : '<input type="text"' + attrs + ' value="' + esc(value || '') + '">') + '</label></div>';
   }
+  function fotoAman(url){
+    try { const u = new URL(url); return u.protocol === 'https:' && !u.username && !u.password ? u.href : ''; }
+    catch(e){ return ''; }
+  }
   function editorBlok(b, i){
     let isi = '';
-    if(b.tipe === 'gambar') isi = '<label><input type="checkbox" data-buletin-field="sampul"' + (b.sampul ? ' checked' : '') + '> Gunakan sampul edisi majalah yang dipilih</label>' + field('Alamat gambar lain (https)', 'gambar', b.gambar) + field('Judul di atas gambar', 'judul', b.judul) + '<p class="tiny muted">Judul ditampilkan sebelum gambar agar lebih kompatibel dengan aplikasi email.</p>';
+    if(b.tipe === 'gambar') isi = '<label><input type="checkbox" data-buletin-field="sampul"' + (b.sampul ? ' checked' : '') + '> Gunakan sampul edisi majalah yang dipilih</label>' +
+      '<div class="buletin-foto-pilihan">' + (fotoAman(b.gambar) ? '<img src="' + esc(fotoAman(b.gambar)) + '" alt="Foto yang dipilih">' : '<p class="tiny muted">Belum ada foto dipilih.</p>') +
+      '<button class="btn sm" data-buletin-action="pilih-foto" data-index="' + i + '">Pilih atau unggah foto</button></div>' +
+      field('Judul gambar', 'judul', b.judul) + '<p class="tiny muted">Judul ditampilkan sebelum gambar agar lebih kompatibel dengan aplikasi email.</p>';
     if(b.tipe === 'teks') isi = field('Isi teks', 'isi', b.isi, true);
     if(b.tipe === 'tautan') isi = field('Teks tautan', 'teks', b.teks) + '<p class="tiny muted">Tautan menuju halaman pembaca edisi majalah yang dipilih.</p>';
     if(b.tipe === 'gelap'){
@@ -186,6 +194,16 @@ const Buletin = (function(){
     const action = el.getAttribute('data-buletin-action');
     const id = el.getAttribute('data-id');
     if(action === 'baru') form('');
+    else if(action === 'koleksi-foto') BuletinFoto.buka();
+    else if(action === 'pilih-foto' && draft){
+      const b = draft.blok[Number(el.getAttribute('data-index'))];
+      const editor = draft;
+      if(!b || b.tipe !== 'gambar') return;
+      BuletinFoto.buka({onSelect:function(foto){
+        if(draft !== editor || draft.blok.indexOf(b) < 0 || terkunciLogin || terkunciServer || currentPage !== 'buletin') return;
+        b.gambar = foto.url; b.sampul = false; berubah = true; render();
+      }});
+    }
     else if(action === 'editor') bukaEditor(id);
     else if(action === 'pratinjau'){
       const b = cari(id);

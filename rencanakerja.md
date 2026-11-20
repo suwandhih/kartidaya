@@ -5797,3 +5797,12 @@ tautan teks. Nama menu tetap Buletin; detail lain diputuskan pada tahap berikutn
 | `index.html` | Muat skrip terpisah dan naikkan versi aset |
 | `panduan.js` & `README.md` | Menjelaskan kemampuan tahap awal |
 | `tes/uji-buletin*.js` | Uji editor, perender, dan pengiriman Gmail tiruan secara lokal; folder `tes` tidak masuk Git |
+
+### 39.10 Foto buletin — 20 November 2026
+
+Pengguna memilih atau mengunggah foto langsung dari HP/komputer tanpa mengisi
+alamat. Koleksi foto digunakan bersama, dapat dipakai lagi atau dihapus setelah
+peringatan bahwa foto di buletin dan email lama dapat hilang. Opsi Otomatis
+memperkecil dimensi dan ukuran; Ukuran asli mempertahankan dimensi. Pemilihan
+format dan kompresi dilakukan otomatis; PNG tidak selalu lebih kecil dari JPG.
+Foto disimpan di Worker, bukan di dalam cadangan JSON buletin.

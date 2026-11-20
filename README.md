@@ -41,7 +41,7 @@ Surat yang "dikirim" tercatat di buku donor, surat masuk bisa dicatat manual.
 | **Sinkron Gmail** | Tarik inbox, cocokkan otomatis lewat alamat email |
 | **Sinkron WhatsApp** | Tarik pesan masuk lewat webhook, cocokkan lewat nomor HP |
 | **Sinkron otomatis** | Kedua kanal ditarik sendiri di latar belakang |
-| **Buletin** | Menu terpisah untuk menyusun enam jenis blok, memilih edisi majalah, memeriksa pratinjau dan mengirim ke donor melalui Gmail |
+| **Buletin** | Menu terpisah untuk menyusun blok, unggah dan pakai ulang foto dari koleksi bersama, memilih majalah, dan mengirim melalui Gmail |
 | **Majalah** | Unggah PDF → jadi halaman gambar; banyak edisi bisa disimpan |
 | **Statistik pembaca majalah** | Berapa kali dibuka & halaman mana yang paling dilihat |
 | Cetak surat | `window.print()` per penerima |

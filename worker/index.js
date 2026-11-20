@@ -21,6 +21,14 @@
      DELETE /majalah/<id>     → hapus majalah
      GET    /majalah/<id>/<n> → gambar halaman ke-n (publik)
 
+   Endpoint foto buletin bersama (X-App-Key atau token login):
+     POST /buletin-foto              → { nama, tipe, data: base64 }
+     GET  /buletin-foto?cursor=...   → { ok, foto: [...], cursor }
+     POST /buletin-foto/<id>/hapus   → hapus foto dan putus tautan email
+     GET  /buletin-foto/<id>         → gambar publik untuk email (tanpa auth)
+     Format JPEG/PNG/WebP, maksimal 5 MiB per foto. URL tidak kedaluwarsa;
+     penghapusan dapat dipengaruhi eventual consistency KV dan cache email.
+
    Endpoint tanda dibaca:
      GET  /pixel/<id>         → gambar 1×1, sekaligus mencatat email dibuka
      POST /pixel/status       → cek ID mana yang sudah dibuka
@@ -41,11 +49,13 @@
         GET  /akun/pengguna       → daftar akun (butuh token)
         POST /akun/ganti-password → ganti password sendiri / oleh admin
 
-      Semua endpoint butuh header X-App-Key, KECUALI:
+      Endpoint data bersama memakai X-App-Key atau token login. Pengecualian publik:
         /daftar (halaman pendaftaran terpisah), /wa/webhook, /pixel/<id>,
-        /majalah/<id>/<n> — sisanya dipanggil Meta dan klien email yang tidak
-        punya kunci.
+        /majalah/<id>/<n>, /buletin-foto/<id> — dipanggil Meta dan klien email
+        yang tidak punya kunci.
    ============================================================ */
+
+import { fotoPublik, fotoKelola } from './buletin-foto.js';
 
 const GRAPH = 'https://graph.facebook.com/v21.0';
 
@@ -1251,6 +1261,9 @@ export default {
     }
 
     try {
+      const foto = await fotoPublik(req, env, path);
+      if (foto) return withCors(foto, req);
+
       /* --- verifikasi webhook oleh Meta (tanpa X-App-Key) --- */
       if (path === '/wa/webhook' && req.method === 'GET') {
         const mode = url.searchParams.get('hub.mode');
@@ -1533,6 +1546,9 @@ export default {
                   'diperlukan untuk pengaturan WhatsApp & majalah di Setelan.)'
         }, 401), req);
       }
+
+      const hasilFoto = await fotoKelola(req, env, path, url);
+      if (hasilFoto) return withCors(hasilFoto, req);
 
       if (path === '/wa/status' && req.method === 'GET') {
         const queue = await readQueue(env);
