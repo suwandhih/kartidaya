@@ -5855,3 +5855,9 @@ email yang dikirim tidak berubah.
 
 Blok Tautan baca menyediakan pilihan kiri, tengah, dan kanan. Posisi bawaan
 adalah kiri, termasuk untuk blok lama yang belum memiliki pilihan posisi.
+
+### 39.18 Panduan Buletin — 20 November 2026
+
+Panduan [?] di halaman Buletin langsung membuka petunjuk Buletin. Isinya
+menjelaskan langkah membuat, menyusun, memasang foto dan majalah, mengatur
+Kaki, menyimpan, memeriksa, dan mengirim dengan bahasa sehari-hari.

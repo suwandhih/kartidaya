@@ -71,19 +71,67 @@ var PANDUAN = [
   },
 
   {
-    id:'buletin', judul:'Menyusun buletin', ico:'▧',
-    kata:['buletin', 'blok', 'pratinjau', 'gambar', 'edisi'],
-    isi: '<p>Buka menu <b>Buletin</b>, buat judul dan edisi, lalu pilih <b>Susun blok</b>.</p>' +
-      '<p>Pilih jenis blok dan tekan <b>+ Tambah</b>. Isi kolomnya; pratinjau berubah saat mengetik. Gunakan tombol panah, Duplikat, atau Hapus untuk mengatur urutan.</p>' +
-      '<p>Blok <b>Teks</b> dapat diberi judul, warna latar, dan sub-bagian dengan judul kecil; judul boleh kosong. Pilih tulisan lalu tekan <b>B</b>, <b>I</b>, stabilo, poin, atau nomor. Pilih teks dan tekan <b>Hapus format</b> untuk membersihkan format. Untuk daftar, Enter membuat baris berikutnya; Enter pada baris kosong mengakhiri daftar. Tanda format tidak ikut terlihat di hasil email.</p>' +
-      '<p>Untuk gambar utama, pilih <b>Pilih atau unggah foto</b>, ambil foto dari HP atau komputer, atau pilih dari koleksi. Pilihan <b>Otomatis</b> memperkecil foto; <b>Ukuran asli</b> mempertahankan dimensinya. Foto disimpan di server dan dapat dipakai lagi.</p>' +
-      '<p>Untuk tautan <b>Baca di sini!</b>, tekan <b>Unggah majalah PDF</b>, isi judul dan pilih berkas PDF. Setelah selesai edisi otomatis dipilih; atau pilih edisi yang sudah tersedia. Posisi tautan dapat dipilih kiri, tengah, atau kanan; awalnya di kiri. Gunakan <b>Buka majalah</b> untuk memeriksa halamannya, lalu tekan <b>Simpan blok</b>.</p>' +
-      '<p>Menu <b>Koleksi foto</b> di daftar Buletin dapat digunakan untuk mengelola foto bersama. Jika foto dihapus, foto tersebut tidak lagi muncul di buletin atau email yang sudah dikirim.</p>' +
-      '<p>Untuk tautan dalam paragraf, pilih tulisan di blok Teks lalu tekan tombol <b>🔗</b>. Pilih majalah yang sudah dipilih atau isi alamat website. Tanda tautan dalam kotak teks hanya penanda; hasilnya dapat dilihat di pratinjau.</p>' +
-      '<p>Blok <b>Kaki</b> dapat berisi hingga tiga tautan teks. Tekan Tambah tautan dan pilih tujuan majalah atau website; hapus tautan yang tidak diperlukan. Tiga ikon tetap Instagram, Facebook, dan Website terpisah dari tautan tersebut. Hak cipta sudah terisi, dapat diedit dan harus tetap diisi.</p>' +
-      '<p>Kembali ke daftar, tekan <b>Kirim</b>, pilih donor dan periksa daftar serta pratinjau sebelum mengirim sungguhan. Gmail harus terhubung. Hasil per donor tercatat di riwayat; pastikan daftar penerima sebelum mengulang pengiriman.</p>' +
-      '<p>Pratinjau memakai format email yang sama, tetapi tampilan dapat berbeda di Gmail atau Outlook. Judul gambar ditempatkan di atas gambar agar lebih kompatibel.</p>' +
-      '<p><button class="btn sm" data-panduan-halaman="buletin">Buka Buletin</button></p>'
+    id:'buletin', judul:'Membuat dan mengirim buletin', ico:'▧',
+    kata:['buletin','blok','foto','gambar','majalah','unggah','tautan','pratinjau','kaki','kirim','gagal','penerima','edisi'],
+    isi: '' +
+      '<p class="pd-lead">Buletin adalah email berisi berita, gambar, dan tautan. Susun bagian-bagiannya, periksa hasilnya, lalu kirim ke donor.</p>' +
+      '<h4>1. Buat buletin</h4>' +
+      '<ol class="pd-langkah">' +
+        '<li>Buka menu <b>Buletin</b>, lalu tekan <b>+ Buat buletin</b>.</li>' +
+        '<li>Isi <b>Judul</b>, edisi, dan tanggal. Tekan <b>Simpan</b>. Judul juga menjadi judul email yang diterima donor.</li>' +
+        '<li>Di daftar buletin, tekan <b>Susun blok</b> untuk mulai mengisi.</li>' +
+      '</ol>' +
+      '<p>Jika sudah menyusun buletin dan belum menyimpan, tekan <b>Tutup</b> pada panduan ini agar kembali ke pekerjaan Anda.</p>' +
+      '<h4>2. Susun isi buletin</h4>' +
+      '<p><b>Blok</b> adalah satu bagian buletin, misalnya gambar atau tulisan. Pilih jenisnya di <b>Tambah blok</b>, lalu tekan <b>+ Tambah</b>.</p>' +
+      '<ul>' +
+        '<li><b>Gambar utama:</b> pasang foto atau sampul majalah.</li>' +
+        '<li><b>Teks:</b> tulis berita. Judul boleh kosong; warna latar bisa dipilih. Jika perlu, tambahkan sub-bagian untuk judul kecil dan tulisan lain.</li>' +
+        '<li><b>Tautan baca:</b> buat tulisan seperti “Baca di sini!” yang membuka majalah.</li>' +
+        '<li><b>Kaki:</b> bagian paling bawah, berisi tautan pilihan, ikon media sosial, dan hak cipta.</li>' +
+      '</ul>' +
+      '<p>Gunakan tombol <b>↑</b> dan <b>↓</b> untuk memindahkan bagian. <b>Duplikat</b> membuat salinan; <b>Hapus</b> membuang bagian yang tidak diperlukan. Lihat hasilnya di <b>Pratinjau langsung</b>.</p>' +
+      '<h4>3. Pasang foto</h4>' +
+      '<ol class="pd-langkah">' +
+        '<li>Di bagian <b>Gambar utama</b>, tekan <b>Pilih atau unggah foto</b>.</li>' +
+        '<li>Untuk memakai foto yang sudah ada, tekan <b>Gunakan foto</b>. Untuk foto baru, tekan <b>Pilih foto dari perangkat</b> dan pilih foto dari HP atau komputer.</li>' +
+        '<li>Pilih <b>Otomatis</b> agar foto lebih ringan, atau <b>Ukuran asli</b> agar lebar dan tinggi tetap. Tekan <b>Unggah foto</b>. Foto yang berhasil diunggah langsung dipasang.</li>' +
+      '</ol>' +
+      '<p>Foto tersimpan di <b>Koleksi foto</b> dan bisa dipakai kembali. Jangan hapus foto yang masih diperlukan: foto itu bisa hilang dari buletin dan email yang sudah dikirim.</p>' +
+      '<h4>4. Rapikan tulisan dan tambah tautan</h4>' +
+      '<p>Di bagian <b>Teks</b>, pilih atau tandai tulisan, lalu tekan <b>B</b> untuk tebal, <b>I</b> untuk miring, atau tombol stabilo untuk sorotan. Gunakan <b>•</b> untuk poin dan <b>1.</b> untuk daftar bernomor. Tekan <b>Hapus format</b> untuk membersihkan tulisan yang dipilih.</p>' +
+      '<p>Untuk menambahkan tautan di tengah tulisan, pilih kata yang ingin ditekan pembaca, lalu tekan <b>🔗</b>. Pilih <b>Majalah yang dipilih</b> atau <b>Website lain</b>; jika memilih website, isi alamatnya yang diawali <b>https://</b>. Tekan <b>Pasang tautan</b>.</p>' +
+      '<p>Di kotak tulisan mungkin terlihat tanda seperti <b>**</b> atau tanda tautan. Itu hanya penanda. Lihat hasil tampilannya di pratinjau.</p>' +
+      '<h4>5. Pilih atau unggah majalah</h4>' +
+      '<ol class="pd-langkah">' +
+        '<li>Jika majalah sudah tersedia, pilih judulnya pada <b>Edisi majalah untuk tautan baca dan sampul</b>.</li>' +
+        '<li>Jika belum ada, tekan <b>+ Unggah majalah PDF</b>. Isi judul majalah, pilih berkas PDF, lalu tekan <b>Unggah</b>. Tunggu sampai selesai; majalah akan terpilih otomatis.</li>' +
+        '<li>Tambahkan bagian <b>Tautan baca</b>. Ubah tulisannya jika perlu dan pilih posisi <b>Kiri</b>, <b>Tengah</b>, atau <b>Kanan</b>. Tekan <b>Buka majalah</b> untuk memeriksa.</li>' +
+      '</ol>' +
+      '<p>Majalah yang dipilih dipakai bersama oleh Tautan baca, sampul, dan tautan ke majalah di bagian lain. Untuk sampul, centang <b>Gunakan sampul edisi majalah yang dipilih</b> pada Gambar utama.</p>' +
+      '<h4>6. Atur bagian Kaki</h4>' +
+      '<p>Tekan <b>+ Tambah tautan</b> jika perlu. Kaki boleh memiliki hingga tiga tautan, misalnya satu untuk membaca majalah dan satu untuk website. Isi tulisan dan pilih tujuannya. Untuk website, isi alamat yang diawali <b>https://</b>. Gunakan <b>Hapus tautan</b> jika tidak diperlukan.</p>' +
+      '<p>Ikon Instagram, Facebook, dan Website sudah tersedia. Alamatnya dan tulisan hak cipta boleh diubah, tetapi tidak boleh dikosongkan.</p>' +
+      '<h4>7. Simpan dan periksa</h4>' +
+      '<ol class="pd-langkah">' +
+        '<li>Tekan <b>Simpan blok</b>, lalu <b>Kembali</b>. Untuk mengubah susunan lagi, tekan <b>Susun blok</b> pada buletin tersebut. Untuk judul, edisi, atau tanggal, tekan <b>Ubah data</b>.</li>' +
+        '<li>Tekan <b>Pratinjau</b> dan gulir ke bawah untuk melihat seluruh buletin. Tautan di pratinjau tidak dapat ditekan. Tampilan di email penerima bisa sedikit berbeda.</li>' +
+      '</ol>' +
+      '<h4>8. Kirim email</h4>' +
+      '<ol class="pd-langkah">' +
+        '<li>Pastikan Gmail sudah terhubung di <b>Setelan</b>, dan alamat email donor sudah diisi.</li>' +
+        '<li>Pada daftar Buletin, tekan <b>Kirim</b>. Centang penerima, lalu tekan <b>Periksa pengiriman</b>.</li>' +
+        '<li>Periksa daftar penerima dan gulir pratinjau. Jika sudah benar, tekan <b>Kirim sekarang</b>. Email benar-benar dikirim melalui Gmail.</li>' +
+        '<li>Tunggu hasilnya. Status <b>Terkirim</b> atau <b>Gagal</b> juga tercatat di riwayat donor. Periksa penerima yang sudah berhasil sebelum mengirim ulang.</li>' +
+      '</ol>' +
+      '<p><b>Saran:</b> untuk mencoba, pilih satu donor yang alamat emailnya milik Anda sendiri. Periksa tampilan dan tautan pada email yang diterima sebelum mengirim ke banyak orang.</p>' +
+      '<h4>Kalau ada kesulitan</h4>' +
+      '<ul>' +
+        '<li><b>Majalah belum ditemukan:</b> pilih atau unggah majalah pada bagian edisi, lalu simpan blok.</li>' +
+        '<li><b>Email tidak terkirim:</b> periksa Gmail di Setelan dan alamat email donor; lihat pesan gagal yang ditampilkan.</li>' +
+        '<li><b>Perubahan belum terlihat di perangkat lain:</b> pastikan penyimpanan selesai, lalu muat ulang aplikasi di perangkat tersebut.</li>' +
+      '</ul>' +
+      '<p>Jika panduan ini dibuka saat sedang menyusun buletin, tekan <b>Tutup</b> untuk kembali ke susunan.</p>'
   },
 
   /* ---------------- 2. ISTILAH ---------------- */
@@ -1085,7 +1133,8 @@ document.addEventListener('click', function(e){
   const buka = e.target.closest('[data-panduan]');
   if(buka){
     e.preventDefault();
-    panduanBuka(buka.getAttribute('data-panduan') || 'mulai');
+    const id = buka.getAttribute('data-panduan') || 'mulai';
+    panduanBuka(id === 'mulai' && typeof currentPage !== 'undefined' && currentPage === 'buletin' ? 'buletin' : id);
     return;
   }
   /* Pindah bab / hasil pencarian, tanpa menutup jendela. */
