@@ -243,6 +243,10 @@ const BuletinRender = (function(){
       teks:teks.join('\n\n')
     };
   }
+  render.pratinjau = function(html){
+    const body = str(html).match(/<body\b[^>]*>([\s\S]*?)<\/body\s*>/i);
+    return (body ? body[1] : '').replace(/<a\b[^>]*>/gi, '<span style="color:inherit;text-decoration:underline">').replace(/<\/a\s*>/gi, '</span>');
+  };
   render.sosial = sosial;
   render.urlAman = urlAman;
   return render;

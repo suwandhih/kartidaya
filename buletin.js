@@ -380,9 +380,9 @@ const Buletin = (function(){
     else if(action === 'pratinjau'){
       const b = cari(id);
       if(!b){ toast('Buletin tidak ditemukan', true); return; }
-      const html = BuletinRender(b, opsiMajalah(b)).html;
+      const html = BuletinRender.pratinjau(BuletinRender(b, opsiMajalah(b)).html);
       openModal({title:'Pratinjau: ' + b.judul, wide:true,
-        body:'<p class="small muted">Token penerima ditampilkan apa adanya; tampilan dapat berbeda di aplikasi email. Tautan dinonaktifkan.</p><iframe title="Pratinjau buletin" sandbox="" tabindex="-1" referrerpolicy="no-referrer" style="width:100%;height:500px;border:0;pointer-events:none" srcdoc="' + esc(html) + '"></iframe>',
+        body:'<p class="small muted">Token penerima ditampilkan apa adanya; tampilan dapat berbeda di aplikasi email. Tautan dinonaktifkan.</p><div class="buletin-pratinjau-gulir" role="region" aria-label="Pratinjau buletin" tabindex="0">' + html + '</div>',
         footer:'<button class="btn" data-close>Tutup</button>'});
     }
     else if(action === 'kirim'){

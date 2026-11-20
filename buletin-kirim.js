@@ -124,13 +124,13 @@ const BuletinKirim = (function(){
       const preview = renderPribadi(s, contoh);
       const info = {judul:subjekPribadi(s, contoh), donor:donorName(contoh), dikirim:new Date().toISOString()};
       const tautan = workerBase() ? terimaURL('pratinjau', info) : '';
-      const previewHTML = tambahHTML(preview.html, konfirmasiHTML(tautan));
+      const previewHTML = BuletinRender.pratinjau(tambahHTML(preview.html, konfirmasiHTML(tautan)));
       body = '<p><b>Konfirmasi pengiriman Gmail sungguhan</b></p><p>Buletin: ' + esc(s.buletin.judul) +
         '<br>Jumlah penerima: ' + daftar.length + '</p><div style="max-height:40vh;overflow:auto"><ul>' + daftar.map(function(i){
           const d = s.donors[i]; return '<li>' + esc(donorName(d)) + ' (' + esc(d.id) + ') — ' + esc(alamat(d) || 'email belum diisi; akan gagal') + '</li>';
         }).join('') + '</ul></div><h3>Pratinjau untuk ' + esc(donorName(contoh)) + '</h3>' +
         '<p class="tiny muted">Tautan dinonaktifkan dalam pratinjau.</p>' +
-        '<iframe title="Pratinjau buletin" sandbox="" tabindex="-1" referrerpolicy="no-referrer" style="width:100%;height:420px;border:1px solid #ccc;pointer-events:none" srcdoc="' + esc(previewHTML) + '"></iframe>' +
+        '<div class="buletin-pratinjau-gulir" role="region" aria-label="Pratinjau buletin" tabindex="0">' + previewHTML + '</div>' +
         '<p id="buletin-kirim-pesan" role="alert"></p>';
       footer = '<button class="btn primary" data-buletin-kirim-action="kirim">Kirim sekarang</button>' +
         '<button class="btn" data-buletin-kirim-action="kembali">Kembali</button><button class="btn" data-close>Batal</button>';

@@ -5844,3 +5844,9 @@ edisi majalah terpilih atau alamat website HTTPS. Blok Teks dan sub-bagian
 memiliki tombol untuk memasang tautan pada tulisan ke majalah atau website.
 Edisi yang sama dipakai oleh blok Tautan baca, tautan Teks dan tautan Kaki.
 Tiga ikon sosial tetap terpisah. Kaki lama tetap terbaca.
+
+### 39.16 Perbaikan gulir pratinjau — 20 November 2026
+
+Pratinjau daftar dan pemeriksaan sebelum kirim sekarang dapat digulir dengan
+mouse, sentuhan, atau keyboard. Tautan pratinjau tetap tidak aktif; tautan pada
+email yang dikirim tidak berubah.

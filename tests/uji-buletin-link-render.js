@@ -43,4 +43,9 @@ const legacy = render({blok:[{tipe:'kaki',tombol:'Baca',url:'https://legacy.test
 assert.ok(legacy.html.includes('<a href="https://legacy.test/" style="display:inline-block;background-color:#dd641e;color:#ffffff;font-weight:bold;text-decoration:none;padding:12px 20px">Baca</a>'));
 assert.ok(legacy.teks.includes('Baca: https://legacy.test/'));
 assert.doesNotMatch(render({blok:[{tipe:'kaki',tombol:'Lama',tautan:[]}]}).html, /Lama/);
+const preview = render.pratinjau(footer.html);
+assert.doesNotMatch(preview, /<a\b|<\/a\s*>|<body\b|<html\b/i);
+assert.match(preview, /Majalah &amp; edisi/);
+assert.match(preview, /buletin-instagram\.png/);
+assert.match(footer.html, /<a href=/);
 console.log('uji-buletin-link-render: OK');
