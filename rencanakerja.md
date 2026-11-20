@@ -5867,3 +5867,9 @@ Kaki, menyimpan, memeriksa, dan mengirim dengan bahasa sehari-hari.
 Memilih berkas belum mengunggah foto. Setelah pengguna menekan Unggah foto,
 foto ditambahkan ke koleksi tanpa mengganti gambar utama. Pengguna memilih
 sendiri dengan tombol Gunakan foto.
+
+### 39.20 Panduan sesuai halaman — 20 November 2026
+
+Tombol [?] di halaman Donor, Tulis, Buletin, dan Keuangan membuka bab yang
+sesuai. Pengguna tetap dapat memilih bab lain atau mencari panduan. Halaman
+lain membuka panduan awal seperti sebelumnya.

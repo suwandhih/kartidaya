@@ -1135,7 +1135,9 @@ document.addEventListener('click', function(e){
   if(buka){
     e.preventDefault();
     const id = buka.getAttribute('data-panduan') || 'mulai';
-    panduanBuka(id === 'mulai' && typeof currentPage !== 'undefined' && currentPage === 'buletin' ? 'buletin' : id);
+    const halaman = typeof currentPage === 'undefined' ? '' : currentPage;
+    const panduanHalaman = {donor:'data-donor', surat:'tulis', buletin:'buletin', keuangan:'keuangan'};
+    panduanBuka(id === 'mulai' && Object.prototype.hasOwnProperty.call(panduanHalaman, halaman) ? panduanHalaman[halaman] : id);
     return;
   }
   /* Pindah bab / hasil pencarian, tanpa menutup jendela. */
