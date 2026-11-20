@@ -744,6 +744,11 @@ tbody tr:last-child td{border-bottom:0}
 .buletin-editor .stack{margin-top:12px}
 .buletin-blok .field{margin-top:10px}
 .buletin-blok .field label{display:flex;flex-direction:column;gap:5px}
+.buletin-blok textarea[data-buletin-field="isi"]{
+  caret-color:#000;
+  cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='24' viewBox='0 0 20 24'%3E%3Cpath d='M6 2h8M10 2v20M6 22h8' fill='none' stroke='%23fff' stroke-width='4' stroke-linecap='round'/%3E%3Cpath d='M6 2h8M10 2v20M6 22h8' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") 10 12,text;
+}
+[data-theme="dark"] .buletin-blok textarea[data-buletin-field="isi"]{caret-color:#fff}
 .buletin-bagian{padding:10px;margin:8px 0;border:1px solid var(--line);border-radius:8px}
 .buletin-sosial{display:flex;align-items:center;gap:10px}
 .buletin-sosial img{width:32px;height:32px;flex:none}
