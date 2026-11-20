@@ -41,6 +41,7 @@ Surat yang "dikirim" tercatat di buku donor, surat masuk bisa dicatat manual.
 | **Sinkron Gmail** | Tarik inbox, cocokkan otomatis lewat alamat email |
 | **Sinkron WhatsApp** | Tarik pesan masuk lewat webhook, cocokkan lewat nomor HP |
 | **Sinkron otomatis** | Kedua kanal ditarik sendiri di latar belakang |
+| **Buletin** | Menu terpisah untuk menyusun enam jenis blok, memilih edisi majalah, memeriksa pratinjau dan mengirim ke donor melalui Gmail |
 | **Majalah** | Unggah PDF → jadi halaman gambar; banyak edisi bisa disimpan |
 | **Statistik pembaca majalah** | Berapa kali dibuka & halaman mana yang paling dilihat |
 | Cetak surat | `window.print()` per penerima |
@@ -51,7 +52,7 @@ Surat yang "dikirim" tercatat di buku donor, surat masuk bisa dicatat manual.
 | **Akun & login** | Email + password per pengguna. Akun pertama otomatis admin; akun berikutnya dibuat admin di halaman akun |
 | **Catatan aktivitas** | Siapa masuk/keluar, siapa menambah/mengubah/menghapus donor, keuangan, surat, template & kategori — bisa disaring |
 | Responsif | HP Android dan PC |
-| **Panduan di aplikasi** | Tombol **[?]** di bilah atas: 11 bab (istilah, entry data, kirim email, tes sebelum kirim, masalah) + kotak **cari solusi** |
+| **Panduan di aplikasi** | Tombol **[?]** di bilah atas: panduan istilah, entry data, buletin, kirim email, tes sebelum kirim, dan masalah + kotak **cari solusi** |
 
 ## Menjalankan di komputer
 

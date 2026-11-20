@@ -50,6 +50,7 @@ var PANDUAN = [
         '<tr><td><b>Donor</b></td><td>Daftar donor; klik satu donor untuk membuka ' +
           '<b>riwayat surat</b>nya</td></tr>' +
         '<tr><td><b>Tulis</b></td><td>Menyusun dan mengirim surat</td></tr>' +
+        '<tr><td><b>Buletin</b></td><td>Menyusun blok, memilih edisi majalah, dan mengirim buletin melalui Gmail.</td></tr>' +
         '<tr><td><b>Keuangan</b></td><td>Catatan donor masuk; menjadi sumber angka kwitansi</td></tr>' +
         '<tr><td><b>Kategori</b></td><td>Pengelompokan donor</td></tr>' +
         '<tr><td><b>Akun</b></td><td>Hanya untuk admin: daftar akun dan catatan aktivitas</td></tr>' +
@@ -67,6 +68,17 @@ var PANDUAN = [
       '</ul>' +
 
       '<p><button class="btn sm" data-panduan-halaman="pengaturan">Buka halaman Setelan</button></p>'
+  },
+
+  {
+    id:'buletin', judul:'Menyusun buletin', ico:'▧',
+    kata:['buletin', 'blok', 'pratinjau', 'gambar', 'edisi'],
+    isi: '<p>Buka menu <b>Buletin</b>, buat judul dan edisi, lalu pilih <b>Susun blok</b>.</p>' +
+      '<p>Pilih jenis blok dan tekan <b>+ Tambah</b>. Isi kolomnya; pratinjau berubah saat mengetik. Gunakan tombol panah, Duplikat, atau Hapus untuk mengatur urutan.</p>' +
+      '<p>Pilih edisi majalah untuk blok tautan baca dan sampul, lalu tekan <b>Simpan blok</b>. Gambar lain memakai alamat HTTPS yang dapat diakses penerima. Jika URL tombol kaki kosong, tombol menuju edisi yang dipilih.</p>' +
+      '<p>Kembali ke daftar, tekan <b>Kirim</b>, pilih donor dan periksa daftar serta pratinjau sebelum mengirim sungguhan. Gmail harus terhubung. Hasil per donor tercatat di riwayat; pastikan daftar penerima sebelum mengulang pengiriman.</p>' +
+      '<p>Pratinjau memakai format email yang sama, tetapi tampilan dapat berbeda di Gmail atau Outlook. Judul gambar ditempatkan di atas gambar agar lebih kompatibel.</p>' +
+      '<p><button class="btn sm" data-panduan-halaman="buletin">Buka Buletin</button></p>'
   },
 
   /* ---------------- 2. ISTILAH ---------------- */

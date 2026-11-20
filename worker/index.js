@@ -559,7 +559,7 @@ function halamanTerima(info, sudah){
         '<p>Terima kasih — konfirmasi Anda sudah tercatat sebelumnya.</p>'
       : '<div class="tanda">✓</div><h1>Terima kasih!</h1>' +
         '<p>Konfirmasi Anda sudah kami terima. Ini membantu kami memastikan ' +
-        'surat dan kwitansi sampai dengan benar.</p>') +
+        (info.kwitansi ? 'surat dan kwitansi' : 'pesan') + ' sampai dengan benar.</p>') +
     tabel +
     '<p class="kaki">' + escHtml(judul) + '<br>' +
       'Halaman ini tidak menyimpan data pribadi apa pun.</p>' +
@@ -808,7 +808,7 @@ async function catatTerima(env, id, info){
 
 /* Daftar koleksi yang boleh disimpan. Dibatasi supaya permintaan dengan nama
    koleksi sembarangan tidak bisa menulis ke tabel. */
-const KOLEKSI = ['donors', 'messages', 'templates', 'categories', 'programs', 'finance'];
+const KOLEKSI = ['donors', 'messages', 'templates', 'categories', 'programs', 'finance', 'buletin'];
 const META_KUNCI = ['isian', 'majalah', 'majalahDaftar'];
 
 /* Baca semua data sekaligus. Aplikasi memanggil ini sekali saat dibuka, jadi

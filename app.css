@@ -738,6 +738,27 @@ tbody tr:last-child td{border-bottom:0}
 }
 @keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 
+/* ---------- EDITOR BULETIN ---------- */
+.buletin-toolbar{margin-bottom:12px}
+.buletin-editor{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start}
+.buletin-editor .stack{margin-top:12px}
+.buletin-blok .field{margin-top:10px}
+.buletin-blok .field label{display:flex;flex-direction:column;gap:5px}
+.buletin-bagian{padding:10px;margin:8px 0;border:1px solid var(--line);border-radius:8px}
+.buletin-preview{background:#fff;color:#222;font:15px/1.6 Arial,sans-serif;border:1px solid var(--line);overflow-wrap:anywhere}
+.bp-gambar{position:relative;background:#333;color:#fff}
+.bp-gambar img{display:block;width:100%;height:auto}
+.bp-judul-gambar{position:absolute;bottom:0;left:0;right:0;padding:16px;background:rgba(0,0,0,.65);font-size:22px;font-weight:bold}
+.bp-kosong{padding:30px;text-align:center;color:#777;background:#eee}
+.bp-teks,.bp-tautan,.bp-gelap,.bp-krem,.bp-kaki{padding:20px}
+.bp-tautan{text-align:center;color:#a84b0b}
+.bp-gelap,.bp-kaki{background:#242424;color:#fff}
+.bp-gelap h3{color:#f58a31}
+.bp-krem{background:#f6ead8;color:#242424}
+.bp-kaki{text-align:center;font-size:13px}
+.bp-tombol{display:inline-block;background:#ec791f;color:#fff;padding:10px 16px;margin-bottom:10px}
+@media (max-width:860px){.buletin-editor{grid-template-columns:1fr}}
+
 /* ---------- MOBILE ---------- */
 .nav-mobile{display:none}
 @media (max-width:860px){
@@ -748,10 +769,11 @@ tbody tr:last-child td{border-bottom:0}
   .nav-mobile{
     display:flex;position:fixed;left:0;right:0;bottom:0;z-index:50;
     background:var(--surface);border-top:1px solid var(--line);
+    overflow-x:auto;
     padding:6px 4px calc(6px + env(safe-area-inset-bottom));
   }
   .tab{
-    flex:1;min-width:0;border:0;background:transparent;cursor:pointer;
+    flex:1;min-width:54px;border:0;background:transparent;cursor:pointer;
     display:flex;flex-direction:column;align-items:center;gap:2px;
     padding:6px 2px;font-size:10.5px;color:var(--muted);border-radius:10px;
   }

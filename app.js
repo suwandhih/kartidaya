@@ -13,6 +13,7 @@ const LS = {
   settings:'kartidaya.v2.settings',
   programs:'kartidaya.v2.programs',
   finance:'kartidaya.v2.finance',
+  buletin:'kartidaya.v2.buletin',
   isian:'kartidaya.v2.isian',
   uji:'kartidaya.v2.uji'
 };
@@ -77,6 +78,7 @@ function statusChipClass(s){
 
 /* Chip kecil penanda kanal surat (Email / WhatsApp). */
 function kanalChip(m){
+  if(m && m.jenis === 'buletin') return '<span class="chip kanal-email">✉ Buletin</span>';
   const k = m && m.kanal === 'whatsapp' ? 'whatsapp' : 'email';
   return '<span class="chip kanal-' + k + '">' + ICO_KANAL[k] + ' ' + LABEL_KANAL[k] + '</span>';
 }
@@ -1148,7 +1150,7 @@ function totalTransaksiHTML(f){
 }
 
 /* ---------- 2. STATE ---------- */
-let state = { donors:[], categories:[], templates:[], messages:[], settings:{}, programs:[], finance:[], isian:[] };
+let state = { donors:[], categories:[], templates:[], messages:[], settings:{}, programs:[], finance:[], buletin:[], isian:[] };
 
 function readLS(key, fallback){
   try{
@@ -1188,6 +1190,7 @@ function save(what){
   if(!what || what === 'majalahDaftar') writeLS(LS.settings, state.settings);
   if(!what || what === 'programs')   writeLS(LS.programs, state.programs);
   if(!what || what === 'finance')    writeLS(LS.finance, state.finance);
+  if(!what || what === 'buletin')    writeLS(LS.buletin, state.buletin);
   if(!what || what === 'isian')      writeLS(LS.isian, state.isian);
   if(!what || what === 'uji')        writeLS(LS.uji, state.uji);
   /* Kirim ke server juga, supaya pengguna lain melihat perubahannya.
@@ -1195,7 +1198,8 @@ function save(what){
      (tema, alamat email uji, catatan uji) — bukan data bersama.
      `majalah` & `majalahDaftar` DIKIRIM: edisi majalah yang aktif dipakai
      bersama, jadi pengguna lain harus melihat edisi yang sama. */
-  if(what && what !== 'settings' && what !== 'uji') Server.kirim(what);
+  if(what === 'buletin') Buletin.kirim();
+  else if(what && what !== 'settings' && what !== 'uji') Server.kirim(what);
 }
 
 /* ============================================================
@@ -1262,7 +1266,7 @@ const Server = {
 
   /* Koleksi yang disimpan di server. `settings` & `uji` TIDAK termasuk —
      keduanya milik komputer masing-masing. */
-  koleksi: ['donors','categories','templates','messages','programs','finance'],
+  koleksi: ['donors','categories','templates','messages','programs','finance','buletin'],
 
   /* Data bersama cukup butuh alamat server. Kunci aplikasi TIDAK wajib:
        server juga menerima token login. Kunci hanya diperlukan untuk mengatur
@@ -1310,6 +1314,7 @@ const Server = {
       const pertamaKali = !localStorage.getItem(LS_PERNAH_SINKRON);
       const perluUnggah = [];
       this.koleksi.forEach(function(nama){
+        if(nama === 'buletin' && Server.tertunda[nama]) return;
         const dariServer = Array.isArray(k[nama]) ? k[nama] : null;
         const diBrowser = state[nama] || [];
         if(pertamaKali && diBrowser.length > 0 && (!dariServer || dariServer.length === 0)){
@@ -1317,6 +1322,7 @@ const Server = {
           return;                       /* pertahankan data browser */
         }
         if(dariServer) state[nama] = dariServer;
+        else if(nama === 'buletin') state[nama] = [];
       });
       if(r.meta && Array.isArray(r.meta.isian)) state.isian = r.meta.isian;
       if(r.meta && r.meta.majalah) state.settings.majalah = r.meta.majalah;
@@ -1341,7 +1347,7 @@ const Server = {
          mendeteksi penghapusan — lihat catatHapus. */
       const ini = this;
       this.koleksi.forEach(function(nama){
-        ini.diketahui[nama] = ini.idDari(k[nama]);
+        if(nama !== 'buletin' || !ini.tertunda[nama]) ini.diketahui[nama] = ini.idDari(k[nama]);
       });
       /* Tulis salinan ke browser supaya tampilan berikutnya cepat. */
       this.koleksi.forEach(function(nama){ writeLS(LS[nama], state[nama]); });
@@ -1500,6 +1506,7 @@ function loadState(){
   state.settings   = readLS(LS.settings, null) || {};
   state.programs   = readLS(LS.programs, null) || DEFAULT_PROGRAMS.slice();
   state.finance    = readLS(LS.finance, null) || [];
+  state.buletin    = readLS(LS.buletin, null) || [];
   state.isian      = readLS(LS.isian, null) || [];
   state.uji        = readLS(LS.uji, null) || [];
   if(!state.settings.theme) state.settings.theme = 'light';
@@ -1812,6 +1819,7 @@ const PAGES = [
   { id:'keluar',     label:'Keluar',     ico:'↑' },
   { id:'donor',      label:'Donor',      ico:'☰' },
   { id:'surat',      label:'Tulis',      ico:'✎' },
+  { id:'buletin',    label:'Buletin',    ico:'▧' },
   { id:'keuangan',   label:'Keuangan',   ico:'◫' },
   { id:'kategori',   label:'Kategori',   ico:'▤' },
     { id:'akun',       label:'Akun',       ico:'⚿' },
@@ -1828,6 +1836,7 @@ let terkunciServer = null;
 let terkunciLogin = null;
 
 function go(page, params){
+  if(currentPage === 'buletin' && page !== 'buletin' && !Buletin.keluar()) return;
   currentPage = page;
   pageParams = params || {};
   /* Halaman Akun butuh data dari server — diambil saat dibuka, bukan saat
@@ -2085,6 +2094,7 @@ function render(){
   else if(currentPage === 'donor')      v.innerHTML = viewDonor();
   else if(currentPage === 'buku')       v.innerHTML = viewBuku(pageParams.id);
   else if(currentPage === 'surat')      v.innerHTML = viewSurat();
+  else if(currentPage === 'buletin')    v.innerHTML = Buletin.view();
   else if(currentPage === 'keuangan')   v.innerHTML = viewKeuangan();
   else if(currentPage === 'kategori')   v.innerHTML = viewKategori();
     else if(currentPage === 'akun')       v.innerHTML = viewAkun();
@@ -7341,6 +7351,7 @@ function importJSON(file){
       else if(Array.isArray(data.logs))  state.messages = data.logs;
       if(Array.isArray(data.programs))   state.programs = data.programs;
       if(Array.isArray(data.finance))    state.finance = data.finance;
+      if(Array.isArray(data.buletin))    state.buletin = data.buletin;
       if(Array.isArray(data.isian))      state.isian = data.isian;
       /* Setelan ikut dipulihkan — tanpa ini, cadangan yang diimpor ke komputer
          baru kehilangan tanda tangan, alamat koreksi, dan pengaturan majalah.

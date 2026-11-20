@@ -5632,10 +5632,12 @@ Uji yang ada tetap lulus:
 
 ---
 
-## Bab 39 — RENCANA: Menu baru "Buletin" (belum dikerjakan)
+## Bab 39 — Menu baru "Buletin"
 
-> **Status: RENCANA.** Belum ada satu baris kode pun yang diubah untuk bab ini.
-> Dicatat 19 November 2026, akan dikerjakan menyusul.
+> **Status: tahap A–E selesai dibuat; Worker diperbarui 20 November 2026.**
+> Menu, editor, perender email, pemilihan majalah, dan pengiriman Gmail berada
+> di skrip buletin terpisah. Pengujian penerimaan nyata di Gmail dan Outlook
+> masih perlu dilakukan setelah situs diperbarui.
 
 ### 39.1 Permintaan
 
@@ -5749,7 +5751,11 @@ sehat — tidak ada tahap yang meninggalkan setengah jadi.
 Tahap E sengaja di akhir karena halaman pembaca majalah sudah ada dan tinggal
 disambungkan.
 
-### 39.6 Yang perlu diputuskan sebelum mulai
+### 39.6 Keputusan dan hal yang masih perlu ditentukan
+
+Pada 20 November dipilih tahap A dahulu; riwayat pengiriman nantinya memakai
+kanal buletin di riwayat donor, warna oranye/gelap/krem, dan media sosial berupa
+tautan teks. Nama menu tetap Buletin; detail lain diputuskan pada tahap berikutnya.
 
 | Pertanyaan | Pilihan |
 |---|---|
@@ -5782,9 +5788,12 @@ disambungkan.
 
 | Berkas | Perubahan |
 |---|---|
-| `app.js` | Halaman `viewBuletin()`, editor blok, perender `buletinHTML()`, koleksi `buletin` di `state` & `Server` |
-| `app.css` | Gaya editor blok & pratinjau |
-| `index.html` | Menu baru + naikkan versi aset |
-| `panduan.js` | Bab panduan baru untuk Buletin |
-| `README.md` | Baris fitur baru |
-| `tes/uji-buletin.js` | **Baru** — uji perender blok → HTML & teks biasa |
+| `buletin.js` | **Baru** — daftar, editor enam jenis blok, pemilihan edisi, dan pratinjau |
+| `buletin-render.js` | **Baru** — perender HTML email dan teks biasa |
+| `buletin-kirim.js` | **Baru** — pilihan penerima, pemeriksaan, dan pengiriman Gmail |
+| `app.js` | Sambungan menu, penyimpanan bersama, dan cadangan JSON |
+| `worker/index.js` | Mengizinkan koleksi `buletin` dan menyesuaikan teks konfirmasi tanpa kwitansi |
+| `app.css` | Navigasi HP dapat digeser jika menu tidak muat |
+| `index.html` | Muat skrip terpisah dan naikkan versi aset |
+| `panduan.js` & `README.md` | Menjelaskan kemampuan tahap awal |
+| `tes/uji-buletin*.js` | Uji editor, perender, dan pengiriman Gmail tiruan secara lokal; folder `tes` tidak masuk Git |
