@@ -180,7 +180,8 @@ const BuletinRender = (function(){
         }
       }else if(b.tipe === 'tautan'){
         const label = str(b.teks) || 'Baca di sini!';
-        html.push(row(link(label, baca, 'color:#bc4b0b;font-weight:bold;text-decoration:underline'), 'padding:16px 24px;text-align:center'));
+        const posisi = b.posisi === 'tengah' ? 'center' : b.posisi === 'kanan' ? 'right' : 'left';
+        html.push(row(link(label, baca, 'color:#bc4b0b;font-weight:bold;text-decoration:underline'), 'padding:16px 24px;text-align:' + posisi));
         plain.push(label + (baca ? ': ' + baca : ''));
       }else if(b.tipe === 'gelap'){
         if(b.judul){ content += '<div style="font-size:20px;font-weight:bold;color:#ff984f;padding-bottom:12px">' + esc(b.judul) + '</div>'; plain.push(str(b.judul)); }

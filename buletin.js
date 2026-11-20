@@ -75,7 +75,7 @@ const Buletin = (function(){
   function blokBaru(tipe){
     if(tipe === 'gambar') return {tipe:tipe, gambar:'', judul:''};
     if(tipe === 'teks') return {tipe:tipe, judul:'', isi:'', warna:'#ffffff', bagian:[]};
-    if(tipe === 'tautan') return {tipe:tipe, teks:'Baca di sini!'};
+    if(tipe === 'tautan') return {tipe:tipe, teks:'Baca di sini!', posisi:'kiri'};
     if(tipe === 'kaki') return {tipe:tipe, tautan:[], sosial:'', hakcipta:'© 2026 Kartidaya Sahabat Indonesia. All Rights Reserved'};
     return null;
   }
@@ -153,6 +153,10 @@ const Buletin = (function(){
       }).join('') + '<button class="btn sm" data-buletin-action="tambah-bagian" data-index="' + i + '">+ Tambah sub-bagian</button>';
     }
     if(b.tipe === 'tautan') isi = field('Teks tautan', 'teks', b.teks) +
+      '<div class="field"><label>Posisi tautan<select data-buletin-field="posisi">' +
+      [['kiri','Kiri'],['tengah','Tengah'],['kanan','Kanan']].map(function(p){
+        return '<option value="' + p[0] + '"' + ((b.posisi || 'kiri') === p[0] ? ' selected' : '') + '>' + p[1] + '</option>';
+      }).join('') + '</select></label></div>' +
       '<p class="tiny muted">' + (edisiPilihan(draft) ? 'Terhubung ke: ' + esc(edisiPilihan(draft).judul || 'majalah terpilih') : 'Belum ada majalah yang dipilih.') + '</p>' +
       '<div class="row"><button class="btn sm" data-buletin-action="unggah-majalah">+ Unggah majalah</button>' +
       (edisiPilihan(draft) ? '<button class="btn sm" data-buletin-action="baca-majalah">Buka majalah</button>' : '') + '</div>';

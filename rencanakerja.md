@@ -5850,3 +5850,8 @@ Tiga ikon sosial tetap terpisah. Kaki lama tetap terbaca.
 Pratinjau daftar dan pemeriksaan sebelum kirim sekarang dapat digulir dengan
 mouse, sentuhan, atau keyboard. Tautan pratinjau tetap tidak aktif; tautan pada
 email yang dikirim tidak berubah.
+
+### 39.17 Posisi tautan baca — 20 November 2026
+
+Blok Tautan baca menyediakan pilihan kiri, tengah, dan kanan. Posisi bawaan
+adalah kiri, termasuk untuk blok lama yang belum memiliki pilihan posisi.

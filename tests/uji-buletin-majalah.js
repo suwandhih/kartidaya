@@ -26,6 +26,10 @@ async function main(){
  a.state.buletin=[{id:'b1',judul:'Uji',blok:[{tipe:'tautan',teks:'Baca di sini!'}]}];
  a.go('buletin'); click('editor','b1');
  assert.match(elements.view.innerHTML,/Unggah majalah PDF/);
+ assert.match(elements.view.innerHTML,/<option value="kiri" selected>Kiri<\/option>/);
+ const posisi={value:'kanan',getAttribute:k=>k==='data-buletin-field'?'posisi':null,closest:()=>({getAttribute:()=> '0'})};
+ handlers.input.forEach(fn=>fn({target:posisi}));
+ assert.match(document.getElementById('buletin-preview').innerHTML,/text-align:right/);
  click('unggah-majalah'); assert.match(elements['modal-root'].innerHTML,/Berkas majalah/);
  assert.doesNotMatch(elements['modal-root'].innerHTML,/Belum bisa mengunggah/);
  document.getElementById('mj-judul').value='Majalah contoh'; document.getElementById('mj-file').files=[{name:'halaman.png',size:10}];
@@ -38,6 +42,9 @@ async function main(){
  assert.equal(a.state.buletin[0].majalahId,undefined);
  assert.match(elements.view.innerHTML,new RegExp('/baca/'+uploaded));
  click('simpan-blok'); assert.equal(a.state.buletin[0].majalahId,uploaded);
+ assert.equal(a.state.buletin[0].blok[0].posisi,'kanan');
+ click('kembali'); click('editor','b1');
+ assert.match(elements.view.innerHTML,/<option value="kanan" selected>Kanan<\/option>/);
  assert.equal(a.current(),'buletin');
  console.log('uji-buletin-majalah: OK');
 }
