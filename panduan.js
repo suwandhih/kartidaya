@@ -78,6 +78,7 @@ var PANDUAN = [
       '<p>Untuk gambar utama, pilih <b>Pilih atau unggah foto</b>, ambil foto dari HP atau komputer, atau pilih dari koleksi. Pilihan <b>Otomatis</b> memperkecil foto; <b>Ukuran asli</b> mempertahankan dimensinya. Foto disimpan di server dan dapat dipakai lagi.</p>' +
       '<p>Untuk tautan <b>Baca di sini!</b>, tekan <b>Unggah majalah PDF</b>, isi judul dan pilih berkas PDF. Setelah selesai edisi otomatis dipilih; atau pilih edisi yang sudah tersedia. Gunakan <b>Buka majalah</b> untuk memeriksa halamannya, lalu tekan <b>Simpan blok</b>. Jika alamat tombol kaki kosong, tombol juga menuju edisi yang dipilih.</p>' +
       '<p>Menu <b>Koleksi foto</b> di daftar Buletin dapat digunakan untuk mengelola foto bersama. Jika foto dihapus, foto tersebut tidak lagi muncul di buletin atau email yang sudah dikirim.</p>' +
+      '<p>Blok <b>Kaki</b> menyediakan tiga ikon tetap: Instagram, Facebook, dan Website. Alamat awal sudah terisi dan dapat diedit; ketiganya harus berisi alamat HTTPS. Teks sosial dari buletin lama tetap disimpan.</p>' +
       '<p>Kembali ke daftar, tekan <b>Kirim</b>, pilih donor dan periksa daftar serta pratinjau sebelum mengirim sungguhan. Gmail harus terhubung. Hasil per donor tercatat di riwayat; pastikan daftar penerima sebelum mengulang pengiriman.</p>' +
       '<p>Pratinjau memakai format email yang sama, tetapi tampilan dapat berbeda di Gmail atau Outlook. Judul gambar ditempatkan di atas gambar agar lebih kompatibel.</p>' +
       '<p><button class="btn sm" data-panduan-halaman="buletin">Buka Buletin</button></p>'

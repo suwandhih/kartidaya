@@ -65,6 +65,29 @@ const BuletinRender = (function(){
   function link(label, url, style){
     return url ? '<a href="' + esc(url) + '" style="' + style + '">' + esc(label) + '</a>' : esc(label);
   }
+  const sosialDefault = {
+    instagram:'https://www.instagram.com/kartidaya?igsh=ZDAxZ3FnemEwZG82',
+    facebook:'https://www.facebook.com/share/19ErEsRwRL/',
+    website:'https://kartidaya.org/'
+  };
+  const ikonBase = 'https://suwandhih.github.io/kartidaya/vendor/';
+  function sosial(b){
+    b = b || {};
+    const lama = typeof b.sosial === 'string' ? b.sosial : '';
+    const obj = b.sosial && typeof b.sosial === 'object' && !Array.isArray(b.sosial) ? b.sosial : {};
+    const links = (lama.match(/https:\/\/[^\s<>"']+/gi) || []).map(function(u){ return u.replace(/[.,!?;:)]$/, ''); });
+    const hasil = {};
+    Object.keys(sosialDefault).forEach(function(k){
+      const found = links.find(function(u){
+        try{ const host = new URL(u).hostname.toLowerCase();
+          return k === 'instagram' ? /(^|\.)instagram\.com$/.test(host) :
+            k === 'facebook' ? /(^|\.)facebook\.com$/.test(host) : !/(^|\.)(instagram|facebook)\.com$/.test(host);
+        }catch(e){ return false; }
+      });
+      hasil[k] = Object.prototype.hasOwnProperty.call(obj, k) ? str(obj[k]) : (found || sosialDefault[k]);
+    });
+    return hasil;
+  }
   function render(buletin, opts){
     buletin = buletin && typeof buletin === 'object' ? buletin : {};
     opts = opts && typeof opts === 'object' ? opts : {};
@@ -113,7 +136,22 @@ const BuletinRender = (function(){
           content += '<div style="padding-bottom:16px">' + link(label, target, 'display:inline-block;background-color:#dd641e;color:#ffffff;font-weight:bold;text-decoration:none;padding:12px 20px') + '</div>';
           plain.push(label + (target ? ': ' + target : ''));
         }
-        if(b.sosial){ content += '<div style="padding-bottom:12px">' + format(b.sosial, true) + '</div>'; plain.push(polos(b.sosial)); }
+        const links = sosial(b);
+        const nama = {instagram:'Instagram', facebook:'Facebook', website:'Website'};
+        let ikon = '';
+        Object.keys(nama).forEach(function(k){
+          const url = urlAman(links[k]);
+          if(!url) return;
+          ikon += '<a href="' + esc(url) + '" style="display:inline-block;margin:0 7px;text-decoration:none">' +
+            '<img src="' + ikonBase + 'buletin-' + k + '.png" width="32" height="32" alt="' + nama[k] + '" style="display:inline-block;border:0;width:32px;height:32px"></a>';
+          plain.push(nama[k] + ': ' + url);
+        });
+        if(ikon) content += '<div style="padding-bottom:12px">' + ikon + '</div>';
+        const teksLama = typeof b.sosial === 'string' ? b.sosial : b.sosialLama;
+        if(teksLama && str(teksLama).trim()){
+          content += '<div style="padding-bottom:12px">' + format(teksLama, true) + '</div>';
+          plain.push(polos(teksLama));
+        }
         if(b.hakcipta){ content += '<div style="font-size:12px">' + esc(b.hakcipta) + '</div>'; plain.push(str(b.hakcipta)); }
         if(content) html.push(row(content, 'padding:24px;text-align:center;background-color:#272727;color:#ffffff'));
       }
@@ -127,6 +165,8 @@ const BuletinRender = (function(){
       teks:teks.join('\n\n')
     };
   }
+  render.sosial = sosial;
+  render.urlAman = urlAman;
   return render;
 })();
 

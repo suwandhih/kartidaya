@@ -127,8 +127,17 @@ const Buletin = (function(){
       }).join('') + '<button class="btn sm" data-buletin-action="tambah-bagian" data-index="' + i + '">+ Sub-bagian</button>';
     }
     if(b.tipe === 'krem') isi = field('Judul', 'judul', b.judul) + field('Isi', 'isi', b.isi, true);
-    if(b.tipe === 'kaki') isi = field('Teks tombol', 'tombol', b.tombol) + field('Alamat tombol (https)', 'url', b.url) +
-      field('Tautan sosial (teks)', 'sosial', b.sosial, true) + field('Hak cipta', 'hakcipta', b.hakcipta);
+    if(b.tipe === 'kaki'){
+      const sosial = BuletinRender.sosial(b);
+      isi = field('Teks tombol', 'tombol', b.tombol) + field('Alamat tombol (https)', 'url', b.url) +
+        '<h4>Tautan sosial</h4><p class="tiny muted">Tiga ikon tetap ditampilkan. Alamatnya dapat diubah.</p>' +
+        ['instagram','facebook','website'].map(function(k){
+          const nama = {instagram:'Instagram',facebook:'Facebook',website:'Website'}[k];
+          return '<div class="buletin-sosial"><img src="vendor/buletin-' + k + '.png" alt="">' + field(nama, 'sosial-' + k, sosial[k]) + '</div>';
+        }).join('') +
+        ((typeof b.sosial === 'string' && b.sosial.trim()) || b.sosialLama ? '<div class="field"><label>Teks sosial lama<textarea readonly rows="3">' + esc(b.sosialLama || b.sosial) + '</textarea></label><span class="tiny muted">Teks lama tetap disimpan. Salin alamatnya ke kolom yang sesuai bila ingin mengubahnya.</span></div>' : '') +
+        field('Hak cipta', 'hakcipta', b.hakcipta);
+    }
     return '<div class="card buletin-blok" data-blok="' + i + '"><div class="row"><b style="flex:1">' + (i+1) + '. ' + esc(jenis[b.tipe] || 'Blok tidak dikenal') + '</b>' +
       '<button class="btn sm" data-buletin-action="naik" data-index="' + i + '"' + (i===0?' disabled':'') + '>↑</button>' +
       '<button class="btn sm" data-buletin-action="turun" data-index="' + i + '"' + (i===draft.blok.length-1?' disabled':'') + '>↓</button>' +
@@ -186,7 +195,13 @@ const Buletin = (function(){
     if(!b) return;
     const n = el.getAttribute('data-bagian');
     if(n !== null){ if(!b.bagian || !b.bagian[Number(n)]) return; b.bagian[Number(n)][key] = el.value; }
-    else b[key] = el.type === 'checkbox' ? el.checked : el.value;
+    else if(key.indexOf('sosial-') === 0){
+      const k = key.slice(7);
+      if(['instagram','facebook','website'].indexOf(k) < 0) return;
+      if(typeof b.sosial === 'string' && b.sosial.trim()) b.sosialLama = b.sosial;
+      b.sosial = BuletinRender.sosial(b);
+      b.sosial[k] = el.value;
+    } else b[key] = el.type === 'checkbox' ? el.checked : el.value;
     berubah = true;
     const p = document.getElementById('buletin-preview');
     if(p) p.innerHTML = preview();

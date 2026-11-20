@@ -59,6 +59,12 @@ const BuletinKirim = (function(){
       if(b.tipe === 'kaki' && !(url ? amanURL(url) : opts.bacaUrl)){
         throw new Error('Blok ' + (i + 1) + ' membutuhkan URL tombol atau URL baca majalah HTTPS yang valid.');
       }
+      if(b.tipe === 'kaki'){
+        const links = BuletinRender.sosial(b);
+        for(const k of ['instagram','facebook','website']){
+          if(!amanURL(links[k])) throw new Error('Blok ' + (i + 1) + ': alamat ' + k + ' harus diisi dengan alamat HTTPS yang benar.');
+        }
+      }
     });
   }
   function renderPribadi(s, d){

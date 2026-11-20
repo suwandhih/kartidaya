@@ -5813,3 +5813,11 @@ Di editor Buletin tersedia tombol unggah PDF majalah di bagian edisi dan pada
 blok tautan baca. Edisi yang selesai diunggah otomatis dipilih untuk buletin;
 pengguna tetap perlu menekan Simpan blok. Edisi lama tidak diganti. Akses
 unggah menerima sesi akun maupun kunci aplikasi.
+
+### 39.12 Tautan sosial kaki buletin — 20 November 2026
+
+Blok kaki memiliki tiga ikon tetap Instagram, Facebook, dan Website dengan
+alamat awal Kartidaya. Masing-masing alamat dapat diubah, tetapi tidak dapat
+ditambah atau dihapus; alamat HTTPS wajib diisi sebelum mengirim. Teks sosial
+lama tetap dipertahankan. Ikon berupa gambar publik di GitHub Pages; sebagian
+aplikasi email dapat memblokir gambar sampai penerima mengizinkannya.
