@@ -105,13 +105,26 @@ const Buletin = (function(){
     try { const u = new URL(url); return u.protocol === 'https:' && !u.username && !u.password ? u.href : ''; }
     catch(e){ return ''; }
   }
+  function toolbarTeks(i){
+    const tombol = [
+      ['tebal','B','Tebal','tb-tebal'], ['miring','I','Miring','tb-miring'],
+      ['stabilo','🖍','Stabilo','tb-stabilo'], ['poin','•','Daftar berpoin','tb-poin'],
+      ['nomor','1.','Daftar bernomor','tb-nomor'], ['bersihkan','Hapus format','Hapus format','']
+    ];
+    return '<div class="toolbar-surat" role="toolbar" aria-label="Format teks">' + tombol.map(function(t){
+      return '<button type="button" class="tb ' + t[3] + '" data-buletin-action="format-teks" data-index="' + i +
+        '" data-format="' + t[0] + '" title="' + t[2] + '" aria-label="' + t[2] + '">' + t[1] + '</button>';
+    }).join('') + '</div>';
+  }
   function editorBlok(b, i){
     let isi = '';
     if(b.tipe === 'gambar') isi = '<label><input type="checkbox" data-buletin-field="sampul"' + (b.sampul ? ' checked' : '') + '> Gunakan sampul edisi majalah yang dipilih</label>' +
       '<div class="buletin-foto-pilihan">' + (fotoAman(b.gambar) ? '<img src="' + esc(fotoAman(b.gambar)) + '" alt="Foto yang dipilih">' : '<p class="tiny muted">Belum ada foto dipilih.</p>') +
       '<button class="btn sm" data-buletin-action="pilih-foto" data-index="' + i + '">Pilih atau unggah foto</button></div>' +
       field('Judul gambar', 'judul', b.judul) + '<p class="tiny muted">Judul ditampilkan sebelum gambar agar lebih kompatibel dengan aplikasi email.</p>';
-    if(b.tipe === 'teks') isi = field('Isi teks', 'isi', b.isi, true);
+    if(b.tipe === 'teks') isi = '<div class="field"><label for="buletin-teks-' + i + '">Isi teks</label>' +
+      toolbarTeks(i) + '<textarea id="buletin-teks-' + i + '" data-buletin-field="isi" rows="5">' + esc(b.isi || '') + '</textarea>' +
+      '<span class="tiny muted">Pilih teks lalu tekan tombol format. Hasil terlihat di pratinjau.</span></div>';
     if(b.tipe === 'tautan') isi = field('Teks tautan', 'teks', b.teks) +
       '<p class="tiny muted">' + (edisiPilihan(draft) ? 'Terhubung ke: ' + esc(edisiPilihan(draft).judul || 'majalah terpilih') : 'Belum ada majalah yang dipilih.') + '</p>' +
       '<div class="row"><button class="btn sm" data-buletin-action="unggah-majalah">+ Unggah majalah</button>' +
@@ -167,7 +180,7 @@ const Buletin = (function(){
     return '<div class="row buletin-toolbar"><h2 style="flex:1">' + esc(draft.judul) + '</h2>' +
       '<button class="btn primary" data-buletin-action="simpan-blok">Simpan blok</button>' +
       '<button class="btn" data-buletin-action="kembali">Kembali</button></div>' +
-      '<p class="small muted">Format teks: **tebal**, *miring*, ==stabilo==. Pratinjau menunjukkan isi email; tampilan dapat berbeda di setiap aplikasi email.</p>' +
+      '<p class="small muted">Gunakan tombol format pada blok Teks. Pratinjau menunjukkan isi email; tampilan dapat berbeda di setiap aplikasi email.</p>' +
       '<div class="card field"><label for="buletin-majalah">Edisi majalah untuk tautan baca dan sampul</label>' +
       '<select id="buletin-majalah"><option value="">— Tidak dipilih —</option>' +
       edisiTersedia().map(function(e){ return '<option value="' + esc(e.id) + '"' + (draft.majalahId === e.id ? ' selected' : '') + '>' + esc(e.judul || e.id) + '</option>'; }).join('') +
@@ -180,6 +193,25 @@ const Buletin = (function(){
       '<div class="stack">' + draft.blok.map(editorBlok).join('') + '</div></div>' +
       '<div><h3>Pratinjau langsung</h3><div class="buletin-preview" id="buletin-preview" inert>' + preview() + '</div></div></div>';
   }
+  function pasangHasilTeks(ta, b, hasil){
+    ta.value = hasil.nilai; b.isi = hasil.nilai; berubah = true;
+    ta.focus(); ta.setSelectionRange(hasil.awal, hasil.akhir);
+    const p = document.getElementById('buletin-preview');
+    if(p) p.innerHTML = preview();
+  }
+  document.addEventListener('mousedown', function(e){
+    if(e.target.closest('[data-buletin-action="format-teks"]')) e.preventDefault();
+  });
+  document.addEventListener('keydown', function(e){
+    if(!draft || terkunciLogin || terkunciServer || currentPage !== 'buletin' || e.key !== 'Enter' || e.isComposing || e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return;
+    const ta = e.target;
+    if(!ta.id || !/^buletin-teks-\d+$/.test(ta.id) || ta.selectionStart !== ta.selectionEnd) return;
+    const b = draft.blok[Number(ta.id.slice('buletin-teks-'.length))];
+    if(!b || b.tipe !== 'teks') return;
+    const hasil = BuletinFormat.lanjut(ta.value, ta.selectionStart);
+    if(hasil){ e.preventDefault(); pasangHasilTeks(ta, b, hasil); }
+  });
+
   document.addEventListener('input', function(e){
     if(!draft || terkunciLogin || terkunciServer || currentPage !== 'buletin') return;
     const el = e.target;
@@ -212,7 +244,18 @@ const Buletin = (function(){
     if(!el || terkunciLogin || terkunciServer || currentPage !== 'buletin') return;
     const action = el.getAttribute('data-buletin-action');
     const id = el.getAttribute('data-id');
-    if(action === 'baru') form('');
+    if(action === 'format-teks' && draft){
+      const i = Number(el.getAttribute('data-index'));
+      const b = draft.blok[i];
+      const ta = document.getElementById('buletin-teks-' + i);
+      if(!b || b.tipe !== 'teks' || !ta) return;
+      if(el.getAttribute('data-format') === 'bersihkan' && ta.selectionStart === ta.selectionEnd){
+        toast('Pilih dulu teks yang ingin dibersihkan', true); ta.focus(); return;
+      }
+      const hasil = BuletinFormat.ubah(ta.value, ta.selectionStart, ta.selectionEnd, el.getAttribute('data-format'));
+      pasangHasilTeks(ta, b, hasil);
+    }
+    else if(action === 'baru') form('');
     else if(action === 'koleksi-foto') BuletinFoto.buka();
     else if(action === 'pilih-foto' && draft){
       const b = draft.blok[Number(el.getAttribute('data-index'))];

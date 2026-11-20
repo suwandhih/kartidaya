@@ -75,6 +75,7 @@ var PANDUAN = [
     kata:['buletin', 'blok', 'pratinjau', 'gambar', 'edisi'],
     isi: '<p>Buka menu <b>Buletin</b>, buat judul dan edisi, lalu pilih <b>Susun blok</b>.</p>' +
       '<p>Pilih jenis blok dan tekan <b>+ Tambah</b>. Isi kolomnya; pratinjau berubah saat mengetik. Gunakan tombol panah, Duplikat, atau Hapus untuk mengatur urutan.</p>' +
+      '<p>Di blok <b>Teks</b>, pilih bagian tulisan lalu tekan tombol <b>B</b> untuk tebal, <b>I</b> untuk miring, stabilo, poin, atau nomor. Pilih teks dan tekan <b>Hapus format</b> untuk membersihkan format. Untuk daftar, tekan Enter untuk membuat baris berikutnya; Enter pada baris kosong mengakhiri daftar. Tanda format di kotak tidak ikut terlihat di hasil email.</p>' +
       '<p>Untuk gambar utama, pilih <b>Pilih atau unggah foto</b>, ambil foto dari HP atau komputer, atau pilih dari koleksi. Pilihan <b>Otomatis</b> memperkecil foto; <b>Ukuran asli</b> mempertahankan dimensinya. Foto disimpan di server dan dapat dipakai lagi.</p>' +
       '<p>Untuk tautan <b>Baca di sini!</b>, tekan <b>Unggah majalah PDF</b>, isi judul dan pilih berkas PDF. Setelah selesai edisi otomatis dipilih; atau pilih edisi yang sudah tersedia. Gunakan <b>Buka majalah</b> untuk memeriksa halamannya, lalu tekan <b>Simpan blok</b>. Jika alamat tombol kaki kosong, tombol juga menuju edisi yang dipilih.</p>' +
       '<p>Menu <b>Koleksi foto</b> di daftar Buletin dapat digunakan untuk mengelola foto bersama. Jika foto dihapus, foto tersebut tidak lagi muncul di buletin atau email yang sudah dikirim.</p>' +

@@ -5821,3 +5821,10 @@ alamat awal Kartidaya. Masing-masing alamat dapat diubah, tetapi tidak dapat
 ditambah atau dihapus; alamat HTTPS wajib diisi sebelum mengirim. Teks sosial
 lama tetap dipertahankan. Ikon berupa gambar publik di GitHub Pages; sebagian
 aplikasi email dapat memblokir gambar sampai penerima mengizinkannya.
+
+### 39.13 Toolbar teks buletin — 20 November 2026
+
+Blok Teks memiliki tombol tebal, miring, stabilo, poin, nomor, dan hapus format. Penanda
+format tetap disimpan sebagai teks agar kompatibel dengan buletin yang sudah
+ada; pratinjau dan email menampilkan hasil format. Enter meneruskan daftar;
+Enter pada baris daftar kosong mengakhirinya.
