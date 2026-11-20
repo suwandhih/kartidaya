@@ -94,10 +94,9 @@ const BuletinFoto = (function(){
       s.foto.unshift(foto); galeri(s);
       URL.revokeObjectURL(s.preview); s.preview = ''; s.file = null;
       s.root.querySelector('[data-foto-preview]').hidden = true; s.root.querySelector('[data-foto-preview]').removeAttribute('src'); s.root.querySelector('[data-foto-file]').value = '';
-      if(s.onSelect){
-        try{ s.onSelect(foto); if(aktif(s)){ lepas(s); closeModal(); } }
-        catch(err){ pesan(s, 'Foto sudah diunggah, tetapi belum dapat digunakan: ' + (err.message || err) + '. Pilih foto di koleksi untuk mencoba lagi.', true); }
-      }else pesan(s, 'Foto berhasil diunggah ke koleksi bersama.');
+      pesan(s, s.onSelect
+        ? 'Foto berhasil diunggah. Untuk mengganti gambar, tekan Gunakan foto di bawah foto yang dipilih.'
+        : 'Foto berhasil diunggah ke koleksi bersama.');
     }catch(e){ pesan(s, 'Foto belum diunggah: ' + (e.message || e), true); }
     finally{ s.sibuk = false; tombol(s); }
   }
@@ -136,7 +135,7 @@ const BuletinFoto = (function(){
     const file = e.target.files && e.target.files[0]; if(!file) return;
     if(file.size > batasSumber || !file.size){ e.target.value = ''; pesan(s, 'Ukuran file harus lebih dari 0 dan maksimal 20 MB.', true); return; }
     if(file.type && ['image/jpeg','image/png','image/webp'].indexOf(file.type) < 0){ e.target.value = ''; pesan(s, 'Format tidak didukung. Pilih JPEG, PNG, atau WebP.', true); return; }
-    try{ s.preview = URL.createObjectURL(file); s.file = file; img.src = s.preview; img.hidden = false; pesan(s, 'Foto siap diperiksa dan diunggah.'); }
+    try{ s.preview = URL.createObjectURL(file); s.file = file; img.src = s.preview; img.hidden = false; pesan(s, 'Foto sudah dipilih, tetapi belum diunggah. Tekan Unggah foto.'); }
     catch(err){ e.target.value = ''; pesan(s, 'Foto tidak dapat dibuka. Pilih file lain.', true); }
   });
   document.addEventListener('click', function(e){

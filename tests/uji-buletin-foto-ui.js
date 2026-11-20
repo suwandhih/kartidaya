@@ -26,10 +26,14 @@ async function main(){
   imageWidth=800; imageHeight=2400; selected=null;
   ctx.window.BuletinFoto.buka({onSelect:f=>selected=f}); await tick();
   handlers.change({target:{files:[file],matches:()=>true,value:'x'}}); root.querySelector('input[name="bf-ukuran"]:checked').value='otomatis'; click('unggah'); await tick(); await tick();
-  assert.deepEqual(canvasSize,[400,1200]); assert.equal(selected.url,'https://example.org/new'); assert.equal(root.isConnected,false);
+  assert.deepEqual(canvasSize,[400,1200]); assert.equal(selected,null); assert.equal(root.isConnected,true);
+  assert.match(root.querySelector('[data-foto-pesan]').textContent,/berhasil diunggah.*Gunakan foto/);
+  assert.match(root.querySelector('[data-foto-galeri]').innerHTML,/example.org\/new/);
+  click('pakai',0); assert.equal(selected.url,'https://example.org/new'); assert.equal(root.isConnected,false);
   ctx.window.BuletinFoto.buka({onSelect:()=>{throw Error('gagal menyimpan draf');}}); await tick();
   handlers.change({target:{files:[file],matches:()=>true,value:'x'}}); click('unggah'); await tick(); await tick();
-  assert.equal(root.isConnected,true); assert.match(root.querySelector('[data-foto-pesan]').textContent,/sudah diunggah.*gagal menyimpan draf/); assert.match(root.querySelector('[data-foto-galeri]').innerHTML,/example.org\/new/);
+  assert.equal(root.isConnected,true); click('pakai',0);
+  assert.match(root.querySelector('[data-foto-pesan]').textContent,/belum dapat digunakan.*gagal menyimpan draf/);
   ctx.window.BuletinFoto.buka({}); await tick(); imageWidth=2400; imageHeight=1200;
   alpha=0;
   const png={name:'transparan.png',size:100,type:'image/png',slice:()=>({arrayBuffer:async()=>Uint8Array.from([137,80,78,71,13,10,26,10]).buffer})};

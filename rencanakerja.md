@@ -5861,3 +5861,9 @@ adalah kiri, termasuk untuk blok lama yang belum memiliki pilihan posisi.
 Panduan [?] di halaman Buletin langsung membuka petunjuk Buletin. Isinya
 menjelaskan langkah membuat, menyusun, memasang foto dan majalah, mengatur
 Kaki, menyimpan, memeriksa, dan mengirim dengan bahasa sehari-hari.
+
+### 39.19 Pilihan foto setelah unggah — 20 November 2026
+
+Memilih berkas belum mengunggah foto. Setelah pengguna menekan Unggah foto,
+foto ditambahkan ke koleksi tanpa mengganti gambar utama. Pengguna memilih
+sendiri dengan tombol Gunakan foto.

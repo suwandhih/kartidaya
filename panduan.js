@@ -95,7 +95,8 @@ var PANDUAN = [
       '<ol class="pd-langkah">' +
         '<li>Di bagian <b>Gambar utama</b>, tekan <b>Pilih atau unggah foto</b>.</li>' +
         '<li>Untuk memakai foto yang sudah ada, tekan <b>Gunakan foto</b>. Untuk foto baru, tekan <b>Pilih foto dari perangkat</b> dan pilih foto dari HP atau komputer.</li>' +
-        '<li>Pilih <b>Otomatis</b> agar foto lebih ringan, atau <b>Ukuran asli</b> agar lebar dan tinggi tetap. Tekan <b>Unggah foto</b>. Foto yang berhasil diunggah langsung dipasang.</li>' +
+        '<li>Pilih <b>Otomatis</b> agar foto lebih ringan, atau <b>Ukuran asli</b> agar lebar dan tinggi tetap. Tekan <b>Unggah foto</b> dan tunggu sampai berhasil. Memilih berkas saja belum mengunggah foto.</li>' +
+        '<li>Foto yang diunggah muncul di koleksi. Jika ingin memakainya, tekan <b>Gunakan foto</b> di bawah foto tersebut. Foto yang lama tidak diganti sampai Anda memilih foto.</li>' +
       '</ol>' +
       '<p>Foto tersimpan di <b>Koleksi foto</b> dan bisa dipakai kembali. Jangan hapus foto yang masih diperlukan: foto itu bisa hilang dari buletin dan email yang sudah dikirim.</p>' +
       '<h4>4. Rapikan tulisan dan tambah tautan</h4>' +
