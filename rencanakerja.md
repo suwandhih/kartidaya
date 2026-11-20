@@ -5806,3 +5806,10 @@ peringatan bahwa foto di buletin dan email lama dapat hilang. Opsi Otomatis
 memperkecil dimensi dan ukuran; Ukuran asli mempertahankan dimensi. Pemilihan
 format dan kompresi dilakukan otomatis; PNG tidak selalu lebih kecil dari JPG.
 Foto disimpan di Worker, bukan di dalam cadangan JSON buletin.
+
+### 39.11 Unggah majalah dari Buletin — 20 November 2026
+
+Di editor Buletin tersedia tombol unggah PDF majalah di bagian edisi dan pada
+blok tautan baca. Edisi yang selesai diunggah otomatis dipilih untuk buletin;
+pengguna tetap perlu menekan Simpan blok. Edisi lama tidak diganti. Akses
+unggah menerima sesi akun maupun kunci aplikasi.

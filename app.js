@@ -5519,19 +5519,26 @@ function waSiapInfo(){
   };
 }
 
-function openMajalahForm(){
+let selesaiUnggahMajalah = null;
+let unggahMajalahSibuk = false;
+function siapUnggahMajalah(){
+  const endpoint = workerBase();
+  const adaAkses = !!(WhatsApp.appKey || (typeof Akun !== 'undefined' && Akun.token));
+  return { endpoint:endpoint, adaEndpoint:!!endpoint, adaAkses:adaAkses, siap:!!endpoint && adaAkses };
+}
+function openMajalahForm(onSelesai){
+  selesaiUnggahMajalah = typeof onSelesai === 'function' ? onSelesai : null;
   const m = majalahInfo();
-  const s = waSiapInfo();
+  const s = siapUnggahMajalah();
   const baris = function(ok, label, nilai){
     return '<li>' + (ok ? '✅' : '❌') + ' <b>' + esc(label) + '</b> — ' +
       (ok ? esc(nilai) : '<b>belum diisi</b>') + '</li>';
   };
   const body =
     (s.siap ? '' :
-      '<div class="warnbox"><b>Belum bisa mengunggah.</b> Lengkapi dulu di halaman ' +
-      '<b>Setelan → Worker Cloudflare</b>:<ul style="margin:8px 0 0;padding-left:20px">' +
+      '<div class="warnbox"><b>Belum bisa mengunggah.</b> Periksa sambungan server dan masuk ke aplikasi kembali.<ul style="margin:8px 0 0;padding-left:20px">' +
         baris(s.adaEndpoint, 'Alamat Worker', s.endpoint) +
-        baris(s.adaKey, 'Kunci aplikasi', 'terisi') +
+        baris(s.adaAkses, 'Akses aplikasi', 'tersedia') +
       '</ul>' +
       '<p style="margin:8px 0 0">Majalah disimpan di Worker supaya bisa tampil di email ' +
       'penerima.</p>' +
@@ -5560,9 +5567,10 @@ function openMajalahForm(){
       '</div>' +
     '</div>' +
     (m
-      ? '<div class="warnbox">Sudah tersimpan: <b>' + esc(m.judul || 'Majalah') + '</b> — ' +
-          m.halaman + ' halaman. Mengunggah lagi akan <b>mengganti</b> seluruh halaman.</div>'
+      ? '<div class="warnbox">Edisi saat ini: <b>' + esc(m.judul || 'Majalah') + '</b> — ' +
+          m.halaman + ' halaman. Unggahan baru disimpan sebagai edisi baru; edisi lama tetap tersedia.</div>'
       : '') +
+    (onSelesai ? '<p class="tiny muted">Setelah diunggah, majalah otomatis dipilih untuk buletin ini. Tekan Simpan blok setelah kembali.</p>' : '') +
     '<div id="mj-progress" class="small muted"></div>';
 
   /* Tombol sengaja TIDAK dimatikan. Tombol mati membuat user bingung karena
@@ -5674,6 +5682,12 @@ function blobKeBase64(blob){
 }
 
 async function unggahMajalah(){
+  if(unggahMajalahSibuk) return;
+  unggahMajalahSibuk = true;
+  try{ await prosesUnggahMajalah(); }
+  finally{ unggahMajalahSibuk = false; }
+}
+async function prosesUnggahMajalah(){
   const prog = document.getElementById('mj-progress');
   const judulEl = document.getElementById('mj-judul');
   const pdfEl = document.getElementById('mj-pdf');
@@ -5682,10 +5696,9 @@ async function unggahMajalah(){
   const files = imgEl && imgEl.files ? Array.prototype.slice.call(imgEl.files) : [];
 
   if(!pakaiPdf && !files.length){ toast('Pilih berkas PDF atau gambar halaman dulu', true); return; }
-  const siap = waSiapInfo();
+  const siap = siapUnggahMajalah();
   if(!siap.siap){
-    toast('Belum bisa mengunggah — ' + (siap.adaEndpoint ? '' : 'Alamat Worker belum diisi. ') +
-      (siap.adaKey ? '' : 'Kunci aplikasi belum diisi. ') + 'Isi dulu di Setelan → Worker Cloudflare', true);
+    toast('Belum bisa mengunggah. Periksa sambungan server dan masuk ke aplikasi kembali.', true);
     return;
   }
 
@@ -5789,7 +5802,10 @@ async function unggahMajalah(){
   }
 
   if(prog) prog.textContent = '';
-  closeModal();
+  const callback = selesaiUnggahMajalah;
+  selesaiUnggahMajalah = null;
+  if(prog && prog.isConnected) closeModal();
+  if(callback) callback(state.settings.majalah);
   toast(halaman.length + ' halaman majalah tersimpan');
   render();
 }

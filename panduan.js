@@ -76,7 +76,7 @@ var PANDUAN = [
     isi: '<p>Buka menu <b>Buletin</b>, buat judul dan edisi, lalu pilih <b>Susun blok</b>.</p>' +
       '<p>Pilih jenis blok dan tekan <b>+ Tambah</b>. Isi kolomnya; pratinjau berubah saat mengetik. Gunakan tombol panah, Duplikat, atau Hapus untuk mengatur urutan.</p>' +
       '<p>Untuk gambar utama, pilih <b>Pilih atau unggah foto</b>, ambil foto dari HP atau komputer, atau pilih dari koleksi. Pilihan <b>Otomatis</b> memperkecil foto; <b>Ukuran asli</b> mempertahankan dimensinya. Foto disimpan di server dan dapat dipakai lagi.</p>' +
-      '<p>Untuk sampul dan tautan baca, pilih edisi majalah lalu tekan <b>Simpan blok</b>. Jika alamat tombol kaki kosong, tombol menuju edisi yang dipilih.</p>' +
+      '<p>Untuk tautan <b>Baca di sini!</b>, tekan <b>Unggah majalah PDF</b>, isi judul dan pilih berkas PDF. Setelah selesai edisi otomatis dipilih; atau pilih edisi yang sudah tersedia. Gunakan <b>Buka majalah</b> untuk memeriksa halamannya, lalu tekan <b>Simpan blok</b>. Jika alamat tombol kaki kosong, tombol juga menuju edisi yang dipilih.</p>' +
       '<p>Menu <b>Koleksi foto</b> di daftar Buletin dapat digunakan untuk mengelola foto bersama. Jika foto dihapus, foto tersebut tidak lagi muncul di buletin atau email yang sudah dikirim.</p>' +
       '<p>Kembali ke daftar, tekan <b>Kirim</b>, pilih donor dan periksa daftar serta pratinjau sebelum mengirim sungguhan. Gmail harus terhubung. Hasil per donor tercatat di riwayat; pastikan daftar penerima sebelum mengulang pengiriman.</p>' +
       '<p>Pratinjau memakai format email yang sama, tetapi tampilan dapat berbeda di Gmail atau Outlook. Judul gambar ditempatkan di atas gambar agar lebih kompatibel.</p>' +

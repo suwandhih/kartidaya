@@ -112,7 +112,10 @@ const Buletin = (function(){
       '<button class="btn sm" data-buletin-action="pilih-foto" data-index="' + i + '">Pilih atau unggah foto</button></div>' +
       field('Judul gambar', 'judul', b.judul) + '<p class="tiny muted">Judul ditampilkan sebelum gambar agar lebih kompatibel dengan aplikasi email.</p>';
     if(b.tipe === 'teks') isi = field('Isi teks', 'isi', b.isi, true);
-    if(b.tipe === 'tautan') isi = field('Teks tautan', 'teks', b.teks) + '<p class="tiny muted">Tautan menuju halaman pembaca edisi majalah yang dipilih.</p>';
+    if(b.tipe === 'tautan') isi = field('Teks tautan', 'teks', b.teks) +
+      '<p class="tiny muted">' + (edisiPilihan(draft) ? 'Terhubung ke: ' + esc(edisiPilihan(draft).judul || 'majalah terpilih') : 'Belum ada majalah yang dipilih.') + '</p>' +
+      '<div class="row"><button class="btn sm" data-buletin-action="unggah-majalah">+ Unggah majalah</button>' +
+      (edisiPilihan(draft) ? '<button class="btn sm" data-buletin-action="baca-majalah">Buka majalah</button>' : '') + '</div>';
     if(b.tipe === 'gelap'){
       isi = field('Judul kotak', 'judul', b.judul);
       const bagian = Array.isArray(b.bagian) ? b.bagian : [];
@@ -159,7 +162,9 @@ const Buletin = (function(){
       '<div class="card field"><label for="buletin-majalah">Edisi majalah untuk tautan baca dan sampul</label>' +
       '<select id="buletin-majalah"><option value="">— Tidak dipilih —</option>' +
       edisiTersedia().map(function(e){ return '<option value="' + esc(e.id) + '"' + (draft.majalahId === e.id ? ' selected' : '') + '>' + esc(e.judul || e.id) + '</option>'; }).join('') +
-      (draft.majalahId && !edisiPilihan(draft) ? '<option value="' + esc(draft.majalahId) + '" selected>Edisi tidak ditemukan</option>' : '') + '</select></div>' +
+      (draft.majalahId && !edisiPilihan(draft) ? '<option value="' + esc(draft.majalahId) + '" selected>Edisi tidak ditemukan</option>' : '') + '</select>' +
+      '<div class="row" style="margin-top:8px"><button class="btn sm primary" data-buletin-action="unggah-majalah">+ Unggah majalah PDF</button>' +
+      '<span class="tiny muted">Unggah majalah atau pilih edisi yang sudah ada. Tautan “Baca di sini!” akan menuju edisi ini.</span></div></div>' +
       '<div class="buletin-editor"><div><div class="card"><div class="row"><label for="buletin-jenis">Tambah blok</label>' +
       '<select id="buletin-jenis">' + Object.keys(jenis).map(function(k){ return '<option value="' + k + '">' + jenis[k] + '</option>'; }).join('') +
       '</select><button class="btn" data-buletin-action="tambah-blok">+ Tambah</button></div></div>' +
@@ -171,8 +176,7 @@ const Buletin = (function(){
     const el = e.target;
     if(el.id === 'buletin-majalah'){
       draft.majalahId = el.value; berubah = true;
-      const p = document.getElementById('buletin-preview');
-      if(p) p.innerHTML = preview();
+      render();
       return;
     }
     const key = el.getAttribute('data-buletin-field');
@@ -203,6 +207,17 @@ const Buletin = (function(){
         if(draft !== editor || draft.blok.indexOf(b) < 0 || terkunciLogin || terkunciServer || currentPage !== 'buletin') return;
         b.gambar = foto.url; b.sampul = false; berubah = true; render();
       }});
+    }
+    else if(action === 'baca-majalah' && draft){
+      const url = opsiMajalah(draft).bacaUrl;
+      if(url) window.open(url, '_blank', 'noopener');
+    }
+    else if(action === 'unggah-majalah' && draft){
+      const editor = draft;
+      openMajalahForm(function(majalah){
+        if(draft !== editor || terkunciLogin || terkunciServer || currentPage !== 'buletin') return;
+        draft.majalahId = majalah.id; berubah = true;
+      });
     }
     else if(action === 'editor') bukaEditor(id);
     else if(action === 'pratinjau'){
