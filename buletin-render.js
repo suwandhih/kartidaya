@@ -3,6 +3,8 @@
 /* BuletinRender(buletin, { bacaUrl, sampulUrl, workerBase, majalah }) -> { html, teks }.
    URL eksplisit didahulukan; workerBase + majalah.id dapat membentuk URL edisi.
    Gambar dengan pilihan sampul memakai edisi terpilih; kaki tanpa URL memakai URL baca.
+   Blok teks: {tipe:'teks', judul, isi, warna, bagian:[{judul,isi}]}; warna menerima
+   #RGB atau #RRGGBB, selainnya putih. Isi mendukung format teks; judul berupa teks biasa.
    URL tidak aman diabaikan. Tidak membaca state, mengirim, atau mengubah data. */
 const BuletinRender = (function(){
   function str(v){ return v == null ? '' : String(v); }
@@ -59,6 +61,18 @@ const BuletinRender = (function(){
     tutup();
     return out.join('');
   }
+  function warnaTeks(v){
+    const warna = typeof v === 'string' ? v.trim() : '';
+    if(!/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(warna)) return null;
+    const hex = warna.slice(1).toLowerCase();
+    const rgb = hex.length === 3 ? hex.split('').map(function(c){ return c + c; }).join('') : hex;
+    const saluran = [0, 2, 4].map(function(i){
+      const c = parseInt(rgb.slice(i, i + 2), 16) / 255;
+      return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    });
+    const luminans = 0.2126 * saluran[0] + 0.7152 * saluran[1] + 0.0722 * saluran[2];
+    return {latar:'#' + rgb, depan:(luminans + 0.05) / 0.05 >= 1.05 / (luminans + 0.05) ? '#000000' : '#ffffff'};
+  }
   function row(content, style){
     return '<tr><td style="' + style + '">' + content + '</td></tr>';
   }
@@ -112,7 +126,18 @@ const BuletinRender = (function(){
         if(gambar){ content += '<img src="' + esc(gambar) + '" alt="' + esc(judul) + '" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0">'; plain.push('Gambar: ' + gambar); }
         if(content) html.push(row(content, 'padding:0;color:#222222'));
       }else if(b.tipe === 'teks'){
-        if(str(b.isi)){ html.push(row(format(b.isi), 'padding:16px 24px;color:#222222')); plain.push(polos(b.isi)); }
+        const warna = warnaTeks(b.warna);
+        if(str(b.judul)){ content += '<div style="font-size:20px;font-weight:bold;padding-bottom:12px">' + esc(b.judul) + '</div>'; plain.push(str(b.judul)); }
+        if(str(b.isi)){ content += format(b.isi); plain.push(polos(b.isi)); }
+        (Array.isArray(b.bagian) ? b.bagian : []).forEach(function(p){
+          if(!p || typeof p !== 'object' || Array.isArray(p)) return;
+          if(str(p.judul)){ content += '<div style="font-size:16px;font-weight:bold;padding:8px 0">' + esc(p.judul) + '</div>'; plain.push(str(p.judul)); }
+          if(str(p.isi)){ content += '<div>' + format(p.isi) + '</div>'; plain.push(polos(p.isi)); }
+        });
+        if(content){
+          const style = warna ? 'padding:16px 24px;background-color:' + warna.latar + ';color:' + warna.depan : 'padding:16px 24px;color:#222222';
+          html.push(row(content, style));
+        }
       }else if(b.tipe === 'tautan'){
         const label = str(b.teks) || 'Baca di sini!';
         html.push(row(link(label, baca, 'color:#bc4b0b;font-weight:bold;text-decoration:underline'), 'padding:16px 24px;text-align:center'));
@@ -152,7 +177,9 @@ const BuletinRender = (function(){
           content += '<div style="padding-bottom:12px">' + format(teksLama, true) + '</div>';
           plain.push(polos(teksLama));
         }
-        if(b.hakcipta){ content += '<div style="font-size:12px">' + esc(b.hakcipta) + '</div>'; plain.push(str(b.hakcipta)); }
+        const hakcipta = b.hakcipta === undefined || b.hakcipta === null || b.hakcipta === ''
+          ? '© 2026 Kartidaya Sahabat Indonesia. All Rights Reserved' : str(b.hakcipta);
+        if(hakcipta){ content += '<div style="font-size:12px">' + esc(hakcipta) + '</div>'; plain.push(hakcipta); }
         if(content) html.push(row(content, 'padding:24px;text-align:center;background-color:#272727;color:#ffffff'));
       }
       if(plain.length) teks.push(plain.join('\n'));

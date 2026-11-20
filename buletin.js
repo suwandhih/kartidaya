@@ -70,16 +70,13 @@ const Buletin = (function(){
   }
 
   const jenis = {
-    gambar: 'Gambar utama', teks: 'Teks', tautan: 'Tautan baca',
-    gelap: 'Kotak gelap', krem: 'Kotak krem', kaki: 'Kaki'
+    gambar: 'Gambar utama', teks: 'Teks', tautan: 'Tautan baca', kaki: 'Kaki'
   };
   function blokBaru(tipe){
     if(tipe === 'gambar') return {tipe:tipe, gambar:'', judul:''};
-    if(tipe === 'teks') return {tipe:tipe, isi:''};
+    if(tipe === 'teks') return {tipe:tipe, judul:'', isi:'', warna:'#ffffff', bagian:[]};
     if(tipe === 'tautan') return {tipe:tipe, teks:'Baca di sini!'};
-    if(tipe === 'gelap') return {tipe:tipe, judul:'', bagian:[{judul:'', isi:''}]};
-    if(tipe === 'krem') return {tipe:tipe, judul:'', isi:''};
-    if(tipe === 'kaki') return {tipe:tipe, tombol:'Baca majalah', url:'', sosial:'', hakcipta:''};
+    if(tipe === 'kaki') return {tipe:tipe, tombol:'Baca majalah', url:'', sosial:'', hakcipta:'© 2026 Kartidaya Sahabat Indonesia. All Rights Reserved'};
     return null;
   }
   function bukaEditor(id){
@@ -87,7 +84,14 @@ const Buletin = (function(){
     if(!b){ toast('Buletin tidak ditemukan', true); return; }
     draft = JSON.parse(JSON.stringify(b));
     if(!Array.isArray(draft.blok)) draft.blok = [];
-    berubah = false;
+    let hakciptaDilengkapi = false;
+    draft.blok.forEach(function(b){
+      if(b && b.tipe === 'kaki' && !String(b.hakcipta || '').trim()){
+        b.hakcipta = '© 2026 Kartidaya Sahabat Indonesia. All Rights Reserved';
+        hakciptaDilengkapi = true;
+      }
+    });
+    berubah = hakciptaDilengkapi;
     render();
   }
   function keluar(){
@@ -105,7 +109,8 @@ const Buletin = (function(){
     try { const u = new URL(url); return u.protocol === 'https:' && !u.username && !u.password ? u.href : ''; }
     catch(e){ return ''; }
   }
-  function toolbarTeks(i){
+  function toolbarTeks(i, bagian){
+    const indexBagian = bagian === undefined ? '' : ' data-bagian="' + bagian + '"';
     const tombol = [
       ['tebal','B','Tebal','tb-tebal'], ['miring','I','Miring','tb-miring'],
       ['stabilo','🖍','Stabilo','tb-stabilo'], ['poin','•','Daftar berpoin','tb-poin'],
@@ -113,7 +118,7 @@ const Buletin = (function(){
     ];
     return '<div class="toolbar-surat" role="toolbar" aria-label="Format teks">' + tombol.map(function(t){
       return '<button type="button" class="tb ' + t[3] + '" data-buletin-action="format-teks" data-index="' + i +
-        '" data-format="' + t[0] + '" title="' + t[2] + '" aria-label="' + t[2] + '">' + t[1] + '</button>';
+        '"' + indexBagian + ' data-format="' + t[0] + '" title="' + t[2] + '" aria-label="' + t[2] + '">' + t[1] + '</button>';
     }).join('') + '</div>';
   }
   function editorBlok(b, i){
@@ -122,24 +127,31 @@ const Buletin = (function(){
       '<div class="buletin-foto-pilihan">' + (fotoAman(b.gambar) ? '<img src="' + esc(fotoAman(b.gambar)) + '" alt="Foto yang dipilih">' : '<p class="tiny muted">Belum ada foto dipilih.</p>') +
       '<button class="btn sm" data-buletin-action="pilih-foto" data-index="' + i + '">Pilih atau unggah foto</button></div>' +
       field('Judul gambar', 'judul', b.judul) + '<p class="tiny muted">Judul ditampilkan sebelum gambar agar lebih kompatibel dengan aplikasi email.</p>';
-    if(b.tipe === 'teks') isi = '<div class="field"><label for="buletin-teks-' + i + '">Isi teks</label>' +
-      toolbarTeks(i) + '<textarea id="buletin-teks-' + i + '" data-buletin-field="isi" rows="5">' + esc(b.isi || '') + '</textarea>' +
-      '<span class="tiny muted">Pilih teks lalu tekan tombol format. Hasil terlihat di pratinjau.</span></div>';
+    if(b.tipe === 'teks' || b.tipe === 'gelap' || b.tipe === 'krem'){
+      const rawWarna = b.warna || '';
+      const warna = b.tipe === 'gelap' ? '#272727' : b.tipe === 'krem' ? '#f5ead6' :
+        (/^#[0-9a-f]{6}$/i.test(rawWarna) ? rawWarna : (/^#[0-9a-f]{3}$/i.test(rawWarna) ? '#' + rawWarna.slice(1).split('').map(function(c){ return c+c; }).join('') : '#ffffff'));
+      isi = field('Judul (boleh dikosongkan)', 'judul', b.judul) +
+        '<div class="field"><label>Warna latar <input type="color" data-buletin-field="warna" value="' + warna + '"></label>' +
+        '<span class="tiny muted">Putih untuk latar biasa. Warna tulisan menyesuaikan latar.</span></div>' +
+        '<div class="field"><label for="buletin-teks-' + i + '">Isi teks</label>' +
+        toolbarTeks(i) + '<textarea id="buletin-teks-' + i + '" data-buletin-field="isi" rows="5">' + esc(b.isi || '') + '</textarea>' +
+        '<span class="tiny muted">Pilih teks lalu tekan tombol format. Hasil terlihat di pratinjau.</span></div>';
+      const bagian = Array.isArray(b.bagian) ? b.bagian : [];
+      isi += bagian.map(function(p,n){
+        const attr = ' data-bagian="' + n + '"';
+        const id = 'buletin-teks-' + i + '-' + n;
+        return '<div class="buletin-bagian"><div class="row"><b>Sub-bagian ' + (n+1) + '</b>' +
+          '<button class="btn sm ghost" data-buletin-action="hapus-bagian" data-index="' + i + '" data-bagian="' + n + '">Hapus sub-bagian</button></div>' +
+          field('Judul kecil (boleh dikosongkan)', 'judul', p.judul, false, attr) +
+          '<div class="field"><label for="' + id + '">Isi sub-bagian</label>' + toolbarTeks(i,n) +
+          '<textarea id="' + id + '" data-buletin-field="isi"' + attr + ' rows="4">' + esc(p.isi || '') + '</textarea></div></div>';
+      }).join('') + '<button class="btn sm" data-buletin-action="tambah-bagian" data-index="' + i + '">+ Tambah sub-bagian</button>';
+    }
     if(b.tipe === 'tautan') isi = field('Teks tautan', 'teks', b.teks) +
       '<p class="tiny muted">' + (edisiPilihan(draft) ? 'Terhubung ke: ' + esc(edisiPilihan(draft).judul || 'majalah terpilih') : 'Belum ada majalah yang dipilih.') + '</p>' +
       '<div class="row"><button class="btn sm" data-buletin-action="unggah-majalah">+ Unggah majalah</button>' +
       (edisiPilihan(draft) ? '<button class="btn sm" data-buletin-action="baca-majalah">Buka majalah</button>' : '') + '</div>';
-    if(b.tipe === 'gelap'){
-      isi = field('Judul kotak', 'judul', b.judul);
-      const bagian = Array.isArray(b.bagian) ? b.bagian : [];
-      isi += bagian.map(function(p, n){
-        const attr = ' data-bagian="' + n + '"';
-        return '<div class="buletin-bagian"><div class="row"><b>Sub-bagian ' + (n+1) + '</b>' +
-          '<button class="btn sm ghost" data-buletin-action="hapus-bagian" data-index="' + i + '" data-bagian="' + n + '">Hapus sub-bagian</button></div>' +
-          field('Judul kecil', 'judul', p.judul, false, attr) + field('Isi', 'isi', p.isi, true, attr) + '</div>';
-      }).join('') + '<button class="btn sm" data-buletin-action="tambah-bagian" data-index="' + i + '">+ Sub-bagian</button>';
-    }
-    if(b.tipe === 'krem') isi = field('Judul', 'judul', b.judul) + field('Isi', 'isi', b.isi, true);
     if(b.tipe === 'kaki'){
       const sosial = BuletinRender.sosial(b);
       isi = field('Teks tombol', 'tombol', b.tombol) + field('Alamat tombol (https)', 'url', b.url) +
@@ -149,9 +161,9 @@ const Buletin = (function(){
           return '<div class="buletin-sosial"><img src="vendor/buletin-' + k + '.png" alt="">' + field(nama, 'sosial-' + k, sosial[k]) + '</div>';
         }).join('') +
         ((typeof b.sosial === 'string' && b.sosial.trim()) || b.sosialLama ? '<div class="field"><label>Teks sosial lama<textarea readonly rows="3">' + esc(b.sosialLama || b.sosial) + '</textarea></label><span class="tiny muted">Teks lama tetap disimpan. Salin alamatnya ke kolom yang sesuai bila ingin mengubahnya.</span></div>' : '') +
-        field('Hak cipta', 'hakcipta', b.hakcipta);
+        field('Hak cipta (wajib diisi)', 'hakcipta', b.hakcipta);
     }
-    return '<div class="card buletin-blok" data-blok="' + i + '"><div class="row"><b style="flex:1">' + (i+1) + '. ' + esc(jenis[b.tipe] || 'Blok tidak dikenal') + '</b>' +
+    return '<div class="card buletin-blok" data-blok="' + i + '"><div class="row"><b style="flex:1">' + (i+1) + '. ' + esc(jenis[b.tipe] || (b.tipe === 'gelap' || b.tipe === 'krem' ? 'Teks (versi lama)' : 'Blok tidak dikenal')) + '</b>' +
       '<button class="btn sm" data-buletin-action="naik" data-index="' + i + '"' + (i===0?' disabled':'') + '>↑</button>' +
       '<button class="btn sm" data-buletin-action="turun" data-index="' + i + '"' + (i===draft.blok.length-1?' disabled':'') + '>↓</button>' +
       '<button class="btn sm" data-buletin-action="duplikat-blok" data-index="' + i + '">Duplikat</button>' +
@@ -193,8 +205,18 @@ const Buletin = (function(){
       '<div class="stack">' + draft.blok.map(editorBlok).join('') + '</div></div>' +
       '<div><h3>Pratinjau langsung</h3><div class="buletin-preview" id="buletin-preview" inert>' + preview() + '</div></div></div>';
   }
+  function aktifkanTeks(b){
+    if(b.tipe === 'gelap' || b.tipe === 'krem'){
+      b.warna = b.tipe === 'gelap' ? '#272727' : '#f5ead6';
+      b.tipe = 'teks';
+    }
+  }
   function pasangHasilTeks(ta, b, hasil){
-    ta.value = hasil.nilai; b.isi = hasil.nilai; berubah = true;
+    ta.value = hasil.nilai; aktifkanTeks(b);
+    const n = ta.getAttribute('data-bagian');
+    if(n !== null){ if(!b.bagian || !b.bagian[Number(n)]) return; b.bagian[Number(n)].isi = hasil.nilai; }
+    else b.isi = hasil.nilai;
+    berubah = true;
     ta.focus(); ta.setSelectionRange(hasil.awal, hasil.akhir);
     const p = document.getElementById('buletin-preview');
     if(p) p.innerHTML = preview();
@@ -205,9 +227,10 @@ const Buletin = (function(){
   document.addEventListener('keydown', function(e){
     if(!draft || terkunciLogin || terkunciServer || currentPage !== 'buletin' || e.key !== 'Enter' || e.isComposing || e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return;
     const ta = e.target;
-    if(!ta.id || !/^buletin-teks-\d+$/.test(ta.id) || ta.selectionStart !== ta.selectionEnd) return;
-    const b = draft.blok[Number(ta.id.slice('buletin-teks-'.length))];
-    if(!b || b.tipe !== 'teks') return;
+    const match = (ta.id || '').match(/^buletin-teks-(\d+)(?:-(\d+))?$/);
+    if(!match || ta.selectionStart !== ta.selectionEnd) return;
+    const b = draft.blok[Number(match[1])];
+    if(!b || ['teks','gelap','krem'].indexOf(b.tipe) < 0) return;
     const hasil = BuletinFormat.lanjut(ta.value, ta.selectionStart);
     if(hasil){ e.preventDefault(); pasangHasilTeks(ta, b, hasil); }
   });
@@ -226,6 +249,7 @@ const Buletin = (function(){
     const b = container && draft.blok[Number(container.getAttribute('data-blok'))];
     if(!b) return;
     const n = el.getAttribute('data-bagian');
+    if(['gelap','krem'].indexOf(b.tipe) >= 0) aktifkanTeks(b);
     if(n !== null){ if(!b.bagian || !b.bagian[Number(n)]) return; b.bagian[Number(n)][key] = el.value; }
     else if(key.indexOf('sosial-') === 0){
       const k = key.slice(7);
@@ -247,8 +271,9 @@ const Buletin = (function(){
     if(action === 'format-teks' && draft){
       const i = Number(el.getAttribute('data-index'));
       const b = draft.blok[i];
-      const ta = document.getElementById('buletin-teks-' + i);
-      if(!b || b.tipe !== 'teks' || !ta) return;
+      const bagian = el.getAttribute('data-bagian');
+      const ta = document.getElementById('buletin-teks-' + i + (bagian === null ? '' : '-' + bagian));
+      if(!b || ['teks','gelap','krem'].indexOf(b.tipe) < 0 || !ta) return;
       if(el.getAttribute('data-format') === 'bersihkan' && ta.selectionStart === ta.selectionEnd){
         toast('Pilih dulu teks yang ingin dibersihkan', true); ta.focus(); return;
       }
@@ -293,6 +318,8 @@ const Buletin = (function(){
     }
     else if(action === 'kembali'){ if(keluar()) render(); }
     else if(action === 'simpan-blok' && draft){
+      const kosong = draft.blok.findIndex(function(x){ return x.tipe === 'kaki' && !String(x.hakcipta || '').trim(); });
+      if(kosong >= 0){ toast('Hak cipta pada blok ' + (kosong+1) + ' harus diisi', true); return; }
       const b = cari(draft.id);
       if(!b){ toast('Buletin tidak ditemukan', true); return; }
       b.blok = JSON.parse(JSON.stringify(draft.blok)); b.majalahId = draft.majalahId || ''; b.diubah = new Date().toISOString();
@@ -313,12 +340,15 @@ const Buletin = (function(){
       else if(action === 'hapus-blok'){
         if(!confirm('Hapus blok ini?')) return;
         draft.blok.splice(i, 1);
-      }else if(action === 'tambah-bagian' && b.tipe === 'gelap'){
+      }else if(action === 'tambah-bagian' && ['teks','gelap','krem'].indexOf(b.tipe) >= 0){
+        aktifkanTeks(b);
         if(!Array.isArray(b.bagian)) b.bagian = [];
         b.bagian.push({judul:'', isi:''});
-      }else if(action === 'hapus-bagian' && b.tipe === 'gelap'){
+      }else if(action === 'hapus-bagian' && ['teks','gelap','krem'].indexOf(b.tipe) >= 0){
         const n = Number(el.getAttribute('data-bagian'));
         if(!Array.isArray(b.bagian) || !Number.isInteger(n) || !b.bagian[n]) return;
+        if(!confirm('Hapus sub-bagian ini?')) return;
+        aktifkanTeks(b);
         b.bagian.splice(n, 1);
       }else return;
       berubah = true; render();

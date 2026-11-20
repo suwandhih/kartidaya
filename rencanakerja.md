@@ -5828,3 +5828,11 @@ Blok Teks memiliki tombol tebal, miring, stabilo, poin, nomor, dan hapus format.
 format tetap disimpan sebagai teks agar kompatibel dengan buletin yang sudah
 ada; pratinjau dan email menampilkan hasil format. Enter meneruskan daftar;
 Enter pada baris daftar kosong mengakhirinya.
+
+### 39.14 Penyatuan blok Teks — 20 November 2026
+
+Pilihan blok kotak gelap dan krem diganti satu blok Teks dengan warna latar,
+judul opsional dan sub-bagian. Warna tulisan dipilih otomatis agar terbaca;
+setiap isi sub-bagian juga memiliki toolbar. Blok lama tetap tampil seperti
+semula; saat diubah dikonversi menjadi Teks tanpa membuang isinya. Hak cipta
+pada kaki diisi otomatis dengan teks Kartidaya 2026, bisa diedit dan wajib diisi.
