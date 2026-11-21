@@ -112,7 +112,13 @@ var PANDUAN = [
       '<p>Majalah yang dipilih dipakai bersama oleh Tautan baca, sampul, dan tautan ke majalah di bagian lain. Untuk sampul, centang <b>Gunakan sampul edisi majalah yang dipilih</b> pada Gambar utama.</p>' +
       '<h4>6. Atur bagian Kaki</h4>' +
       '<p>Tekan <b>+ Tambah tautan</b> jika perlu. Kaki boleh memiliki hingga tiga tautan, misalnya satu untuk membaca majalah dan satu untuk website. Isi tulisan dan pilih tujuannya. Untuk website, isi alamat yang diawali <b>https://</b>. Gunakan <b>Hapus tautan</b> jika tidak diperlukan.</p>' +
-      '<p>Ikon Instagram, Facebook, X, dan Website berada dalam satu baris tetap. Alamat X boleh dikosongkan: ikonnya tidak muncul di email sampai alamat diisi. Menambah atau menghapus ikon tidak tersedia — cukup ubah alamatnya. Tulisan hak cipta juga boleh diubah, tetapi tidak boleh dikosongkan.</p>' +
+      '<p>Ikon <b>Instagram, Facebook, X, dan Website</b> berada dalam satu baris tetap. ' +
+        'Alamat X boleh dikosongkan: ikonnya tidak muncul di email sampai alamat diisi. ' +
+        'Menambah atau menghapus ikon tidak tersedia — cukup ubah alamatnya. Ini juga ' +
+        'berlaku untuk Instagram, Facebook, dan Website: alamat yang dikosongkan membuat ' +
+        'ikonnya tidak ikut terkirim. Alamat yang diisi harus diawali <b>https://</b> dan ' +
+        'benar, kalau tidak pengiriman ditolak dengan pesan yang menyebut ikonnya. ' +
+        'Tulisan hak cipta boleh diubah, tetapi tidak boleh dikosongkan.</p>' +
       '<h4>7. Simpan dan periksa</h4>' +
       '<ol class="pd-langkah">' +
         '<li>Tekan <b>Simpan blok</b>, lalu <b>Kembali</b>. Untuk mengubah susunan lagi, tekan <b>Susun blok</b> pada buletin tersebut. Untuk judul, edisi, atau tanggal, tekan <b>Ubah data</b>.</li>' +
@@ -188,8 +194,9 @@ var PANDUAN = [
         '<tr><td><b>Isian serba guna</b></td><td>Lima kotak isian bebas untuk hal yang ' +
           'tidak ada di data donor — tanggal acara, waktu, tempat, pembicara.</td></tr>' +
         '<tr><td><b>Cc</b></td><td>Alamat tambahan yang menerima salinan surat.</td></tr>' +
-        '<tr><td><b>Lampiran</b></td><td>Berkas PDF, foto, atau dokumen yang ikut terkirim. ' +
-          'Maksimal 10 MB per berkas.</td></tr>' +
+        '<tr><td><b>Lampiran</b></td><td>Berkas PDF, foto, atau dokumen yang disiapkan untuk ' +
+          'surat. Maksimal 10 MB per berkas. <b>Batas saat ini:</b> berkas yang disiapkan ' +
+          'tercatat di riwayat, tetapi belum ikut terpasang di email yang dikirim.</td></tr>' +
         '<tr><td><b>Kanal</b></td><td>Jalur pengiriman. Saat ini <b>Email</b>; WhatsApp ' +
           'ditunda sampai nomor resmi tersedia.</td></tr>' +
       '</tbody></table></div>' +
@@ -201,8 +208,8 @@ var PANDUAN = [
         '<tr><td><b>Kode kwitansi</b></td><td><span class="mono">KWT-20261113-0001</span> — ' +
           'menandai satu transaksi keuangan.</td></tr>' +
         '<tr><td><b>Kode kiriman</b></td><td><span class="mono">KRM-20261113-A1B2</span> — ' +
-          'menandai satu pengiriman ke satu donor. Berbeda setiap kali kirim, jadi bisa ' +
-          'dipakai saat donor bertanya.</td></tr>' +
+                  'menandai satu pengiriman ke satu donor. Dibuat acak, jadi bisa berbeda ' +
+                  'walaupun tanggalnya sama, dan aman dipakai saat donor bertanya.</td></tr>' +
         '<tr><td><b>Majalah</b></td><td>Berkas PDF yang diubah jadi halaman gambar. ' +
           'Email memuat sampul dan tombol baca, bukan seluruh halamannya.</td></tr>' +
       '</tbody></table></div>' +
@@ -242,7 +249,7 @@ var PANDUAN = [
 
       '<h4>Menambah donor</h4>' +
       '<ol class="pd-langkah">' +
-        '<li>Buka menu <b>Donor</b>, tekan <b>+ Tambah</b>.</li>' +
+        '<li>Buka menu <b>Donor</b>, tekan <b>+ Tambah Donor</b>.</li>' +
         '<li>Isi <b>PIC</b> atau <b>Instansi</b> — minimal salah satu. Kalau keduanya ' +
           'kosong, data tidak bisa disimpan.</li>' +
         '<li>Isi <b>email</b> (dan <b>email kedua</b> kalau ada). Untuk pengiriman surat, ' +
@@ -373,14 +380,17 @@ var PANDUAN = [
 
       '<h4>Program</h4>' +
       '<ul>' +
-        '<li>Dikelola dari menu <b>Keuangan</b> → <b>Kelola program</b>.</li>' +
+        '<li>Dikelola dari menu <b>Keuangan</b> → <b>Kelola program</b>. Jendela ' +
+          '<b>Program Dukungan</b> memuat tombol <b>+ Tambah</b>, <b>Ubah</b>, dan ' +
+          '<b>Hapus</b>; setiap baris juga menampilkan jumlah transaksi yang memakainya.</li>' +
         '<li>Program dipakai saat mencatat transaksi, dan namanya ikut tercetak di ' +
           'kwitansi sebagai keterangan &ldquo;Untuk&rdquo;.</li>' +
-        '<li>Program yang tidak dipakai lagi bisa dinonaktifkan — transaksi lama ' +
-          'tetap aman.</li>' +
+        '<li>Program yang sudah dipakai transaksi tidak bisa dihapus — aplikasi ' +
+          'menyarankan menonaktifkannya saja, sehingga transaksi lama tetap aman.</li>' +
       '</ul>' +
 
-      '<p><button class="btn sm" data-panduan-halaman="kategori">Buka halaman Kategori</button></p>'
+      '<p><button class="btn sm" data-panduan-halaman="kategori">Buka halaman Kategori</button> ' +
+        '<button class="btn sm" data-panduan-halaman="keuangan">Buka halaman Keuangan</button></p>'
   },
 
   /* ---------------- 5. KEUANGAN ---------------- */
@@ -404,7 +414,8 @@ var PANDUAN = [
       '<h4>Mencatat satu transaksi</h4>' +
       '<ol class="pd-langkah">' +
         '<li>Buka menu <b>Keuangan</b>, tekan <b>+ Tambah</b>.</li>' +
-        '<li>Pilih donor: ketik namanya, atau klik huruf awal untuk melompat.</li>' +
+        '<li>Pilih donor: ketik namanya, atau tekan tombol <b>▾</b> lalu klik huruf ' +
+          'pertama untuk melompat.</li>' +
         '<li>Isi <b>Tanggal donor</b>.</li>' +
         '<li>Pada baris <b>program · mata uang · jumlah</b>, pilih program dan isi nominal. ' +
           'Butuh baris lain? Tekan <b>+ Tambah program</b>.</li>' +
@@ -633,8 +644,9 @@ var PANDUAN = [
       '<ul>' +
         '<li><b>Kwitansi</b> tercetak di dalam email, angkanya per donor dari menu Keuangan.</li>' +
         '<li><b>Majalah</b> dikirim sebagai sampul + tombol baca, supaya email tetap ringan.</li>' +
-        '<li><b>Lampiran berkas</b> diunggah lebih dulu. Kalau unggahan gagal, surat tetap ' +
-          'dikirim tanpa berkas itu dan Anda diberi tahu.</li>' +
+        '<li><b>Lampiran berkas</b> diunggah lebih dulu dan tercatat di riwayat surat. ' +
+          '<b>Batas saat ini:</b> berkas belum ikut terpasang di email yang dikirim — ' +
+          'untuk sekarang kirim tautan unduhan di isi surat bila penerima memerlukannya.</li>' +
       '</ul>' +
 
             '<h4>Kirim lewat pos atau kurir</h4>' +
@@ -706,6 +718,9 @@ var PANDUAN = [
           '<b>Alamat email uji</b>. Dikosongkan berarti memakai akun Gmail yang terhubung.</li>' +
         '<li>Hasilnya tampil sebagai satu baris kecil di halaman Tulis: status ' +
           '<b>✓✓ Dibaca</b> dan <b>✓ Dikonfirmasi</b>.</li>' +
+        '<li>Tombol ini juga muncul di layar pratinjau (<b>👁 Pratinjau email</b>) dan di layar ' +
+          '<b>🔍 Periksa sebelum kirim</b>, jadi Anda bisa mencoba ke sendiri sebelum ' +
+          'mengirim ke donor sungguhan.</li>' +
       '</ul>' +
 
       '<h4>Daftar periksa sebelum kirim sungguhan</h4>' +
@@ -780,7 +795,8 @@ var PANDUAN = [
     ico: '⚠',
     kata: ['masalah', 'solusi', 'galat', 'error', 'gagal', 'tidak bisa', 'access_denied',
            'origin_mismatch', 'kwitansi rp 0', 'tidak terkirim', 'simulasi', 'terkunci',
-           'offline', 'tidak muncul', 'data hilang', 'lampiran', 'majalah', 'spam',
+           'offline', 'tidak muncul', 'data hilang', 'lampiran', 'lampiran tidak terkirim',
+           'berkas tidak sampai', 'majalah', 'spam',
            'belum dibaca', 'draft', 'jumlah label', 'label kurang', 'alamat tidak tercetak',
            '2 penerima 1 label', '1 nama'],
     isi: '' +
@@ -856,9 +872,11 @@ var PANDUAN = [
           'yang menang.</li>' +
       '</ul>' +
 
-      '<h4>Lampiran gagal diunggah</h4>' +
-      '<p>Batasnya 10 MB per berkas. Perkecil berkasnya, atau kirim tautan unduhan ' +
-        'di isi surat. Surat tetap terkirim walau lampirannya gagal — Anda akan diberi tahu.</p>' +
+      '<h4>Lampiran gagal diunggah atau tidak muncul di email</h4>' +
+      '<p>Batasnya 10 MB per berkas. Perkecil berkasnya bila unggahan ditolak. ' +
+        'Perlu diketahui: berkas yang berhasil diunggah <b>tercatat di riwayat surat</b>, ' +
+        'tetapi <b>belum ikut terpasang pada email yang dikirim</b>. Untuk sekarang, ' +
+        'kirim tautan unduhan di isi surat kalau penerima memerlukan berkasnya.</p>' +
 
       '<h4>Majalah hilang atau tidak bisa dilampirkan</h4>' +
       '<p>Berkas majalah disimpan di server, bukan di browser. Kalau catatannya tertinggal ' +
@@ -957,7 +975,8 @@ var PANDUAN = [
       '</ul>' +
 
       '<p class="tiny muted">Panduan ini membahas email saja. WhatsApp belum dipakai ' +
-        'sampai nomor resmi tersedia.</p>'
+        'sampai nomor resmi tersedia.</p>' +
+      '<p><button class="btn sm" data-panduan-halaman="pengaturan">Buka halaman Setelan</button></p>'
   }
 ];
 
