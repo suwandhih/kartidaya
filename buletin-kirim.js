@@ -76,8 +76,9 @@ const BuletinKirim = (function(){
       }
       if(b.tipe === 'kaki'){
         const links = BuletinRender.sosial(b);
-        for(const k of ['instagram','facebook','website']){
-          if(!amanURL(links[k])) throw new Error('Blok ' + (i + 1) + ': alamat ' + k + ' harus diisi dengan alamat HTTPS yang benar.');
+        for(const k of BuletinRender.sosial.kunci){
+          if(!links[k]) continue;
+          if(!amanURL(links[k])) throw new Error('Blok ' + (i + 1) + ': alamat ' + BuletinRender.sosial.nama[k] + ' harus diisi dengan alamat HTTPS yang benar atau dikosongkan.');
         }
       }
     });

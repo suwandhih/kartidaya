@@ -8,6 +8,11 @@ Setiap donor punya **buku sendiri** berisi surat keluar dan masuk yang tercampur
 urut waktu. Surat bisa dikirim dan diterima sungguhan lewat **email** (Gmail API +
 OAuth 2.0) maupun **WhatsApp** (Meta WhatsApp Cloud API lewat Cloudflare Worker).
 
+## Panduan untuk pengembang dan AI
+
+Sebelum mengubah aplikasi, baca [AGENTS.md](AGENTS.md) dan spesifikasi aktif
+[prompt.md](prompt.md). Setiap revisi harus memperbarui spesifikasi tersebut.
+
 ## Coba langsung
 
 **https://suwandhih.github.io/kartidaya/**

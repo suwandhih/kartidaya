@@ -112,7 +112,7 @@ var PANDUAN = [
       '<p>Majalah yang dipilih dipakai bersama oleh Tautan baca, sampul, dan tautan ke majalah di bagian lain. Untuk sampul, centang <b>Gunakan sampul edisi majalah yang dipilih</b> pada Gambar utama.</p>' +
       '<h4>6. Atur bagian Kaki</h4>' +
       '<p>Tekan <b>+ Tambah tautan</b> jika perlu. Kaki boleh memiliki hingga tiga tautan, misalnya satu untuk membaca majalah dan satu untuk website. Isi tulisan dan pilih tujuannya. Untuk website, isi alamat yang diawali <b>https://</b>. Gunakan <b>Hapus tautan</b> jika tidak diperlukan.</p>' +
-      '<p>Ikon Instagram, Facebook, dan Website sudah tersedia. Alamatnya dan tulisan hak cipta boleh diubah, tetapi tidak boleh dikosongkan.</p>' +
+      '<p>Ikon Instagram, Facebook, X, dan Website berada dalam satu baris tetap. Alamat X boleh dikosongkan: ikonnya tidak muncul di email sampai alamat diisi. Menambah atau menghapus ikon tidak tersedia — cukup ubah alamatnya. Tulisan hak cipta juga boleh diubah, tetapi tidak boleh dikosongkan.</p>' +
       '<h4>7. Simpan dan periksa</h4>' +
       '<ol class="pd-langkah">' +
         '<li>Tekan <b>Simpan blok</b>, lalu <b>Kembali</b>. Untuk mengubah susunan lagi, tekan <b>Susun blok</b> pada buletin tersebut. Untuk judul, edisi, atau tanggal, tekan <b>Ubah data</b>.</li>' +

@@ -175,9 +175,10 @@ const Buletin = (function(){
             (tujuan === 'website' ? field('Alamat website (https)', 'url', t.url, false, ' data-tautan="' + n + '"') : '<p class="tiny muted">Menggunakan majalah yang dipilih di atas.</p>') + '</div>';
         }).join('') +
         (daftar.length < 3 ? '<button class="btn sm" data-buletin-action="tambah-tautan-kaki" data-index="' + i + '">+ Tambah tautan</button>' : '') +
-        '<h4>Tautan sosial</h4><p class="tiny muted">Tiga ikon tetap ditampilkan. Alamatnya dapat diubah.</p>' +
-        ['instagram','facebook','website'].map(function(k){
-          const nama = {instagram:'Instagram',facebook:'Facebook',website:'Website'}[k];
+        '<h4>Ikon media sosial</h4><p class="tiny muted">Satu baris ikon tetap; tidak dapat ditambah atau dihapus, hanya alamatnya yang diubah. ' +
+        'Ikon X baru muncul di email setelah alamatnya diisi. Alamat boleh dikosongkan untuk menyembunyikan ikon.</p>' +
+        Object.keys(BuletinRender.sosial.nama).map(function(k){
+          const nama = BuletinRender.sosial.nama[k];
           return '<div class="buletin-sosial"><img src="vendor/buletin-' + k + '.png" alt="">' + field(nama, 'sosial-' + k, sosial[k]) + '</div>';
         }).join('') +
         ((typeof b.sosial === 'string' && b.sosial.trim()) || b.sosialLama ? '<div class="field"><label>Teks sosial lama<textarea readonly rows="3">' + esc(b.sosialLama || b.sosial) + '</textarea></label><span class="tiny muted">Teks lama tetap disimpan. Salin alamatnya ke kolom yang sesuai bila ingin mengubahnya.</span></div>' : '') +
@@ -316,7 +317,7 @@ const Buletin = (function(){
     if(n !== null){ if(!b.bagian || !b.bagian[Number(n)]) return; b.bagian[Number(n)][key] = el.value; }
     else if(key.indexOf('sosial-') === 0){
       const k = key.slice(7);
-      if(['instagram','facebook','website'].indexOf(k) < 0) return;
+      if(BuletinRender.sosial.kunci.indexOf(k) < 0) return;
       if(typeof b.sosial === 'string' && b.sosial.trim()) b.sosialLama = b.sosial;
       b.sosial = BuletinRender.sosial(b);
       b.sosial[k] = el.value;

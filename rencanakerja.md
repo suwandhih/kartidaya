@@ -5816,11 +5816,15 @@ unggah menerima sesi akun maupun kunci aplikasi.
 
 ### 39.12 Tautan sosial kaki buletin — 20 November 2026
 
-Blok kaki memiliki tiga ikon tetap Instagram, Facebook, dan Website dengan
-alamat awal Kartidaya. Masing-masing alamat dapat diubah, tetapi tidak dapat
-ditambah atau dihapus; alamat HTTPS wajib diisi sebelum mengirim. Teks sosial
-lama tetap dipertahankan. Ikon berupa gambar publik di GitHub Pages; sebagian
-aplikasi email dapat memblokir gambar sampai penerima mengizinkannya.
+Blok kaki memiliki satu baris ikon tetap Instagram, Facebook, X, dan Website
+dengan alamat awal Kartidaya. Masing-masing alamat dapat diubah, tetapi ikon
+tidak dapat ditambah atau dihapus. Alamat boleh dikosongkan: ikon yang kosong
+tidak tampil di email. Ikon X bawaannya kosong sehingga baru muncul setelah
+alamat X diisi; contoh alamatnya `https://x.com/…`. Alamat HTTPS wajib diisi
+bila kolomnya tidak kosong, agar tidak ada tautan rusak saat mengirim. Teks
+sosial lama tetap dipertahankan dan alamat `x.com`/`twitter.com` dikenali dari
+teks lama. Ikon berupa gambar publik di GitHub Pages; sebagian aplikasi email
+dapat memblokir gambar sampai penerima mengizinkannya.
 
 ### 39.13 Toolbar teks buletin — 20 November 2026
 
@@ -5843,7 +5847,7 @@ Kaki dapat berisi nol sampai tiga tautan teks; setiap tujuan dapat memakai
 edisi majalah terpilih atau alamat website HTTPS. Blok Teks dan sub-bagian
 memiliki tombol untuk memasang tautan pada tulisan ke majalah atau website.
 Edisi yang sama dipakai oleh blok Tautan baca, tautan Teks dan tautan Kaki.
-Tiga ikon sosial tetap terpisah. Kaki lama tetap terbaca.
+Baris ikon sosial terpisah dari tautan teks. Kaki lama tetap terbaca.
 
 ### 39.16 Perbaikan gulir pratinjau — 20 November 2026
 
@@ -5873,3 +5877,15 @@ sendiri dengan tombol Gunakan foto.
 Tombol [?] di halaman Donor, Tulis, Buletin, dan Keuangan membuka bab yang
 sesuai. Pengguna tetap dapat memilih bab lain atau mencari panduan. Halaman
 lain membuka panduan awal seperti sebelumnya.
+
+### 39.21 Ikon X pada kaki buletin — 21 November 2026
+
+Ikon X ditambahkan sebagai ikon keempat pada baris ikon tetap kaki, setelah
+Facebook. Tetap satu record: ikon tidak dapat ditambah atau dihapus, hanya
+alamatnya yang dapat diubah. Alamat X bawaannya kosong; ikon baru muncul di
+email setelah alamat diisi, dan kembali tersembunyi bila alamat dikosongkan.
+Ikon lain mengikuti aturan yang sama. Tautan `x.com` atau `twitter.com` pada
+teks sosial lama dikenali sebagai alamat X; tautan lama lainnya tidak lagi
+dipakai sebagai alamat Website. Berkas `vendor/buletin-x.png` dibuat dengan
+bentuk yang sama seperti tiga ikon lain (lingkaran oranye 64 × 64, lambang
+putih).
